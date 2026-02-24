@@ -8,6 +8,7 @@ class UsuarioModel {
   final bool aprovado;
   final DateTime? dataCadastro;
   final String? fcmToken;
+  final bool visualizaTodos;
 
   UsuarioModel({
     required this.id,
@@ -17,6 +18,7 @@ class UsuarioModel {
     this.aprovado = false,
     this.dataCadastro,
     this.fcmToken,
+    this.visualizaTodos = false,
   });
 
   // Converter para Map (para salvar no Firestore)
@@ -29,6 +31,7 @@ class UsuarioModel {
       'aprovado': aprovado,
       'data_cadastro': dataCadastro != null ? Timestamp.fromDate(dataCadastro!) : FieldValue.serverTimestamp(),
       'fcm_token': fcmToken,
+      'visualiza_todos': visualizaTodos,
     };
   }
 
@@ -44,6 +47,7 @@ class UsuarioModel {
           ? (map['data_cadastro'] as Timestamp).toDate() 
           : null,
       fcmToken: map['fcm_token'],
+      visualizaTodos: map['visualiza_todos'] ?? false,
     );
   }
 }

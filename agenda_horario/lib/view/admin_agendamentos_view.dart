@@ -20,6 +20,8 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
   final FirestoreService _firestoreService = FirestoreService();
   DateTime _dataDashboard = DateTime.now();
   double _precoSessao = 100.00;
+  final TextEditingController _searchController = TextEditingController();
+  String _filtroNome = '';
 
   @override
   void initState() {
@@ -34,6 +36,12 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
         _precoSessao = config.precoSessao;
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -296,38 +304,82 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
 
   // --- CLIENTES TAB (PACOTES) ---
   Widget _buildClientesTab() {
-    return StreamBuilder<List<Cliente>>(
-      stream: _firestoreService.getClientesAprovados(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final clientes = snapshot.data!;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextField(
+            controller: _searchController,
+            decoration: const InputDecoration(
+              labelText: 'Pesquisar Cliente',
+              prefixIcon: Icon(Icons.search),
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (value) {
+              setState(() {
+                _filtroNome = value.toLowerCase();
+              });
+            },
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<List<Cliente>>(
+            stream: _firestoreService.getClientesAprovados(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+              final todosClientes = snapshot.data!;
+              
+              final clientes = _filtroNome.isEmpty 
+                  ? todosClientes 
+                  : todosClientes.where((c) => c.nome.toLowerCase().contains(_filtroNome)).toList();
 
-        if (clientes.isEmpty) return const Center(child: Text('Nenhum cliente cadastrado.'));
+              if (clientes.isEmpty) return const Center(child: Text('Nenhum cliente encontrado.'));
 
-        return ListView.builder(
-          itemCount: clientes.length,
-          itemBuilder: (context, index) {
-            final cliente = clientes[index];
-            return Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.teal,
-                  child: Text(cliente.nome.isNotEmpty ? cliente.nome[0].toUpperCase() : '?'),
-                ),
-                title: Text(cliente.nome),
-                subtitle: Text('Saldo de Sessões: ${cliente.saldoSessoes}'),
-                trailing: ElevatedButton.icon(
-                  icon: const Icon(Icons.add_circle, size: 16),
-                  label: const Text('Pacote'),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade50),
-                  onPressed: () => _adicionarPacoteDialog(cliente),
-                ),
-              ),
-            );
-          },
-        );
-      },
+              return ListView.builder(
+                itemCount: clientes.length,
+                itemBuilder: (context, index) {
+                  final cliente = clientes[index];
+                  return Card(
+                    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.teal,
+                        child: Text(cliente.nome.isNotEmpty ? cliente.nome[0].toUpperCase() : '?'),
+                      ),
+                      title: Text(cliente.nome),
+                      subtitle: Text('Saldo de Sessões: ${cliente.saldoSessoes}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          StreamBuilder<UsuarioModel?>(
+                            stream: _firestoreService.getUsuarioStream(cliente.uid),
+                            builder: (context, snapshot) {
+                              final usuario = snapshot.data;
+                              final podeVerTudo = usuario?.visualizaTodos ?? false;
+                              return IconButton(
+                                icon: Icon(podeVerTudo ? Icons.visibility : Icons.visibility_off),
+                                color: podeVerTudo ? Colors.blue : Colors.grey,
+                                tooltip: 'Permitir ver todos os horários',
+                                onPressed: () => _firestoreService.atualizarPermissaoVisualizacao(cliente.uid, !podeVerTudo),
+                              );
+                            },
+                          ),
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.add_circle, size: 16),
+                            label: const Text('Pacote'),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade50),
+                            onPressed: () => _adicionarPacoteDialog(cliente),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

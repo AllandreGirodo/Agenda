@@ -79,6 +79,15 @@ class FirestoreService {
     return null;
   }
 
+  Stream<UsuarioModel?> getUsuarioStream(String uid) {
+    return _db.collection('usuarios').doc(uid).snapshots().map((doc) {
+      if (doc.exists && doc.data() != null) {
+        return UsuarioModel.fromMap(doc.data()!);
+      }
+      return null;
+    });
+  }
+
   Future<void> salvarUsuario(UsuarioModel usuario) async {
     await _db.collection('usuarios').doc(usuario.id).set(usuario.toMap());
   }
@@ -99,6 +108,10 @@ class FirestoreService {
 
   Future<void> atualizarToken(String uid, String token) async {
     await _db.collection('usuarios').doc(uid).update({'fcm_token': token});
+  }
+
+  Future<void> atualizarPermissaoVisualizacao(String uid, bool permitir) async {
+    await _db.collection('usuarios').doc(uid).update({'visualiza_todos': permitir});
   }
 
   // --- Agendamentos ---

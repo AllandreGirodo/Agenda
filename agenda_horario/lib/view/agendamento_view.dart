@@ -7,6 +7,7 @@ import '../controller/scheduling_service.dart';
 import 'login_view.dart';
 import 'perfil_view.dart';
 import '../controller/config_model.dart';
+import '../usuario_model.dart';
 
 class AgendamentoView extends StatefulWidget {
   const AgendamentoView({super.key});
@@ -20,6 +21,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
   DateTime _dataSelecionada = DateTime.now();
   String? _horarioSelecionado;
   ConfigModel? _config;
+  bool _mostrarTodos = false;
 
   @override
   void initState() {
@@ -33,12 +35,30 @@ class _AgendamentoViewState extends State<AgendamentoView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final currentUser = FirebaseAuth.instance.currentUser;
+
+    return StreamBuilder<UsuarioModel?>(
+      stream: currentUser != null ? _firestoreService.getUsuarioStream(currentUser.uid) : Stream.value(null),
+      builder: (context, userSnapshot) {
+        final usuario = userSnapshot.data;
+        final temPermissao = usuario?.visualizaTodos ?? false;
+
+        return Scaffold(
       appBar: AppBar(
         title: const Text('Agendamentos'),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
         actions: [
+          if (temPermissao)
+            IconButton(
+              icon: Icon(_mostrarTodos ? Icons.groups : Icons.person),
+              tooltip: _mostrarTodos ? 'Vendo Todos' : 'Vendo Meus',
+              onPressed: () {
+                setState(() {
+                  _mostrarTodos = !_mostrarTodos;
+                });
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.person),
             tooltip: 'Meu Perfil',
@@ -69,7 +89,12 @@ class _AgendamentoViewState extends State<AgendamentoView> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final agendamentos = snapshot.data ?? [];
+          var agendamentos = snapshot.data ?? [];
+
+          // Filtro: Se não estiver mostrando todos (ou não tiver permissão), filtra pelos do usuário
+          if (!(_mostrarTodos && temPermissao) && currentUser != null) {
+             agendamentos = agendamentos.where((a) => a.clienteId == currentUser.uid).toList();
+          }
 
           if (agendamentos.isEmpty) {
             return const Center(child: Text('Nenhum agendamento encontrado.'));
@@ -79,7 +104,6 @@ class _AgendamentoViewState extends State<AgendamentoView> {
             itemCount: agendamentos.length,
             itemBuilder: (context, index) {
               final agendamento = agendamentos[index];
-              final currentUser = FirebaseAuth.instance.currentUser;
               final isMyAppointment = currentUser != null && agendamento.clienteId == currentUser.uid;
 
               IconData statusIcon;
@@ -157,6 +181,8 @@ class _AgendamentoViewState extends State<AgendamentoView> {
         backgroundColor: Colors.teal,
         child: const Icon(Icons.add, color: Colors.white),
       ),
+    );
+      }
     );
   }
 
