@@ -16,22 +16,48 @@ firebase login
 firebase login --no-localhost
 flutter pub add firebase_core
 dart pub global activate flutterfire_cli
-flutter upgrade --force
-cd /workspaces/Agenda
-git clone https://github.com/flutter/flutter.git -b stable --depth 1
-echo 'export PATH="$PATH:/workspaces/Agenda/flutter/bin"' >> ~/.bashrc
-source ~/.bashrc
-echo 'export PATH="$PATH:/workspaces/Agenda/flutter/bin"' >> ~/.bashrc
-source ~/.bashrc
+* 
+dart pub global activate flutterfire_cli
+export PATH="$PATH":"$HOME/.pub-cache/bin"
 echo 'export PATH="$(npm get prefix)/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-echo $PATH | grep -o '[^:]*firebase[^:]*'
-printenv PATH
-echo 'export PATH="$PATH:/workspaces/Agenda/flutter/bin"' >> ~/.bashrc
-printenv PATH
-source ~/.bashrc
-printenv PATH
-clear
-echo 'export PATH="$PATH:/workspaces/Agenda/flutter/bin"' >> ~/.bashrc
-clear
+export PATH="$PATH":"$HOME/.pub-cache/bin"
+# Windows (PowerShell/CMD) ou em WSL/bash:
+export AGENDA_ROOT="C:\Users\Allandre Girodo\Documents\TCC\Agenda"
+# ou no Linux/WSL:
+export AGENDA_ROOT="/mnt/c/Users/Allandre Girodo/Documents/TCC/Agenda"
+echo 'export PATH="$(npm get prefix)/bin:$PATH"' >> ~/.bashrc
+dart pub global activate flutterfire_cli
+echo 'export PATH="$(npm get prefix)/bin:$PATH"' >> ~/.bashrc
+dart pub global activate flutterfire_cli
+export AGENDA_ROOT="/mnt/c/Users/Allandre Girodo/Documents/TCC/Agenda"
+export PATH="$(npm get prefix)/bin:$PATH"
+dart pub global activate flutterfire_cli
+flutter upgrade --force
+dart pub global activate flutterfire_cli
+history | sed 's/\s*[0-9]*\s*//' > /workspaces/Agenda/TERMINAL_COMMANDS.log
+flutter pub add firebase_core
+cd /workspaces/Agenda
+flutter create .
+cd /workspaces/Agenda
+flutter create .
+flutter create agenda
+flutter config --jdk-dir=<JDK_DIRECTORY>
+cd agenda
+flutter run
+flutter pub outdated
+flutter run
+cd /workspaces/Agenda/minha_app_flutter
+ls -l pubspec.yaml
+cd /workspaces/Agenda/agenda_horario/lib
+ls -l pubspec.yaml
+cd..
+cd
+cd /workspaces/Agenda/agenda_horario/
+ls -l pubspec.yaml
+flutter pub add firebase_core
+flutter run
+cd /workspaces/Agenda/agenda_horario
+flutter clean
+flutter run
+flutter clean
 history | sed 's/\s*[0-9]*\s*//' > /workspaces/Agenda/TERMINAL_COMMANDS.log
