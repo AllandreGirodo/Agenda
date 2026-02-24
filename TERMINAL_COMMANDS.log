@@ -1,0 +1,37 @@
+npm install -g firebase-tools
+npm get prefix
+echo 'export PATH="$(npm get prefix)/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+firebase --version
+npm get prefix
+echo $PATH | grep -o '[^:]*firebase[^:]*'
+export PATH="$(npm get prefix)/bin:$PATH"
+printenv PATH
+printenv HOME
+printenv USER
+fire base login
+firebase login
+firebase login --no-localhost
+firebase login
+firebase login --no-localhost
+flutter pub add firebase_core
+dart pub global activate flutterfire_cli
+flutter upgrade --force
+cd /workspaces/Agenda
+git clone https://github.com/flutter/flutter.git -b stable --depth 1
+echo 'export PATH="$PATH:/workspaces/Agenda/flutter/bin"' >> ~/.bashrc
+source ~/.bashrc
+echo 'export PATH="$PATH:/workspaces/Agenda/flutter/bin"' >> ~/.bashrc
+source ~/.bashrc
+echo 'export PATH="$(npm get prefix)/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+echo $PATH | grep -o '[^:]*firebase[^:]*'
+printenv PATH
+echo 'export PATH="$PATH:/workspaces/Agenda/flutter/bin"' >> ~/.bashrc
+printenv PATH
+source ~/.bashrc
+printenv PATH
+clear
+echo 'export PATH="$PATH:/workspaces/Agenda/flutter/bin"' >> ~/.bashrc
+clear
+history | sed 's/\s*[0-9]*\s*//' > /workspaces/Agenda/TERMINAL_COMMANDS.log
