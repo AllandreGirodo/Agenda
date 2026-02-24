@@ -79,6 +79,8 @@ class _AgendamentoViewState extends State<AgendamentoView> {
             itemCount: agendamentos.length,
             itemBuilder: (context, index) {
               final agendamento = agendamentos[index];
+              final currentUser = FirebaseAuth.instance.currentUser;
+              final isMyAppointment = currentUser != null && agendamento.clienteId == currentUser.uid;
 
               IconData statusIcon;
               Color statusColor;
@@ -105,6 +107,10 @@ class _AgendamentoViewState extends State<AgendamentoView> {
               final String motivoTexto = isCancelado && agendamento.motivoCancelamento != null 
                   ? '\nMotivo: ${agendamento.motivoCancelamento}' : '';
 
+              // Lógica da Lista de Espera
+              final bool isOccupied = agendamento.status == 'aprovado';
+              final bool isInWaitList = currentUser != null && agendamento.listaEspera.contains(currentUser.uid);
+
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
@@ -115,13 +121,31 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                   ),
                   subtitle: Text('Tipo: ${agendamento.tipo}\nStatus: ${agendamento.status}$motivoTexto'),
                   isThreeLine: true,
-                  trailing: podeCancelar 
-                    ? IconButton(
-                        icon: const Icon(Icons.delete_forever, color: Colors.red),
-                        onPressed: () => _iniciarCancelamento(agendamento),
-                        tooltip: 'Cancelar Agendamento',
-                      )
-                    : Icon(statusIcon, color: statusColor),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Botão de Lista de Espera (Apenas para agendamentos ocupados de terceiros)
+                      if (!isMyAppointment && isOccupied && currentUser != null)
+                        IconButton(
+                          icon: Icon(
+                            isInWaitList ? Icons.notifications_active : Icons.notifications_none,
+                            color: isInWaitList ? Colors.amber : Colors.grey,
+                          ),
+                          tooltip: isInWaitList ? 'Sair da Lista de Espera' : 'Avise-me se vagar',
+                          onPressed: () => _toggleListaEspera(agendamento, currentUser.uid, !isInWaitList),
+                        ),
+                      
+                      // Botão de Cancelar ou Ícone de Status
+                      if (isMyAppointment && podeCancelar)
+                        IconButton(
+                          icon: const Icon(Icons.delete_forever, color: Colors.red),
+                          onPressed: () => _iniciarCancelamento(agendamento),
+                          tooltip: 'Cancelar Agendamento',
+                        )
+                      else if (!(!isMyAppointment && isOccupied)) // Evita duplicar ícone se tiver botão de espera
+                        Icon(statusIcon, color: statusColor),
+                    ],
+                  ),
                 ),
               );
             },
@@ -236,6 +260,17 @@ class _AgendamentoViewState extends State<AgendamentoView> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Agendamento realizado com sucesso!')),
+      );
+    }
+  }
+
+  Future<void> _toggleListaEspera(Agendamento agendamento, String uid, bool entrar) async {
+    await _firestoreService.toggleListaEspera(agendamento.id!, uid, entrar);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(entrar 
+          ? 'Você será notificado se este horário vagar.' 
+          : 'Você saiu da lista de espera.')),
       );
     }
   }

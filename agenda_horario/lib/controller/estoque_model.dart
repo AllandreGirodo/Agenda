@@ -1,36 +1,28 @@
-class EstoqueModel {
-  final String id;
+class ItemEstoque {
+  final String? id;
   final String nome;
-  final double quantidade;
-  final String unidade; // Ex: 'ml', 'g', 'frasco'
-  final double nivelMinimo; // Para alerta de estoque baixo
+  final int quantidade; // Em unidades ou doses
+  final bool consumoAutomatico; // Se true, desconta ao aprovar agendamento
 
-  EstoqueModel({
-    required this.id,
+  ItemEstoque({
+    this.id,
     required this.nome,
     required this.quantidade,
-    required this.unidade,
-    required this.nivelMinimo,
+    this.consumoAutomatico = false,
   });
 
-  // Converter para Map (para salvar no Firestore)
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'nome': nome,
-      'quantidade': quantidade,
-      'unidade': unidade,
-      'nivel_minimo': nivelMinimo,
-    };
-  }
+  Map<String, dynamic> toMap() => {
+        'nome': nome,
+        'quantidade': quantidade,
+        'consumo_automatico': consumoAutomatico,
+      };
 
-  factory EstoqueModel.fromMap(Map<String, dynamic> map) {
-    return EstoqueModel(
-      id: map['id'] ?? '',
+  factory ItemEstoque.fromMap(Map<String, dynamic> map, {String? id}) {
+    return ItemEstoque(
+      id: id,
       nome: map['nome'] ?? '',
-      quantidade: (map['quantidade'] ?? 0).toDouble(),
-      unidade: map['unidade'] ?? '',
-      nivelMinimo: (map['nivel_minimo'] ?? 0).toDouble(),
+      quantidade: map['quantidade'] ?? 0,
+      consumoAutomatico: map['consumo_automatico'] ?? false,
     );
   }
 }

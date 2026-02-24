@@ -7,6 +7,7 @@ class Agendamento {
   final String tipo; // Fixa ou Itinerante
   final String status; // 'pendente', 'aprovado', 'recusado'
   final String? motivoCancelamento;
+  final List<String> listaEspera;
 
   Agendamento({
     this.id,
@@ -15,6 +16,7 @@ class Agendamento {
     required this.tipo,
     this.status = 'pendente',
     this.motivoCancelamento,
+    this.listaEspera = const [],
   });
 
   Map<String, dynamic> toMap() => {
@@ -23,6 +25,7 @@ class Agendamento {
     'tipo': tipo,
     'status': status,
     'motivo_cancelamento': motivoCancelamento,
+    'lista_espera': listaEspera,
   };
 
   factory Agendamento.fromMap(Map<String, dynamic> map, {String? id}) {
@@ -33,6 +36,9 @@ class Agendamento {
       tipo: map['tipo'] ?? '',
       status: map['status'] ?? 'pendente',
       motivoCancelamento: map['motivo_cancelamento'],
+      listaEspera: map['lista_espera'] != null 
+          ? List<String>.from(map['lista_espera']) 
+          : [],
     );
   }
 }

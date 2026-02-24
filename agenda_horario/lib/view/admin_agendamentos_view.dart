@@ -7,6 +7,7 @@ import '../usuario_model.dart';
 import '../controller/cliente_model.dart';
 import 'login_view.dart';
 import 'admin_config_view.dart';
+import 'admin_estoque_view.dart';
 
 class AdminAgendamentosView extends StatefulWidget {
   const AdminAgendamentosView({super.key});
@@ -45,6 +46,13 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
           backgroundColor: Colors.orange,
           foregroundColor: Colors.white,
           actions: [
+            IconButton(
+              icon: const Icon(Icons.inventory_2),
+              tooltip: 'Estoque',
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminEstoqueView()));
+              },
+            ),
             IconButton(
               icon: const Icon(Icons.settings),
               tooltip: 'Configurações',
