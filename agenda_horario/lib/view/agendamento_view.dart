@@ -44,6 +44,23 @@ class _AgendamentoViewState extends State<AgendamentoView> {
             itemCount: agendamentos.length,
             itemBuilder: (context, index) {
               final agendamento = agendamentos[index];
+
+              IconData statusIcon;
+              Color statusColor;
+              switch (agendamento.status) {
+                case 'aprovado':
+                  statusIcon = Icons.check_circle;
+                  statusColor = Colors.green;
+                  break;
+                case 'recusado':
+                  statusIcon = Icons.cancel;
+                  statusColor = Colors.red;
+                  break;
+                default:
+                  statusIcon = Icons.hourglass_empty;
+                  statusColor = Colors.orange;
+              }
+
               return Card(
                 margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: ListTile(
@@ -52,8 +69,9 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                     DateFormat('dd/MM/yyyy HH:mm').format(agendamento.dataHora),
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  subtitle: Text('Cliente ID: ${agendamento.clienteId}\nTipo: ${agendamento.tipo}'),
+                  subtitle: Text('Cliente ID: ${agendamento.clienteId}\nTipo: ${agendamento.tipo}\nStatus: ${agendamento.status}'),
                   isThreeLine: true,
+                  trailing: Icon(statusIcon, color: statusColor),
                 ),
               );
             },
