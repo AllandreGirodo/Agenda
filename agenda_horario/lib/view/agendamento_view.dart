@@ -22,11 +22,13 @@ class _AgendamentoViewState extends State<AgendamentoView> {
   String? _horarioSelecionado;
   ConfigModel? _config;
   bool _mostrarTodos = false;
+  late final Stream<DateTime> _clockStream;
 
   @override
   void initState() {
     super.initState();
     _carregarConfig();
+    _clockStream = Stream.periodic(const Duration(seconds: 1), (_) => DateTime.now());
   }
 
   Future<void> _carregarConfig() async {
@@ -79,7 +81,10 @@ class _AgendamentoViewState extends State<AgendamentoView> {
           ),
         ],
       ),
-      body: StreamBuilder<List<Agendamento>>(
+      body: Column(
+        children: [
+          Expanded(
+            child: StreamBuilder<List<Agendamento>>(
         stream: _firestoreService.getAgendamentos(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -175,6 +180,25 @@ class _AgendamentoViewState extends State<AgendamentoView> {
             },
           );
         },
+      ),
+          ),
+          StreamBuilder<DateTime>(
+            stream: _clockStream,
+            builder: (context, snapshot) {
+              final now = snapshot.data ?? DateTime.now();
+              return Container(
+                width: double.infinity,
+                color: Colors.grey.shade200,
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                child: Text(
+                  'Registro de Tela: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(now)}\nID: ${currentUser?.uid ?? "N/A"}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 10),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _mostrarDialogoNovoAgendamento,

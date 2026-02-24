@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart'; // Requer adicionar ao pubspec.yaml
 
 class AguardandoAprovacaoView extends StatelessWidget {
@@ -52,6 +53,23 @@ class AguardandoAprovacaoView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+      bottomSheet: StreamBuilder<DateTime>(
+        stream: Stream.periodic(const Duration(seconds: 1), (_) => DateTime.now()),
+        builder: (context, snapshot) {
+          final now = snapshot.data ?? DateTime.now();
+          final user = FirebaseAuth.instance.currentUser;
+          return Container(
+            width: double.infinity,
+            color: Colors.grey.shade100,
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              'Validação: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(now)}\nUsuário: ${user?.email ?? "N/A"}',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
+            ),
+          );
+        },
       ),
     );
   }
