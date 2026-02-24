@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../controller/firestore_service.dart';
 import '../controller/agendamento_model.dart';
 import '../usuario_model.dart';
+import '../controller/cliente_model.dart';
+import 'login_view.dart';
+import 'admin_config_view.dart';
 
 class AdminAgendamentosView extends StatefulWidget {
   const AdminAgendamentosView({super.key});
@@ -13,20 +17,59 @@ class AdminAgendamentosView extends StatefulWidget {
 
 class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
   final FirestoreService _firestoreService = FirestoreService();
+  DateTime _dataDashboard = DateTime.now();
+  double _precoSessao = 100.00;
+
+  @override
+  void initState() {
+    super.initState();
+    _carregarConfig();
+  }
+
+  Future<void> _carregarConfig() async {
+    final config = await _firestoreService.getConfiguracao();
+    if (mounted) {
+      setState(() {
+        _precoSessao = config.precoSessao;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Administração'),
           backgroundColor: Colors.orange,
           foregroundColor: Colors.white,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              tooltip: 'Configurações',
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminConfigView()));
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.exit_to_app),
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                if (context.mounted) {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (context) => const LoginView()),
+                  );
+                }
+              },
+            ),
+          ],
           bottom: const TabBar(
             tabs: [
-              Tab(icon: Icon(Icons.calendar_today), text: 'Agendamentos'),
-              Tab(icon: Icon(Icons.person_add), text: 'Usuários'),
+              Tab(icon: Icon(Icons.dashboard), text: 'Dash'),
+              Tab(icon: Icon(Icons.calendar_today), text: 'Agenda'),
+              Tab(icon: Icon(Icons.people), text: 'Clientes'),
+              Tab(icon: Icon(Icons.person_add), text: 'Pendentes'),
             ],
             indicatorColor: Colors.white,
             labelColor: Colors.white,
@@ -35,11 +78,155 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
         ),
         body: TabBarView(
           children: [
+            _buildDashboardTab(),
             _buildAgendamentosTab(),
+            _buildClientesTab(),
             _buildUsuariosTab(),
           ],
         ),
       ),
+    );
+  }
+
+  // --- DASHBOARD TAB ---
+  Widget _buildDashboardTab() {
+    return StreamBuilder<List<Agendamento>>(
+      stream: _firestoreService.getAgendamentos(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        
+        final todosAgendamentos = snapshot.data!;
+        
+        // Filtros de Data
+        final diaInicio = DateTime(_dataDashboard.year, _dataDashboard.month, _dataDashboard.day);
+        final diaFim = diaInicio.add(const Duration(days: 1));
+        
+        // Semana (Domingo a Sábado)
+        final inicioSemana = diaInicio.subtract(Duration(days: diaInicio.weekday % 7));
+        final fimSemana = inicioSemana.add(const Duration(days: 7));
+
+        // Mês
+        final inicioMes = DateTime(_dataDashboard.year, _dataDashboard.month, 1);
+        final fimMes = DateTime(_dataDashboard.year, _dataDashboard.month + 1, 1);
+
+        // Cálculos
+        final agendamentosMes = todosAgendamentos.where((a) => a.dataHora.isAfter(inicioMes) && a.dataHora.isBefore(fimMes)).toList();
+        final agendamentosDia = todosAgendamentos.where((a) => a.dataHora.isAfter(diaInicio) && a.dataHora.isBefore(diaFim)).toList();
+        
+        // Receita Estimada (Aprovados no Mês)
+        final aprovadosMes = agendamentosMes.where((a) => a.status == 'aprovado').length;
+        final receitaEstimada = aprovadosMes * _precoSessao;
+
+        // Status do Dia
+        final pendentesDia = agendamentosDia.where((a) => a.status == 'pendente').length;
+        final aprovadosDia = agendamentosDia.where((a) => a.status == 'aprovado').length;
+        final canceladosDia = agendamentosDia.where((a) => a.status.contains('cancelado') || a.status == 'recusado').length;
+
+        // Taxas de Cancelamento
+        double calcularTaxa(DateTime inicio, DateTime fim) {
+          final lista = todosAgendamentos.where((a) => a.dataHora.isAfter(inicio) && a.dataHora.isBefore(fim)).toList();
+          if (lista.isEmpty) return 0.0;
+          final cancelados = lista.where((a) => a.status.contains('cancelado') || a.status == 'recusado').length;
+          return (cancelados / lista.length) * 100;
+        }
+
+        final taxaDia = calcularTaxa(diaInicio, diaFim);
+        final taxaSemana = calcularTaxa(inicioSemana, fimSemana);
+        final taxaMes = calcularTaxa(inicioMes, fimMes);
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Navegação de Data
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(icon: const Icon(Icons.chevron_left), onPressed: () => setState(() => _dataDashboard = _dataDashboard.subtract(const Duration(days: 1)))),
+                  Text(DateFormat('dd/MM/yyyy').format(_dataDashboard), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  IconButton(icon: const Icon(Icons.chevron_right), onPressed: () => setState(() => _dataDashboard = _dataDashboard.add(const Duration(days: 1)))),
+                  IconButton(icon: const Icon(Icons.today), onPressed: () => setState(() => _dataDashboard = DateTime.now())),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Cards Principais
+              Row(
+                children: [
+                  Expanded(child: _buildStatCard('Agendamentos (Dia)', '${agendamentosDia.length}', Colors.blue)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _buildStatCard('Receita Est. (Mês)', 'R\$ ${receitaEstimada.toStringAsFixed(2)}', Colors.green)),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              const Text('Status do Dia', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _buildBarraStatus('Pendentes', pendentesDia, Colors.orange),
+                  _buildBarraStatus('Aprovados', aprovadosDia, Colors.green),
+                  _buildBarraStatus('Cancel/Rec', canceladosDia, Colors.red),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              const Text('Taxa de Cancelamento', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildTaxaIndicator('Hoje', taxaDia),
+                      _buildTaxaIndicator('Semana', taxaSemana),
+                      _buildTaxaIndicator('Mês', taxaMes),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatCard(String title, String value, Color color) {
+    return Card(
+      color: color.withOpacity(0.1),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+            Text(title, style: const TextStyle(fontSize: 12), textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBarraStatus(String label, int count, Color color) {
+    return Expanded(
+      child: Column(
+        children: [
+          Container(height: 10, color: color, margin: const EdgeInsets.symmetric(horizontal: 2)),
+          Text('$count', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(fontSize: 10)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTaxaIndicator(String label, double taxa) {
+    return Column(
+      children: [
+        Text('${taxa.toStringAsFixed(1)}%', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: taxa > 20 ? Colors.red : Colors.green)),
+        Text(label, style: const TextStyle(fontSize: 12)),
+      ],
     );
   }
 
@@ -81,7 +268,7 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.check_circle, color: Colors.green),
-                        onPressed: () => _atualizarStatus(agendamento, 'aprovado'),
+                        onPressed: () => _atualizarStatus(agendamento, 'aprovado', clienteId: agendamento.clienteId),
                         tooltip: 'Aprovar',
                       ),
                       IconButton(
@@ -99,6 +286,53 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
     );
   }
 
+  // --- CLIENTES TAB (PACOTES) ---
+  Widget _buildClientesTab() {
+    return StreamBuilder<List<Cliente>>(
+      stream: _firestoreService.getClientesAprovados(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final clientes = snapshot.data!;
+
+        if (clientes.isEmpty) return const Center(child: Text('Nenhum cliente cadastrado.'));
+
+        return ListView.builder(
+          itemCount: clientes.length,
+          itemBuilder: (context, index) {
+            final cliente = clientes[index];
+            return Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Colors.teal,
+                  child: Text(cliente.nome.isNotEmpty ? cliente.nome[0].toUpperCase() : '?'),
+                ),
+                title: Text(cliente.nome),
+                subtitle: Text('Saldo de Sessões: ${cliente.saldoSessoes}'),
+                trailing: ElevatedButton.icon(
+                  icon: const Icon(Icons.add_circle, size: 16),
+                  label: const Text('Pacote'),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.teal.shade50),
+                  onPressed: () => _adicionarPacoteDialog(cliente),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _adicionarPacoteDialog(Cliente cliente) async {
+    await _firestoreService.adicionarPacote(cliente.uid, 10);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Pacote de 10 sessões adicionado para ${cliente.nome}!')),
+      );
+    }
+  }
+
+  // --- USUARIOS PENDENTES TAB ---
   Widget _buildUsuariosTab() {
     return StreamBuilder<List<UsuarioModel>>(
       stream: _firestoreService.getUsuariosPendentes(),
@@ -139,10 +373,10 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
     );
   }
 
-  Future<void> _atualizarStatus(Agendamento agendamento, String novoStatus) async {
+  Future<void> _atualizarStatus(Agendamento agendamento, String novoStatus, {String? clienteId}) async {
     if (agendamento.id == null) return;
     
-    await _firestoreService.atualizarStatusAgendamento(agendamento.id!, novoStatus);
+    await _firestoreService.atualizarStatusAgendamento(agendamento.id!, novoStatus, clienteId: clienteId);
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

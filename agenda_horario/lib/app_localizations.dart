@@ -22,6 +22,7 @@ class AppLocalizations {
       'createAccountButton': 'Criar conta',
       'fillFieldsError': 'Por favor, preencha email e senha',
       'loginSuccess': 'Login realizado com sucesso (Simulação)',
+      'forgotPasswordButton': 'Esqueci minha senha',
     },
     'en': {
       'appTitle': 'Massage Therapy Agenda',
@@ -32,6 +33,7 @@ class AppLocalizations {
       'createAccountButton': 'Create account',
       'fillFieldsError': 'Please fill in email and password',
       'loginSuccess': 'Login successful (Simulation)',
+      'forgotPasswordButton': 'Forgot password?',
     },
     'es': {
       'appTitle': 'Agenda de Masoterapia',
@@ -42,6 +44,7 @@ class AppLocalizations {
       'createAccountButton': 'Crear cuenta',
       'fillFieldsError': 'Por favor complete correo y contraseña',
       'loginSuccess': 'Inicio de sesión exitoso (Simulación)',
+      'forgotPasswordButton': '¿Olvidó su contraseña?',
     },
     'ja': {
       'appTitle': 'マッサージ予約',
@@ -52,6 +55,7 @@ class AppLocalizations {
       'createAccountButton': 'アカウント作成',
       'fillFieldsError': 'メールとパスワードを入力してください',
       'loginSuccess': 'ログイン成功（シミュレーション）',
+      'forgotPasswordButton': 'パスワードを忘れた場合',
     },
   };
 
@@ -70,6 +74,7 @@ class AppLocalizations {
   String get createAccountButton => _t('createAccountButton');
   String get fillFieldsError => _t('fillFieldsError');
   String get loginSuccess => _t('loginSuccess');
+  String get forgotPasswordButton => _t('forgotPasswordButton');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

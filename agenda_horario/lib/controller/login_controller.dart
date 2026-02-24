@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import '../view/agendamento_view.dart';
 import '../view/admin_agendamentos_view.dart';
@@ -9,6 +10,7 @@ import '../usuario_model.dart';
 class LoginController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirestoreService _firestoreService = FirestoreService();
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
   Future<void> logar(BuildContext context, String email, String senha) async {
     try {
@@ -20,6 +22,12 @@ class LoginController {
 
       if (userCredential.user != null) {
         final uid = userCredential.user!.uid;
+
+        // Salvar Token FCM
+        String? token = await _firebaseMessaging.getToken();
+        if (token != null) {
+          await _firestoreService.atualizarToken(uid, token);
+        }
         
         // 2. Buscar dados do usuário no Firestore para verificar o tipo
         final usuario = await _firestoreService.getUsuario(uid);
@@ -108,6 +116,27 @@ class LoginController {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao cadastrar: $e')));
+      }
+    }
+  }
+
+  Future<void> recuperarSenha(BuildContext context, String email) async {
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, preencha o campo de email para recuperar a senha.')),
+      );
+      return;
+    }
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Email de redefinição enviado para $email')),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: ${e.message}')));
       }
     }
   }

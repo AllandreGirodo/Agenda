@@ -90,6 +90,16 @@ class _LoginViewState extends State<LoginView> {
                 obscureText: true,
               ),
               
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    _controller.recuperarSenha(context, _emailController.text.trim());
+                  },
+                  child: Text(AppLocalizations.of(context)!.forgotPasswordButton),
+                ),
+              ),
+
               const SizedBox(height: 24),
               
               SizedBox(

@@ -7,6 +7,7 @@ class UsuarioModel {
   final String tipo; // 'admin' ou 'cliente'
   final bool aprovado;
   final DateTime? dataCadastro;
+  final String? fcmToken;
 
   UsuarioModel({
     required this.id,
@@ -15,6 +16,7 @@ class UsuarioModel {
     required this.tipo,
     this.aprovado = false,
     this.dataCadastro,
+    this.fcmToken,
   });
 
   // Converter para Map (para salvar no Firestore)
@@ -26,6 +28,7 @@ class UsuarioModel {
       'tipo': tipo,
       'aprovado': aprovado,
       'data_cadastro': dataCadastro != null ? Timestamp.fromDate(dataCadastro!) : FieldValue.serverTimestamp(),
+      'fcm_token': fcmToken,
     };
   }
 
@@ -40,6 +43,7 @@ class UsuarioModel {
       dataCadastro: map['data_cadastro'] != null 
           ? (map['data_cadastro'] as Timestamp).toDate() 
           : null,
+      fcmToken: map['fcm_token'],
     );
   }
 }
