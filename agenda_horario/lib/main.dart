@@ -55,6 +55,7 @@ class _MyAppState extends State<MyApp> {
         Locale('pt', 'BR'),
         Locale('en', 'US'),
         Locale('es', 'ES'),
+        Locale('ja', 'JP'),
       ],
       home: const LoginView(),
     );

@@ -43,23 +43,40 @@ class AppLocalizations {
       'fillFieldsError': 'Por favor complete correo y contraseña',
       'loginSuccess': 'Inicio de sesión exitoso (Simulación)',
     },
+    'ja': {
+      'appTitle': 'マッサージ予約',
+      'loginTitle': 'マッサージ予約',
+      'emailLabel': 'メールアドレス',
+      'passwordLabel': 'パスワード',
+      'enterButton': 'ログイン',
+      'createAccountButton': 'アカウント作成',
+      'fillFieldsError': 'メールとパスワードを入力してください',
+      'loginSuccess': 'ログイン成功（シミュレーション）',
+    },
   };
 
-  String get appTitle => _localizedValues[locale.languageCode]!['appTitle']!;
-  String get loginTitle => _localizedValues[locale.languageCode]!['loginTitle']!;
-  String get emailLabel => _localizedValues[locale.languageCode]!['emailLabel']!;
-  String get passwordLabel => _localizedValues[locale.languageCode]!['passwordLabel']!;
-  String get enterButton => _localizedValues[locale.languageCode]!['enterButton']!;
-  String get createAccountButton => _localizedValues[locale.languageCode]!['createAccountButton']!;
-  String get fillFieldsError => _localizedValues[locale.languageCode]!['fillFieldsError']!;
-  String get loginSuccess => _localizedValues[locale.languageCode]!['loginSuccess']!;
+  // Método auxiliar para buscar a tradução com fallback para PT
+  String _t(String key) {
+    return _localizedValues[locale.languageCode]?[key] ?? 
+           _localizedValues['pt']![key] ?? 
+           key;
+  }
+
+  String get appTitle => _t('appTitle');
+  String get loginTitle => _t('loginTitle');
+  String get emailLabel => _t('emailLabel');
+  String get passwordLabel => _t('passwordLabel');
+  String get enterButton => _t('enterButton');
+  String get createAccountButton => _t('createAccountButton');
+  String get fillFieldsError => _t('fillFieldsError');
+  String get loginSuccess => _t('loginSuccess');
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
-  bool isSupported(Locale locale) => ['pt', 'en', 'es'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => ['pt', 'en', 'es', 'ja'].contains(locale.languageCode);
 
   @override
   Future<AppLocalizations> load(Locale locale) {

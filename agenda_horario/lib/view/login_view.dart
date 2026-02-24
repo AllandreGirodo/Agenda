@@ -24,6 +24,8 @@ class _LoginViewState extends State<LoginView> {
       dropdownValue = const Locale('en', 'US');
     } else if (currentLocale.languageCode == 'es') {
       dropdownValue = const Locale('es', 'ES');
+    } else if (currentLocale.languageCode == 'ja') {
+      dropdownValue = const Locale('ja', 'JP');
     } else {
       dropdownValue = const Locale('pt', 'BR');
     }
@@ -46,6 +48,7 @@ class _LoginViewState extends State<LoginView> {
               DropdownMenuItem(value: Locale('pt', 'BR'), child: Text('🇧🇷 PT')),
               DropdownMenuItem(value: Locale('en', 'US'), child: Text('🇺🇸 EN')),
               DropdownMenuItem(value: Locale('es', 'ES'), child: Text('🇪🇸 ES')),
+              DropdownMenuItem(value: Locale('ja', 'JP'), child: Text('🇯🇵 JA')),
             ],
           ),
           const SizedBox(width: 16),
