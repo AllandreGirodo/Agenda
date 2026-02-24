@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../app_localizations.dart';
 // import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginController {
@@ -7,7 +8,7 @@ class LoginController {
   Future<void> logar(BuildContext context, String email, String senha) async {
     if (email.isEmpty || senha.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Por favor, preencha email e senha')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.fillFieldsError)),
       );
       return;
     }
@@ -17,7 +18,7 @@ class LoginController {
     
     // Simulação de sucesso
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Login realizado com sucesso (Simulação)')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.loginSuccess)),
     );
     // Navigator.pushReplacementNamed(context, '/home');
   }
