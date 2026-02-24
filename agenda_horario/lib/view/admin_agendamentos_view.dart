@@ -8,6 +8,8 @@ import '../controller/cliente_model.dart';
 import 'login_view.dart';
 import 'admin_config_view.dart';
 import 'admin_estoque_view.dart';
+import 'admin_relatorios_view.dart';
+import 'admin_logs_view.dart';
 
 class AdminAgendamentosView extends StatefulWidget {
   const AdminAgendamentosView({super.key});
@@ -54,6 +56,20 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
           backgroundColor: Colors.orange,
           foregroundColor: Colors.white,
           actions: [
+            IconButton(
+              icon: const Icon(Icons.analytics),
+              tooltip: 'Relatórios',
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminRelatoriosView()));
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.list_alt),
+              tooltip: 'Logs',
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminLogsView()));
+              },
+            ),
             IconButton(
               icon: const Icon(Icons.inventory_2),
               tooltip: 'Estoque',
@@ -282,6 +298,14 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (agendamento.listaEspera.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(color: Colors.amber, borderRadius: BorderRadius.circular(12)),
+                          child: Text('Espera: ${agendamento.listaEspera.length}', 
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                        ),
                       IconButton(
                         icon: const Icon(Icons.check_circle, color: Colors.green),
                         onPressed: () => _atualizarStatus(agendamento, 'aprovado', clienteId: agendamento.clienteId),

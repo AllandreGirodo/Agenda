@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../controller/firestore_service.dart';
 import '../controller/cliente_model.dart';
 import '../controller/config_model.dart';
+import 'login_view.dart';
 
 class PerfilView extends StatefulWidget {
   const PerfilView({super.key});
@@ -113,6 +114,44 @@ class _PerfilViewState extends State<PerfilView> {
     }
   }
 
+  Future<void> _excluirConta() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir Conta e Dados?'),
+        content: const Text(
+            'Atenção: Esta ação excluirá permanentemente sua conta, histórico e agendamentos (LGPD). Não é possível desfazer.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir Tudo'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted && _user != null) {
+      setState(() => _isLoading = true);
+      try {
+        await _firestoreService.excluirConta(_user!.uid); // Apaga do Firestore
+        await _user!.delete(); // Apaga do Authentication
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sua conta foi excluída com sucesso.')));
+          Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginView()), (route) => false);
+        }
+      } catch (e) {
+        if (mounted) setState(() => _isLoading = false);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao excluir (faça login novamente): $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -181,6 +220,17 @@ class _PerfilViewState extends State<PerfilView> {
             _buildAnamneseField('Alergias', 'alergias', _alergiasController),
             _buildAnamneseField('Medicamentos em uso', 'medicamentos', _medicamentosController),
             _buildAnamneseField('Cirurgias Recentes', 'cirurgias', _cirurgiasController),
+            
+            const SizedBox(height: 30),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: TextButton.icon(
+                icon: const Icon(Icons.delete_forever, color: Colors.red),
+                label: const Text('Excluir minha conta e dados (LGPD)', style: TextStyle(color: Colors.red)),
+                onPressed: _excluirConta,
+              ),
+            ),
           ],
         ),
       ),
