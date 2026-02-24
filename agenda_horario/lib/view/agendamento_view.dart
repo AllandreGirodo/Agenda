@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../controller/firestore_service.dart';
 import '../controller/agendamento_model.dart';
@@ -167,8 +168,16 @@ class _AgendamentoViewState extends State<AgendamentoView> {
       int.parse(horasMinutos[1]),
     );
 
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro: Usuário não autenticado.')),
+      );
+      return;
+    }
+
     final novoAgendamento = Agendamento(
-      clienteId: 'usuario_teste_123', // ID simulado para o MVP
+      clienteId: user.uid,
       dataHora: dataHoraFinal,
       tipo: 'Fixa', // Tipo padrão para o MVP
     );

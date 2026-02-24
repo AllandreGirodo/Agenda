@@ -2,7 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../view/agendamento_view.dart';
 import '../view/admin_agendamentos_view.dart';
+import '../view/aguardando_aprovacao_view.dart';
 import 'firestore_service.dart';
+import '../usuario_model.dart';
 
 class LoginController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -30,10 +32,21 @@ class LoginController {
                 context,
                 MaterialPageRoute(builder: (context) => const AdminAgendamentosView()),
               );
-            } else {
+            } else if (usuario.aprovado) {
+              // Cliente aprovado
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const AgendamentoView()),
+              );
+            } else {
+              // Cliente não aprovado (Pendente)
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AguardandoAprovacaoView(
+                    dataCadastro: usuario.dataCadastro ?? DateTime.now(),
+                  ),
+                ),
               );
             }
           } else {
@@ -55,6 +68,46 @@ class LoginController {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro: $e')),
         );
+      }
+    }
+  }
+
+  Future<void> cadastrar(BuildContext context, String nome, String email, String senha, String whatsapp) async {
+    try {
+      // 1. Criar usuário no Auth
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: senha,
+      );
+
+      if (userCredential.user != null) {
+        final uid = userCredential.user!.uid;
+        final dataAgora = DateTime.now();
+
+        // 2. Criar modelo do usuário (Padrão: não aprovado)
+        final novoUsuario = UsuarioModel(
+          id: uid,
+          nome: nome,
+          email: email,
+          tipo: 'cliente',
+          aprovado: false,
+          dataCadastro: dataAgora,
+        );
+
+        // 3. Salvar no Firestore
+        await _firestoreService.salvarUsuario(novoUsuario);
+
+        if (context.mounted) {
+          // 4. Redirecionar para tela de aguardo
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => AguardandoAprovacaoView(dataCadastro: dataAgora)),
+          );
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao cadastrar: $e')));
       }
     }
   }

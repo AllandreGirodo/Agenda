@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../controller/login_controller.dart';
 import '../app_localizations.dart';
 import '../main.dart';
+import 'signup_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -113,7 +114,10 @@ class _LoginViewState extends State<LoginView> {
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () {
-                  // Navegar para tela de cadastro
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SignUpView()),
+                  );
                 },
                 child: Text(AppLocalizations.of(context)!.createAccountButton),
               ),

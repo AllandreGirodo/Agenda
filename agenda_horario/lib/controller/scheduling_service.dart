@@ -1,23 +1,9 @@
-/// SchedulingService: Lógica de negócio e cálculos automáticos.
 class SchedulingService {
-  
-  // Lógica de Encaixe de Horários
   static List<String> getSlotsDisponiveis() {
+    // Exemplo de horários disponíveis
     return [
-      "08:00", "09:30", "11:00", "13:00", "14:15", "15:30", "17:00", "18:15"
+      '08:00', '09:00', '10:00', '11:00', 
+      '14:00', '15:00', '16:00', '17:00', '18:00'
     ];
-  }
-
-  // Baixa de estoque automática
-  double subtrairInsumo(double estoqueAtual, double doseSessao) {
-    if (estoqueAtual >= doseSessao) {
-      return estoqueAtual - doseSessao;
-    }
-    return estoqueAtual;
-  }
-
-  // Notificação via WhatsApp
-  String formatarMensagemWhats(String nomeCliente, String data, String hora) {
-    return "Olá $nomeCliente, seu agendamento para $data às $hora está em análise!";
   }
 }

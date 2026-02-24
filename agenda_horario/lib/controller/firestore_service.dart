@@ -29,6 +29,24 @@ class FirestoreService {
     return null;
   }
 
+  Future<void> salvarUsuario(UsuarioModel usuario) async {
+    await _db.collection('usuarios').doc(usuario.id).set(usuario.toMap());
+  }
+
+  Stream<List<UsuarioModel>> getUsuariosPendentes() {
+    return _db.collection('usuarios')
+        .where('aprovado', isEqualTo: false)
+        .where('tipo', isEqualTo: 'cliente')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => UsuarioModel.fromMap(doc.data()))
+            .toList());
+  }
+
+  Future<void> aprovarUsuario(String uid) async {
+    await _db.collection('usuarios').doc(uid).update({'aprovado': true});
+  }
+
   // --- Agendamentos ---
   Future<void> salvarAgendamento(Agendamento agendamento) async {
     await _db.collection('agendamentos').add(agendamento.toMap());
@@ -40,7 +58,7 @@ class FirestoreService {
         .orderBy('data_hora')
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => Agendamento.fromMap(doc.data(), id: doc.id))
+            .map((doc) => Agendamento.fromMap(doc.data()!, id: doc.id))
             .toList());
   }
 
