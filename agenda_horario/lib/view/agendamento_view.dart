@@ -8,6 +8,8 @@ import 'login_view.dart';
 import 'perfil_view.dart';
 import '../controller/config_model.dart';
 import '../usuario_model.dart';
+import '../app_localizations.dart';
+import '../widgets/language_selector.dart';
 
 class AgendamentoView extends StatefulWidget {
   const AgendamentoView({super.key});
@@ -47,14 +49,15 @@ class _AgendamentoViewState extends State<AgendamentoView> {
 
         return Scaffold(
       appBar: AppBar(
-        title: const Text('Agendamentos'),
+        title: Text(AppLocalizations.of(context)!.appointmentsTitle),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
         actions: [
+          const LanguageSelector(),
           if (temPermissao)
             IconButton(
               icon: Icon(_mostrarTodos ? Icons.groups : Icons.person),
-              tooltip: _mostrarTodos ? 'Vendo Todos' : 'Vendo Meus',
+              tooltip: _mostrarTodos ? AppLocalizations.of(context)!.viewingAll : AppLocalizations.of(context)!.viewingMine,
               onPressed: () {
                 setState(() {
                   _mostrarTodos = !_mostrarTodos;
@@ -63,13 +66,14 @@ class _AgendamentoViewState extends State<AgendamentoView> {
             ),
           IconButton(
             icon: const Icon(Icons.person),
-            tooltip: 'Meu Perfil',
+            tooltip: AppLocalizations.of(context)!.myProfileTooltip,
             onPressed: () {
               Navigator.push(context, MaterialPageRoute(builder: (context) => const PerfilView()));
             },
           ),
           IconButton(
             icon: const Icon(Icons.exit_to_app),
+            tooltip: AppLocalizations.of(context)!.logoutTooltip,
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
               if (context.mounted) {
@@ -102,7 +106,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
           }
 
           if (agendamentos.isEmpty) {
-            return const Center(child: Text('Nenhum agendamento encontrado.'));
+            return Center(child: Text(AppLocalizations.of(context)!.noAppointmentsFound));
           }
 
           return ListView.builder(
@@ -217,12 +221,12 @@ class _AgendamentoViewState extends State<AgendamentoView> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
-              title: const Text('Novo Agendamento'),
+              title: Text(AppLocalizations.of(context)!.newAppointmentTitle),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   ListTile(
-                    title: Text("Data: ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}"),
+                    title: Text("${AppLocalizations.of(context)!.dateLabel}: ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}"),
                     trailing: const Icon(Icons.calendar_month),
                     onTap: () async {
                       final picked = await showDatePicker(
@@ -240,7 +244,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButton<String>(
-                    hint: const Text("Selecione um horário"),
+                    hint: Text(AppLocalizations.of(context)!.selectTimeHint),
                     value: _horarioSelecionado,
                     isExpanded: true,
                     items: SchedulingService.getSlotsDisponiveis().map((slot) {
@@ -260,7 +264,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancelar'),
+                  child: Text(AppLocalizations.of(context)!.cancelButton),
                 ),
                 ElevatedButton(
                   onPressed: () async {
@@ -269,7 +273,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                       if (mounted) Navigator.pop(context);
                     }
                   },
-                  child: const Text('Agendar'),
+                  child: Text(AppLocalizations.of(context)!.scheduleButton),
                 ),
               ],
             );
@@ -309,7 +313,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Agendamento realizado com sucesso!')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.appointmentSuccess)),
       );
     }
   }

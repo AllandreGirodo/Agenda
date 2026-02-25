@@ -3,6 +3,8 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart'; // Requer adicionar ao pubspec.yaml
 import '../controller/firestore_service.dart';
+import '../app_localizations.dart';
+import '../widgets/language_selector.dart';
 
 class AguardandoAprovacaoView extends StatelessWidget {
   final DateTime dataCadastro;
@@ -13,9 +15,10 @@ class AguardandoAprovacaoView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Aguardando Aprovação'),
+        title: Text(AppLocalizations.of(context)!.waitingApprovalTitle),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
+        actions: const [LanguageSelector()],
         automaticallyImplyLeading: false, // Remove botão de voltar para não burlar
       ),
       body: Padding(
@@ -25,14 +28,14 @@ class AguardandoAprovacaoView extends StatelessWidget {
           children: [
             const Icon(Icons.access_time, size: 80, color: Colors.orange),
             const SizedBox(height: 24),
-            const Text(
-              'Cadastro em Análise',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            Text(
+              AppLocalizations.of(context)!.analysisTitle,
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
             Text(
-              'Seu cadastro realizado em\n${DateFormat('dd/MM/yyyy HH:mm').format(dataCadastro)}\nestá aguardando aprovação da administradora.',
+              AppLocalizations.of(context)!.analysisMessage(DateFormat('dd/MM/yyyy HH:mm').format(dataCadastro)),
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 16),
             ),
@@ -40,7 +43,7 @@ class AguardandoAprovacaoView extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: _abrirWhatsApp,
               icon: const Icon(Icons.chat),
-              label: const Text('Falar com a Administradora'),
+              label: Text(AppLocalizations.of(context)!.contactAdminButton),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
@@ -50,7 +53,7 @@ class AguardandoAprovacaoView extends StatelessWidget {
             const SizedBox(height: 20),
             TextButton(
               onPressed: () => Navigator.of(context).pop(), // Voltar para Login
-              child: const Text('Voltar para Login'),
+              child: Text(AppLocalizations.of(context)!.backToLoginButton),
             ),
           ],
         ),

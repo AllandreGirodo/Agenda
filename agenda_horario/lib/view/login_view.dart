@@ -9,6 +9,7 @@ import '../app_localizations.dart';
 import '../main.dart';
 import 'signup_view.dart';
 import 'db_seeder.dart';
+import '../widgets/language_selector.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -107,41 +108,13 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
-    // Determinar o idioma atual para exibir no dropdown
-    final currentLocale = Localizations.localeOf(context);
-    Locale dropdownValue;
-    if (currentLocale.languageCode == 'en') {
-      dropdownValue = const Locale('en', 'US');
-    } else if (currentLocale.languageCode == 'es') {
-      dropdownValue = const Locale('es', 'ES');
-    } else if (currentLocale.languageCode == 'ja') {
-      dropdownValue = const Locale('ja', 'JP');
-    } else {
-      dropdownValue = const Locale('pt', 'BR');
-    }
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [
-          DropdownButton<Locale>(
-            value: dropdownValue,
-            icon: const Icon(Icons.language, color: Colors.teal),
-            underline: Container(), // Remove a linha padrão do dropdown
-            onChanged: (Locale? newValue) {
-              if (newValue != null) {
-                MyApp.setLocale(context, newValue);
-              }
-            },
-            items: const [
-              DropdownMenuItem(value: Locale('pt', 'BR'), child: Text('🇧🇷 PT')),
-              DropdownMenuItem(value: Locale('en', 'US'), child: Text('🇺🇸 EN')),
-              DropdownMenuItem(value: Locale('es', 'ES'), child: Text('🇪🇸 ES')),
-              DropdownMenuItem(value: Locale('ja', 'JP'), child: Text('🇯🇵 JA')),
-            ],
-          ),
-          const SizedBox(width: 16),
+        actions: const [
+          LanguageSelector(),
+          SizedBox(width: 16),
         ],
       ),
       body: Center(

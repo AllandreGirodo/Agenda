@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../controller/login_controller.dart';
+import '../app_localizations.dart';
+import '../widgets/language_selector.dart';
 
 class SignUpView extends StatefulWidget {
   const SignUpView({super.key});
@@ -19,9 +21,10 @@ class _SignUpViewState extends State<SignUpView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Criar Conta'),
+        title: Text(AppLocalizations.of(context)!.signupTitle),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
+        actions: const [LanguageSelector()],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -31,39 +34,39 @@ class _SignUpViewState extends State<SignUpView> {
             const SizedBox(height: 20),
             TextField(
               controller: _nomeController,
-              decoration: const InputDecoration(
-                labelText: 'Nome Completo',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.fullNameLabel,
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.person),
               ),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.email),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.emailLabel,
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.email),
               ),
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _whatsappController,
-              decoration: const InputDecoration(
-                labelText: 'WhatsApp',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.phone),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.whatsappLabel,
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.phone),
               ),
               keyboardType: TextInputType.phone,
             ),
             const SizedBox(height: 16),
             TextField(
               controller: _senhaController,
-              decoration: const InputDecoration(
-                labelText: 'Senha',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lock),
+              decoration: InputDecoration(
+                labelText: AppLocalizations.of(context)!.passwordLabel,
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.lock),
               ),
               obscureText: true,
             ),
@@ -82,7 +85,7 @@ class _SignUpViewState extends State<SignUpView> {
                   );
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
-                child: const Text('CADASTRAR'),
+                child: Text(AppLocalizations.of(context)!.registerButton),
               ),
             ),
           ],

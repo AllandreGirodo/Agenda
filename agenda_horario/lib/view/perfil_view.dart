@@ -13,6 +13,8 @@ import '../controller/config_model.dart';
 import '../controller/agendamento_model.dart';
 import '../test/validadores.dart';
 import 'login_view.dart';
+import '../app_localizations.dart';
+import '../widgets/language_selector.dart';
 
 class PerfilView extends StatefulWidget {
   const PerfilView({super.key});
@@ -92,7 +94,7 @@ class _PerfilViewState extends State<PerfilView> {
 
   String? _validar(String key, String? value) {
     if (_isObrigatorio(key) && (value == null || value.trim().isEmpty)) {
-      return 'Este campo é obrigatório';
+      return AppLocalizations.of(context)!.requiredField;
     }
     return null;
   }
@@ -202,7 +204,7 @@ class _PerfilViewState extends State<PerfilView> {
     if (mounted) setState(() => _isLoading = false);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Perfil atualizado com sucesso!')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.profileUpdatedSuccess)),
       );
       Navigator.pop(context);
     }
@@ -212,18 +214,18 @@ class _PerfilViewState extends State<PerfilView> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Excluir Conta e Dados?'),
-        content: const Text(
-            'Atenção: Seus dados pessoais (Nome, Telefone, Endereço, Anamnese) serão anonimizados permanentemente conforme a LGPD.\n\nO histórico financeiro de agendamentos realizados será mantido para fins fiscais da clínica.'),
+        title: Text(AppLocalizations.of(context)!.deleteAccountDialogTitle),
+        content: Text(
+            AppLocalizations.of(context)!.deleteAccountDialogContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+            child: Text(AppLocalizations.of(context)!.cancelButton),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Excluir Tudo'),
+            child: Text(AppLocalizations.of(context)!.deleteEverythingButton),
           ),
         ],
       ),
@@ -236,7 +238,7 @@ class _PerfilViewState extends State<PerfilView> {
         await _user.delete(); // Apaga do Authentication
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sua conta foi excluída com sucesso.')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.accountDeletedSuccess)));
           Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginView()), (route) => false);
         }
       } on FirebaseAuthException catch (e) {
@@ -261,19 +263,20 @@ class _PerfilViewState extends State<PerfilView> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Meu Perfil'),
+          title: Text(AppLocalizations.of(context)!.profileTitle),
           backgroundColor: Colors.teal,
           foregroundColor: Colors.white,
           actions: [
-            IconButton(icon: const Icon(Icons.save), onPressed: _salvar),
+            const LanguageSelector(),
+            IconButton(icon: const Icon(Icons.save), onPressed: _salvar, tooltip: AppLocalizations.of(context)!.saveButton),
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.orange,
             tabs: [
-              Tab(icon: Icon(Icons.person), text: 'Dados'),
-              Tab(icon: Icon(Icons.history), text: 'Histórico'),
+              Tab(icon: const Icon(Icons.person), text: AppLocalizations.of(context)!.dataTab),
+              Tab(icon: const Icon(Icons.history), text: AppLocalizations.of(context)!.historyTab),
             ],
           ),
         ),
@@ -293,7 +296,7 @@ class _PerfilViewState extends State<PerfilView> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text('Dados Pessoais', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
+            Text(AppLocalizations.of(context)!.personalDataTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
             const SizedBox(height: 10),
             
             // Área da Foto de Perfil
@@ -329,14 +332,14 @@ class _PerfilViewState extends State<PerfilView> {
 
             TextFormField(
               controller: _nomeController,
-              decoration: const InputDecoration(labelText: 'Nome Completo', border: OutlineInputBorder()),
-              validator: (v) => v!.isEmpty ? 'Nome é obrigatório' : null,
+              decoration: InputDecoration(labelText: AppLocalizations.of(context)!.fullNameLabel, border: const OutlineInputBorder()),
+              validator: (v) => v!.isEmpty ? AppLocalizations.of(context)!.requiredField : null,
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _cpfController,
               decoration: InputDecoration(
-                labelText: 'CPF ${_isObrigatorio('cpf') ? '*' : ''}',
+                labelText: '${AppLocalizations.of(context)!.cpfLabel} ${_isObrigatorio('cpf') ? '*' : ''}',
                 border: const OutlineInputBorder(),
                 hintText: '000.000.000-00',
               ),
@@ -351,7 +354,7 @@ class _PerfilViewState extends State<PerfilView> {
             TextFormField(
               controller: _whatsappController,
               decoration: InputDecoration(
-                labelText: 'WhatsApp ${_isObrigatorio('whatsapp') ? '*' : ''}',
+                labelText: '${AppLocalizations.of(context)!.whatsappLabel} ${_isObrigatorio('whatsapp') ? '*' : ''}',
                 border: const OutlineInputBorder(),
               ),
               validator: (v) => _validar('whatsapp', v),
@@ -367,20 +370,20 @@ class _PerfilViewState extends State<PerfilView> {
                 Expanded(
                   child: TextFormField(
                     controller: _cepController,
-                    decoration: const InputDecoration(labelText: 'CEP', border: OutlineInputBorder(), hintText: '00000-000'),
+                    decoration: InputDecoration(labelText: AppLocalizations.of(context)!.cepLabel, border: const OutlineInputBorder(), hintText: '00000-000'),
                     keyboardType: TextInputType.number,
                     validator: _validarCep,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(8)],
                   ),
                 ),
-                IconButton(icon: const Icon(Icons.search), onPressed: _buscarCep, tooltip: 'Buscar Endereço'),
+                IconButton(icon: const Icon(Icons.search), onPressed: _buscarCep),
               ],
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _enderecoController,
               decoration: InputDecoration(
-                labelText: 'Endereço ${_isObrigatorio('endereco') ? '*' : ''}',
+                labelText: '${AppLocalizations.of(context)!.addressLabel} ${_isObrigatorio('endereco') ? '*' : ''}',
                 border: const OutlineInputBorder(),
               ),
               validator: (v) => _validar('endereco', v),
@@ -388,8 +391,8 @@ class _PerfilViewState extends State<PerfilView> {
             const SizedBox(height: 10),
             ListTile(
               title: Text(_dataNascimento == null 
-                  ? 'Data de Nascimento ${_isObrigatorio('data_nascimento') ? '*' : ''}' 
-                  : 'Nascimento: ${DateFormat('dd/MM/yyyy').format(_dataNascimento)}'),
+                  ? '${AppLocalizations.of(context)!.birthDateLabel} ${_isObrigatorio('data_nascimento') ? '*' : ''}' 
+                  : '${AppLocalizations.of(context)!.birthDateLabel}: ${DateFormat('dd/MM/yyyy').format(_dataNascimento!)}'),
               trailing: const Icon(Icons.calendar_today),
               shape: RoundedRectangleBorder(side: const BorderSide(color: Colors.grey), borderRadius: BorderRadius.circular(4)),
               onTap: () async {
@@ -403,12 +406,12 @@ class _PerfilViewState extends State<PerfilView> {
               },
             ),
             const SizedBox(height: 20),
-            const Text('Ficha de Anamnese', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
+            Text(AppLocalizations.of(context)!.anamnesisTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
             const SizedBox(height: 10),
-            _buildAnamneseField('Histórico Médico', 'historico_medico', _historicoController),
-            _buildAnamneseField('Alergias', 'alergias', _alergiasController),
-            _buildAnamneseField('Medicamentos em uso', 'medicamentos', _medicamentosController),
-            _buildAnamneseField('Cirurgias Recentes', 'cirurgias', _cirurgiasController),
+            _buildAnamneseField(AppLocalizations.of(context)!.medicalHistoryLabel, 'historico_medico', _historicoController),
+            _buildAnamneseField(AppLocalizations.of(context)!.allergiesLabel, 'alergias', _alergiasController),
+            _buildAnamneseField(AppLocalizations.of(context)!.medicationsLabel, 'medicamentos', _medicamentosController),
+            _buildAnamneseField(AppLocalizations.of(context)!.surgeriesLabel, 'cirurgias', _cirurgiasController),
             
             const SizedBox(height: 30),
             const Divider(),
@@ -416,7 +419,7 @@ class _PerfilViewState extends State<PerfilView> {
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: TextButton.icon(
                 icon: const Icon(Icons.delete_forever, color: Colors.red),
-                label: const Text('Excluir minha conta e dados (LGPD)', style: TextStyle(color: Colors.red)),
+                label: Text(AppLocalizations.of(context)!.deleteAccountButton, style: const TextStyle(color: Colors.red)),
                 onPressed: _excluirConta,
               ),
             ),
@@ -435,7 +438,7 @@ class _PerfilViewState extends State<PerfilView> {
           return const Center(child: CircularProgressIndicator());
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('Nenhum agendamento encontrado.'));
+          return Center(child: Text(AppLocalizations.of(context)!.noAppointmentsFound));
         }
 
         final agendamentos = snapshot.data!;
@@ -515,7 +518,7 @@ class _PerfilViewState extends State<PerfilView> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: Text(foraDoPrazo ? 'Cancelamento Tardio' : 'Cancelar Agendamento'),
+          title: Text(foraDoPrazo ? 'Cancelamento Tardio' : AppLocalizations.of(context)!.cancelButton),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -530,7 +533,7 @@ class _PerfilViewState extends State<PerfilView> {
                   ),
                 ),
               const SizedBox(height: 10),
-              const Text('Por favor, informe o motivo do cancelamento:'),
+              Text(AppLocalizations.of(context)!.cancellationReasonLabel),
               TextField(
                 controller: motivoController,
                 decoration: const InputDecoration(hintText: 'Ex: Imprevisto de saúde'),
@@ -539,7 +542,7 @@ class _PerfilViewState extends State<PerfilView> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Voltar')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(AppLocalizations.of(context)!.cancelButton)),
             ElevatedButton(
               onPressed: () async {
                 if (motivoController.text.isEmpty) return;
@@ -550,7 +553,7 @@ class _PerfilViewState extends State<PerfilView> {
                 await _firestoreService.cancelarAgendamento(agendamento.id!, motivoFinal, status);
                 if (dialogContext.mounted) Navigator.pop(dialogContext);
               },
-              child: const Text('Confirmar Cancelamento'),
+              child: Text(AppLocalizations.of(context)!.confirmCancellationButton),
             ),
           ],
         );
