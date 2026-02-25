@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../controller/login_controller.dart';
 import '../controller/firestore_service.dart';
 import '../controller/changelog_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../app_localizations.dart';
 import '../main.dart';
 import 'signup_view.dart';
@@ -47,6 +48,12 @@ class _LoginViewState extends State<LoginView> {
         
         // 4. Atualiza a versão vista
         await prefs.setString('last_seen_version', latestLog.versao);
+      }
+
+      // 5. Sincroniza metadados do Auth se estiver logado
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await _firestoreService.sincronizarMetadadosUsuario(user);
       }
     } catch (e) {
       debugPrint('Erro ao verificar change log: $e');

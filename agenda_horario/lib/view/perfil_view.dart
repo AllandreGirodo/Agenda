@@ -11,6 +11,7 @@ import '../controller/firestore_service.dart';
 import '../controller/cliente_model.dart';
 import '../controller/config_model.dart';
 import '../controller/agendamento_model.dart';
+import '../test/validadores.dart';
 import 'login_view.dart';
 
 class PerfilView extends StatefulWidget {
@@ -98,27 +99,7 @@ class _PerfilViewState extends State<PerfilView> {
 
   // Algoritmo de validação de CPF
   String? _validarCpf(String? value) {
-    if (value == null || value.isEmpty) return _isObrigatorio('cpf') ? 'CPF obrigatório' : null;
-    
-    final cpf = value.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cpf.isEmpty && !_isObrigatorio('cpf')) return null;
-    if (cpf.length != 11) return 'CPF deve ter 11 dígitos';
-    if (RegExp(r'^(\d)\1*$').hasMatch(cpf)) return 'CPF inválido';
-
-    List<int> numbers = cpf.split('').map(int.parse).toList();
-    int sum = 0;
-    for (int i = 0; i < 9; i++) sum += numbers[i] * (10 - i);
-    int digit1 = 11 - (sum % 11);
-    if (digit1 >= 10) digit1 = 0;
-    if (numbers[9] != digit1) return 'CPF inválido';
-
-    sum = 0;
-    for (int i = 0; i < 10; i++) sum += numbers[i] * (11 - i);
-    int digit2 = 11 - (sum % 11);
-    if (digit2 >= 10) digit2 = 0;
-    if (numbers[10] != digit2) return 'CPF inválido';
-
-    return null;
+    return Validadores.validarCpf(value, obrigatorio: _isObrigatorio('cpf'));
   }
 
   String? _validarCep(String? value) {
@@ -233,7 +214,7 @@ class _PerfilViewState extends State<PerfilView> {
       builder: (context) => AlertDialog(
         title: const Text('Excluir Conta e Dados?'),
         content: const Text(
-            'Atenção: Esta ação excluirá permanentemente sua conta, histórico e agendamentos (LGPD). Não é possível desfazer.'),
+            'Atenção: Seus dados pessoais (Nome, Telefone, Endereço, Anamnese) serão anonimizados permanentemente conforme a LGPD.\n\nO histórico financeiro de agendamentos realizados será mantido para fins fiscais da clínica.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -251,12 +232,19 @@ class _PerfilViewState extends State<PerfilView> {
     if (confirm == true && mounted && _user != null) {
       setState(() => _isLoading = true);
       try {
-        await _firestoreService.excluirConta(_user.uid); // Apaga do Firestore
+        await _firestoreService.anonimizarConta(_user.uid); // Anonimiza no Firestore
         await _user.delete(); // Apaga do Authentication
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sua conta foi excluída com sucesso.')));
           Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginView()), (route) => false);
+        }
+      } on FirebaseAuthException catch (e) {
+        if (mounted) setState(() => _isLoading = false);
+        if (e.code == 'requires-recent-login') {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por segurança, faça login novamente para excluir a conta.')));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: ${e.message}')));
         }
       } catch (e) {
         if (mounted) setState(() => _isLoading = false);

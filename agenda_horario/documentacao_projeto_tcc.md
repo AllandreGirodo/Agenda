@@ -38,6 +38,18 @@ O sistema foi projetado para resolver o problema de gestão manual (caderno/What
     *   Controle de Estoque (baixa automática de produtos ao aprovar sessão).
     *   Configurações globais (preço da sessão, telefone da admin, horário de sono para regras de cancelamento).
 
+*   **[RF006] Conformidade com LGPD (Anonimização):**
+    *   O sistema deve permitir que o usuário solicite a exclusão de seus dados.
+    *   O sistema deve realizar a **anonimização** dos dados pessoais (nome, telefone, endereço, anamnese), mantendo apenas o ID e os registros de agendamento para fins de histórico financeiro (Art. 16 da LGPD).
+
+*   **[RF007] Auditoria de Dados Sensíveis:**
+    *   Todas as operações de anonimização devem ser registradas em uma coleção segura (`lgpd_logs`) contendo data, ID do usuário e ação realizada.
+    *   Apenas o Administrador pode visualizar esses logs.
+
+*   **[RF008] Retenção e Descarte Automático:**
+    *   Os logs de auditoria LGPD devem ser mantidos por um período legal de 5 anos.
+    *   Uma rotina automática (Cloud Function) deve excluir definitivamente logs mais antigos que esse período.
+
 ### 1.2. Requisitos Não-Funcionais (RNF)
 
 *   **[RNF001] Disponibilidade:** O sistema deve operar em dispositivos móveis (Android/iOS).
@@ -78,6 +90,13 @@ Esta seção registra os desafios encontrados durante a codificação e as solu�
 *   **Solução:** Uso do `image_picker` para selecionar foto da galeria e `firebase_storage` para salvar na nuvem.
 *   **Segurança:** Configuração das *Storage Rules* para permitir que o usuário faça upload apenas na sua própria pasta (`perfis/{uid}.jpg`), mas permitindo leitura pública (para a Admin ver a foto).
 
+### 2.6. Adequação à LGPD e Ciclo de Vida dos Dados
+*   **Questão:** Como permitir que o usuário "apague a conta" sem destruir o histórico financeiro da clínica?
+*   **Decisão Técnica:** Implementação de "Soft Delete" via Anonimização.
+    *   **Ação:** Ao solicitar exclusão, os campos `nome`, `whatsapp`, `endereco` e `anamnese` são sobrescritos com strings genéricas ou vazias. O documento do agendamento permanece, mas sem vínculo identificável com a pessoa física original.
+    *   **Auditoria:** Criação da coleção `lgpd_logs` para provar que a solicitação foi atendida.
+    *   **Automação:** Criação de uma *Cloud Function* (`limparLogsLgpdAntigos`) que roda diariamente para apagar logs com mais de 5 anos, garantindo que dados de auditoria não fiquem armazenados indefinidamente sem necessidade.
+
 ---
 
 ## 3. Trabalhos Futuros (Roadmap)
@@ -108,6 +127,27 @@ Documentação das coleções utilizadas:
 *   **`estoque`**: Produtos, quantidade e flag de consumo automático.
 *   **`configuracoes`**: Variáveis globais do sistema.
 *   **`logs`**: Auditoria de ações críticas (quem cancelou, quem aprovou).
+*   **`lgpd_logs`**: Registro de solicitações de exclusão/anonimização (Retenção: 5 anos).
+
+---
+
+## 6. Competências Técnicas e Padrões de Projeto (Skills)
+
+O desenvolvimento deste projeto demonstrou a aplicação prática de diversos conceitos de Engenharia de Software:
+
+### 6.1. Arquitetura e Padrões
+*   **Service Pattern (Camada de Serviço):** A classe `FirestoreService` centraliza toda a lógica de acesso a dados, desacoplando a interface (View) do banco de dados (Model). Isso facilita testes e manutenção.
+*   **Singleton (Implícito):** Utilização das instâncias únicas do Firebase (`FirebaseAuth.instance`, `FirebaseFirestore.instance`) para gestão eficiente de recursos.
+*   **Strategy Pattern:** Aplicado na classe `Validadores`, onde as regras de validação (CPF, Email) são encapsuladas em métodos estáticos reutilizáveis, permitindo que diferentes telas usem a mesma estratégia de validação.
+*   **Observer Pattern:** Implementado através de `Streams` e `StreamBuilder`. O aplicativo "observa" o banco de dados e reage em tempo real a mudanças (ex: quando a admin aprova um agendamento, a tela do cliente atualiza instantaneamente sem "refresh").
+
+### 6.2. Qualidade de Código (Clean Code)
+*   **Nomenclatura Semântica:** Variáveis e métodos com nomes claros (`anonimizarConta`, `calcularTaxaCancelamento`) que explicam sua função sem necessidade de comentários excessivos.
+*   **Tratamento de Erros:** Uso de blocos `try-catch` específicos (ex: `FirebaseAuthException`) para fornecer feedback amigável ao usuário em vez de travar o app.
+*   **Separação de Responsabilidades (SoC):**
+    *   `View`: Apenas desenha a tela.
+    *   `Controller/Service`: Regras de negócio e banco.
+    *   `Model`: Estrutura de dados pura.
 
 ---
 

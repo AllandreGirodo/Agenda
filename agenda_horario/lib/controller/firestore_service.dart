@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../controller/cliente_model.dart';
 import '../controller/agendamento_model.dart';
 import '../usuario_model.dart';
@@ -85,6 +86,15 @@ class FirestoreService {
   // Salva o telefone do admin (Conectar este método a um TextField na tela de Admin)
   Future<void> salvarTelefoneAdmin(String telefone) async {
     await _db.collection('configuracoes').doc('geral').set({'whatsapp_admin': telefone}, SetOptions(merge: true));
+  }
+
+  // Busca a lista de tipos de massagem configurados no banco
+  Future<List<String>> getTiposMassagem() async {
+    final doc = await _db.collection('configuracoes').doc('servicos').get();
+    if (doc.exists && doc.data() != null) {
+      return List<String>.from(doc.data()!['tipos'] ?? []);
+    }
+    return ['Massagem Relaxante', 'Drenagem Linfática', 'Massagem Terapêutica']; // Fallback padrão
   }
 
   // --- Usuarios (Login) ---
@@ -243,21 +253,54 @@ class FirestoreService {
     await registrarLog('cancelamento', 'Agendamento $id cancelado. Motivo: $motivo');
   }
 
-  // --- LGPD / Exclusão de Conta ---
-  Future<void> excluirConta(String uid) async {
+  // --- LGPD / Anonimização de Conta ---
+  // Não excluímos fisicamente para manter integridade financeira (agendamentos realizados),
+  // mas removemos todos os dados pessoais identificáveis.
+  Future<void> anonimizarConta(String uid) async {
     final batch = _db.batch();
 
-    // 1. Excluir agendamentos do cliente
-    final agendamentos = await _db.collection('agendamentos').where('cliente_id', isEqualTo: uid).get();
-    for (var doc in agendamentos.docs) {
-      batch.delete(doc.reference);
-    }
+    // 1. Anonimizar dados do Cliente (Remove PII, mantém ID e Saldo para auditoria)
+    final clienteRef = _db.collection('clientes').doc(uid);
+    batch.update(clienteRef, {
+      'nome': 'Usuário Anonimizado (LGPD)',
+      'whatsapp': '',
+      'endereco': '',
+      'historico_medico': 'Dados excluídos por solicitação do titular',
+      'alergias': '',
+      'medicamentos': '',
+      'cirurgias': '',
+      'anamnese_ok': false,
+      // 'saldo_sessoes': Mantemos o saldo pois pode haver pendência financeira ou crédito
+    });
 
-    // 2. Excluir dados do cliente e usuário
-    batch.delete(_db.collection('clientes').doc(uid));
-    batch.delete(_db.collection('usuarios').doc(uid));
+    // 2. Anonimizar dados de Usuário (Login)
+    final usuarioRef = _db.collection('usuarios').doc(uid);
+    batch.update(usuarioRef, {
+      'nome': 'Anonimizado',
+      'email': 'excluido_$uid@anonimizado.com', // Email fictício para não quebrar unicidade se necessário
+      'aprovado': false,
+      'fcm_token': FieldValue.delete(), // Remove token de notificação
+    });
 
+    // 3. Registrar na coleção específica de LGPD
+    final lgpdRef = _db.collection('lgpd_logs').doc();
+    batch.set(lgpdRef, {
+      'usuario_id': uid,
+      'acao': 'ANONIMIZACAO_CONTA',
+      'data_hora': FieldValue.serverTimestamp(),
+      'motivo': 'Solicitação do usuário via app',
+    });
+
+    // Nota: Agendamentos NÃO são excluídos para manter o histórico financeiro da clínica.
     await batch.commit();
+  }
+
+  // --- LGPD / Leitura de Logs ---
+  Stream<List<Map<String, dynamic>>> getLgpdLogs() {
+    return _db.collection('lgpd_logs')
+        .orderBy('data_hora', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   }
 
   // --- Logs ---
@@ -304,6 +347,22 @@ class FirestoreService {
   }
 
   Future<void> inicializarChangeLog() async {
+    // Versão 1.1.0 - LGPD e Auditoria
+    final doc110 = await _db.collection('changelogs').doc('v1.1.0').get();
+    if (!doc110.exists) {
+      await _db.collection('changelogs').doc('v1.1.0').set(ChangeLogModel(
+        versao: '1.1.0',
+        data: DateTime.now(),
+        autor: 'Dev TCC',
+        mudancas: [
+          'Implementação de Anonimização de Conta (LGPD Art. 16).',
+          'Criação de Logs de Auditoria para dados sensíveis.',
+          'Correção de validação de CPF e máscaras de entrada.',
+          'Melhoria na segurança de exclusão de conta.'
+        ],
+      ).toMap());
+    }
+
     final doc = await _db.collection('changelogs').doc('v1.0.0').get();
     if (!doc.exists) {
       final initialLog = ChangeLogModel(

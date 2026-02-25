@@ -10,6 +10,7 @@ import 'admin_config_view.dart';
 import 'admin_estoque_view.dart';
 import 'admin_relatorios_view.dart';
 import 'admin_logs_view.dart';
+import 'admin_lgpd_logs_view.dart';
 
 class AdminAgendamentosView extends StatefulWidget {
   const AdminAgendamentosView({super.key});
@@ -68,6 +69,13 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
               tooltip: 'Logs',
               onPressed: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminLogsView()));
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.privacy_tip),
+              tooltip: 'Auditoria LGPD',
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminLgpdLogsView()));
               },
             ),
             IconButton(
