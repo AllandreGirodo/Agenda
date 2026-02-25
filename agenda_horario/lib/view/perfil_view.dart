@@ -43,8 +43,8 @@ class _PerfilViewState extends State<PerfilView> {
     // Carregar Configuração e Dados do Cliente em paralelo
     final results = await Future.wait([
       _firestoreService.getConfiguracao(),
-      _firestoreService.getCliente(_user!.uid),
-      _firestoreService.getUsuario(_user!.uid), // Fallback para nome/email
+      _firestoreService.getCliente(_user.uid),
+      _firestoreService.getUsuario(_user.uid), // Fallback para nome/email
     ]);
 
     _config = results[0] as ConfigModel;
@@ -138,8 +138,8 @@ class _PerfilViewState extends State<PerfilView> {
     if (confirm == true && mounted && _user != null) {
       setState(() => _isLoading = true);
       try {
-        await _firestoreService.excluirConta(_user!.uid); // Apaga do Firestore
-        await _user!.delete(); // Apaga do Authentication
+        await _firestoreService.excluirConta(_user.uid); // Apaga do Firestore
+        await _user.delete(); // Apaga do Authentication
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sua conta foi excluída com sucesso.')));

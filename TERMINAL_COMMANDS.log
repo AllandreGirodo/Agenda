@@ -24,3 +24,80 @@ flutter config --enable-web
 flutter run
 sudo apt update && sudo apt install -y chromium-browser
 history | sed 's/\s*[0-9]*\s*//' > /workspaces/Agenda/TERMINAL_COMMANDS.log
+dart pub global activate flutterfire_cli
+export PATH="$PATH":"$HOME/.pub-cache/bin"
+echo 'export PATH="$(npm get prefix)/bin:$PATH"' >> ~/.bashrc
+export PATH="$PATH":"$HOME/.pub-cache/bin"
+# Windows (PowerShell/CMD) ou em WSL/bash:
+export AGENDA_ROOT="C:\Users\Allandre Girodo\Documents\TCC\Agenda"
+# ou no Linux/WSL:
+export AGENDA_ROOT="/mnt/c/Users/Allandre Girodo/Documents/TCC/Agenda"
+echo 'export PATH="$(npm get prefix)/bin:$PATH"' >> ~/.bashrc
+dart pub global activate flutterfire_cli
+echo 'export PATH="$(npm get prefix)/bin:$PATH"' >> ~/.bashrc
+dart pub global activate flutterfire_cli
+export AGENDA_ROOT="/mnt/c/Users/Allandre Girodo/Documents/TCC/Agenda"
+export PATH="$(npm get prefix)/bin:$PATH"
+dart pub global activate flutterfire_cli
+flutter upgrade --force
+dart pub global activate flutterfire_cli
+history | sed 's/\s*[0-9]*\s*//' > /workspaces/Agenda/TERMINAL_COMMANDS.log
+flutter pub add firebase_core
+cd /workspaces/Agenda
+flutter create .
+cd /workspaces/Agenda
+flutter create .
+flutter create agenda
+flutter config --jdk-dir=<JDK_DIRECTORY>
+cd agenda
+flutter run
+flutter pub outdated
+flutter run
+cd /workspaces/Agenda/minha_app_flutter
+ls -l pubspec.yaml
+cd /workspaces/Agenda/agenda_horario/lib
+ls -l pubspec.yaml
+cd..
+cd
+cd /workspaces/Agenda/agenda_horario/
+ls -l pubspec.yaml
+flutter pub add firebase_core
+flutter run
+cd /workspaces/Agenda/agenda_horario
+flutter clean
+flutter run
+flutter clean
+history | sed 's/\s*[0-9]*\s*//' > /workspaces/Agenda/TERMINAL_COMMANDS.log
+flutter pub get
+flutter pub add firebase_core
+flutter pub add cloud_firestore
+flutter pub outdated
+flutter pub add firebase_core
+flutter pub add cloud_firestore
+flutter run
+flutter pub add cloud_firestore
+flutter pub outdated
+flutter pub upgrade --dry-run
+flutter pub upgrade
+flutter pub upgrade --major-versions
+flutter run
+sudo apt install ninja-build
+flutter build web
+flutter pub add firebase_messaging
+flutter build web
+flutter pub add firebase_messaging
+flutter build apk --release
+firebase init hosting
+firebase login
+firebase init
+flutter pub firebase_core
+flutter pub add firebase_core
+cd agenda_horario
+flutter pub add firebase_core
+flutter pub outdated
+flutter pub add cloud_firestore
+flutter pub outdated
+flutter pub add firebase_auth
+flutter pub outdated
+flutter pub add firebase_auth
+history | sed 's/\s*[0-9]*\s*//' > /workspaces/Agenda/TERMINAL_COMMANDS.log

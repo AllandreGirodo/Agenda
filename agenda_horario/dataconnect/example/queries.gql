@@ -1,0 +1,54 @@
+# 1. Query to retrieve all tasks for the currently authenticated user
+query GetMyTasks @auth(level: USER, insecureReason: "This operation is safe to expose to all logged in users.") {
+  tasks(where: { userId: { eq_expr: "auth.uid" } }) {
+    id
+    title
+    dueDate
+    isCompleted
+    priority
+  }
+}
+
+# 2. Mutation to create a new task for the currently authenticated user
+mutation CreateMyTask($title: String!, $dueDate: Date, $isCompleted: Boolean!, $priority: Int) @auth(level: USER) {
+  task_insert(
+    data: {
+      userId_expr: "auth.uid"
+      title: $title
+      dueDate: $dueDate
+      isCompleted: $isCompleted
+      priority: $priority
+      createdAt_expr: "request.time"
+    }
+  ) {
+    id
+  }
+}
+
+# 3. Query to get public notes (no user specific data needed)
+query GetPublicNotes @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public") {
+  notes(where: { category: { eq: "public" } }) {
+    id
+    title
+    content
+    category
+  }
+}
+
+# 4. Mutation to update a specific event for the authenticated user
+mutation UpdateMyEvent($id: UUID!, $title: String, $description: String, $location: String, $startTime: Timestamp, $endTime: Timestamp, $isAllDay: Boolean, $reminderTime: Timestamp) @auth(level: USER) {
+  event_update(
+    key: { id: $id }
+    data: {
+      title: $title
+      description: $description
+      location: $location
+      startTime: $startTime
+      endTime: $endTime
+      isAllDay: $isAllDay
+      reminderTime: $reminderTime
+    }
+  ) {
+    id
+  }
+}

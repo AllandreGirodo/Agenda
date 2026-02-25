@@ -6,6 +6,7 @@ import '../usuario_model.dart';
 import 'config_model.dart';
 import 'estoque_model.dart';
 import 'log_model.dart';
+import 'changelog_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -127,7 +128,7 @@ class FirestoreService {
         .orderBy('data_hora')
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((doc) => Agendamento.fromMap(doc.data()!, id: doc.id))
+            .map((doc) => Agendamento.fromMap(doc.data(), id: doc.id))
             .toList());
   }
 
@@ -233,5 +234,57 @@ class FirestoreService {
     batch.delete(_db.collection('usuarios').doc(uid));
 
     await batch.commit();
+  }
+
+  // --- Logs ---
+  Future<void> registrarLog(String tipo, String mensagem, {String? usuarioId}) async {
+    final log = LogModel(
+      dataHora: DateTime.now(),
+      tipo: tipo,
+      mensagem: mensagem,
+      usuarioId: usuarioId,
+    );
+    await _db.collection('logs').add(log.toMap());
+  }
+
+  Stream<List<LogModel>> getLogs() {
+    return _db.collection('logs')
+        .orderBy('data_hora', descending: true)
+        .limit(100) // Limita para não carregar demais
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => LogModel.fromMap(doc.data()))
+            .toList());
+  }
+
+  // --- Change Logs (Versionamento) ---
+  Stream<List<ChangeLogModel>> getChangeLogs() {
+    return _db.collection('changelogs')
+        .orderBy('data', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ChangeLogModel.fromMap(doc.data()))
+            .toList());
+  }
+
+  Future<void> inicializarChangeLog() async {
+    final doc = await _db.collection('changelogs').doc('v1.0.0').get();
+    if (!doc.exists) {
+      final initialLog = ChangeLogModel(
+        versao: '1.0.0',
+        data: DateTime.now(),
+        autor: 'Admin',
+        mudancas: [
+          'Lançamento inicial do MVP.',
+          'Sistema de Autenticação (Login/Cadastro).',
+          'Gestão de Perfil e Anamnese (LGPD).',
+          'Agendamento de sessões com fluxo de aprovação.',
+          'Painel Administrativo com Relatórios.',
+          'Controle de Logs do Sistema.',
+          'Integração básica com WhatsApp.'
+        ],
+      );
+      await _db.collection('changelogs').doc('v1.0.0').set(initialLog.toMap());
+    }
   }
 }

@@ -1,0 +1,92 @@
+mutation CreateDemoData @transaction @auth(level: USER, insecureReason: "This is seed data and only needs to be run once by an authenticated user.") {
+  user_insertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      displayName: "Alice Smith",
+      email: "alice.smith@example.com",
+      createdAt: "2024-01-01T10:00:00Z",
+      photoUrl: "https://example.com/alice.jpg"
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440001",
+      displayName: "Bob Johnson",
+      email: "bob.johnson@example.com",
+      createdAt: "2024-01-01T10:05:00Z",
+      photoUrl: "https://example.com/bob.jpg"
+    }
+  ])
+  event_insertMany(data: [
+    {
+      userId: "550e8400-e29b-41d4-a716-446655440000",
+      title: "Team Meeting",
+      description: "Weekly team sync-up",
+      location: "Conference Room A",
+      startTime: "2024-07-20T09:00:00Z",
+      endTime: "2024-07-20T10:00:00Z",
+      isAllDay: false,
+      createdAt: "2024-07-19T14:30:00Z"
+    },
+    {
+      userId: "550e8400-e29b-41d4-a716-446655440001",
+      title: "Project Deadline",
+      description: "Final submission for Project X",
+      location: "Remote",
+      startTime: "2024-07-25T17:00:00Z",
+      endTime: "2024-07-25T17:00:00Z",
+      isAllDay: false,
+      createdAt: "2024-07-20T11:00:00Z"
+    }
+  ])
+  note_insertMany(data: [
+    {
+      userId: "550e8400-e29b-41d4-a716-446655440000",
+      title: "Meeting Notes",
+      content: "Discussed Q3 goals and action items.",
+      category: "Work",
+      createdAt: "2024-07-20T10:15:00Z"
+    },
+    {
+      userId: "550e8400-e29b-41d4-a716-446655440001",
+      title: "Idea for new feature",
+      content: "Implement real-time collaboration on documents.",
+      category: "Innovation",
+      createdAt: "2024-07-22T13:45:00Z"
+    }
+  ])
+  taskList_insertMany(data: [
+    {
+      id: "550e8400-e29b-41d4-a716-446655440002",
+      userId: "550e8400-e29b-41d4-a716-446655440000",
+      name: "Personal Tasks",
+      description: "Tasks for personal development and errands.",
+      createdAt: "2024-07-18T08:00:00Z"
+    },
+    {
+      id: "550e8400-e29b-41d4-a716-446655440003",
+      userId: "550e8400-e29b-41d4-a716-446655440001",
+      name: "Work Tasks",
+      description: "Tasks related to ongoing projects.",
+      createdAt: "2024-07-18T08:15:00Z"
+    }
+  ])
+  task_insertMany(data: [
+    {
+      userId: "550e8400-e29b-41d4-a716-446655440000",
+      title: "Buy groceries",
+      dueDate: "2024-07-21",
+      isCompleted: false,
+      priority: 2,
+      notes: "Milk, eggs, bread",
+      createdAt: "2024-07-19T08:30:00Z"
+    },
+    {
+      userId: "550e8400-e29b-41d4-a716-446655440001",
+      title: "Prepare presentation",
+      dueDate: "2024-07-24",
+      isCompleted: false,
+      priority: 1,
+      notes: "Review slides, practice delivery",
+      createdAt: "2024-07-20T09:45:00Z"
+    }
+  ])
+}

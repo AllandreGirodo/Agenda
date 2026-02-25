@@ -1,19 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LogModel {
-  final String? id;
-  final DateTime dataHora;
-  final String tipo; // 'cancelamento', 'aprovacao', 'sistema', 'espera'
+  final String tipo;
   final String mensagem;
+  final DateTime dataHora;
   final String? usuarioId;
 
-  LogModel({
-    this.id,
-    required this.dataHora,
-    required this.tipo,
-    required this.mensagem,
-    this.usuarioId,
-  });
+  LogModel({required this.tipo, required this.mensagem, required this.dataHora, this.usuarioId});
 
   Map<String, dynamic> toMap() => {
     'data_hora': Timestamp.fromDate(dataHora),
@@ -22,13 +15,12 @@ class LogModel {
     'usuario_id': usuarioId,
   };
 
-  factory LogModel.fromMap(Map<String, dynamic> map, {String? id}) {
+  factory LogModel.fromMap(Map<String, dynamic> map) {
     return LogModel(
-      id: id,
-      dataHora: (map['data_hora'] as Timestamp).toDate(),
-      tipo: map['tipo'] ?? 'sistema',
-      mensagem: map['mensagem'] ?? '',
-      usuarioId: map['usuario_id'],
+      tipo: map['tipo'] as String,
+      mensagem: map['mensagem'] as String,
+      dataHora: (map['dataHora'] as Timestamp).toDate(),
+      usuarioId: map['usuarioId'] as String?,
     );
   }
 }

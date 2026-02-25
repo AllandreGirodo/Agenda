@@ -117,7 +117,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<int>(
-                                value: _inicioSono,
+                                initialValue: _inicioSono,
                                 decoration: const InputDecoration(labelText: 'Dorme às'),
                                 items: List.generate(24, (i) => DropdownMenuItem(value: i, child: Text('$i:00'))),
                                 onChanged: (v) => setState(() => _inicioSono = v!),
@@ -126,7 +126,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: DropdownButtonFormField<int>(
-                                value: _fimSono,
+                                initialValue: _fimSono,
                                 decoration: const InputDecoration(labelText: 'Acorda às'),
                                 items: List.generate(24, (i) => DropdownMenuItem(value: i, child: Text('$i:00'))),
                                 onChanged: (v) => setState(() => _fimSono = v!),
