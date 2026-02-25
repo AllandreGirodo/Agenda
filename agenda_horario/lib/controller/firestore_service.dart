@@ -267,6 +267,18 @@ class FirestoreService {
             .toList());
   }
 
+  Future<ChangeLogModel?> getLatestChangeLog() async {
+    final snapshot = await _db.collection('changelogs')
+        .orderBy('data', descending: true)
+        .limit(1)
+        .get();
+    
+    if (snapshot.docs.isNotEmpty) {
+      return ChangeLogModel.fromMap(snapshot.docs.first.data());
+    }
+    return null;
+  }
+
   Future<void> inicializarChangeLog() async {
     final doc = await _db.collection('changelogs').doc('v1.0.0').get();
     if (!doc.exists) {
