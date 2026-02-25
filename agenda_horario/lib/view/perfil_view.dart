@@ -121,9 +121,22 @@ class _PerfilViewState extends State<PerfilView> {
     return null;
   }
 
+  String? _validarCep(String? value) {
+    if (value == null || value.isEmpty) return null; // Opcional se não for obrigatório
+    final cep = value.replaceAll(RegExp(r'[^0-9]'), '');
+    if (cep.length != 8) return 'CEP inválido';
+    return null;
+  }
+
   Future<void> _buscarCep() async {
     final cep = _cepController.text.replaceAll(RegExp(r'[^0-9]'), '');
-    if (cep.length != 8) return;
+    
+    if (cep.length != 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Por favor, digite um CEP válido com 8 números.')),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -132,12 +145,24 @@ class _PerfilViewState extends State<PerfilView> {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        if (!data.containsKey('erro')) {
+        if (data.containsKey('erro')) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('CEP não encontrado. Por favor, digite o endereço manualmente.')),
+            );
+            // Não limpamos o campo de endereço para permitir que o usuário digite
+            _enderecoController.clear(); 
+          }
+        } else {
           _enderecoController.text = '${data['logradouro']}, ${data['bairro']}, ${data['localidade']} - ${data['uf']}';
         }
       }
     } catch (e) {
-      debugPrint('Erro ao buscar CEP: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao buscar CEP. Verifique sua conexão ou digite manualmente.')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -356,6 +381,7 @@ class _PerfilViewState extends State<PerfilView> {
                     controller: _cepController,
                     decoration: const InputDecoration(labelText: 'CEP', border: OutlineInputBorder(), hintText: '00000-000'),
                     keyboardType: TextInputType.number,
+                    validator: _validarCep,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(8)],
                   ),
                 ),

@@ -7,6 +7,7 @@ import '../controller/changelog_model.dart';
 import '../app_localizations.dart';
 import '../main.dart';
 import 'signup_view.dart';
+import 'db_seeder.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -142,7 +143,20 @@ class _LoginViewState extends State<LoginView> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.spa, size: 80, color: Colors.teal),
+              GestureDetector(
+                onLongPress: () async {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Iniciando população do banco (DEV)...')),
+                  );
+                  await DbSeeder.popularBancoDados();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Banco de dados populado com sucesso!')),
+                    );
+                  }
+                },
+                child: const Icon(Icons.spa, size: 80, color: Colors.teal),
+              ),
               const SizedBox(height: 20),
               Text(
                 AppLocalizations.of(context)!.loginTitle,
