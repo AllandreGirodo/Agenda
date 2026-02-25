@@ -8,6 +8,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/services.dart';
 
 class DevToolsView extends StatefulWidget {
   const DevToolsView({super.key});
@@ -193,6 +196,83 @@ class _DevToolsViewState extends State<DevToolsView> {
 
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao exportar: $e')));
+    }
+  }
+
+  // --- Exportação Web (JSONBin.io) ---
+  Future<void> _exportarParaWeb(String collection) async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enviando para JSONBin...')));
+
+      // 1. Busca dados
+      final data = await _firestoreService.getFullCollection(collection);
+      if (data.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coleção vazia.')));
+        return;
+      }
+
+      // 2. Prepara JSON e Headers
+      final jsonBody = jsonEncode(data);
+      final apiKey = dotenv.env['X_ACCESS_API_KEY'] ?? dotenv.env['X_MASTER_API_KEY'];
+      
+      if (apiKey == null) throw Exception('API Key do JSONBin não configurada no .env');
+
+      // 3. Envia Request (POST)
+      final response = await http.post(
+        Uri.parse('https://api.jsonbin.io/v3/b'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Access-Key': apiKey,
+          'X-Bin-Private': 'false', // Define como público para facilitar leitura (cuidado com dados reais)
+          'X-Bin-Name': '${collection}_export_${DateTime.now().millisecondsSinceEpoch}',
+        },
+        body: jsonBody,
+      );
+
+      // 4. Processa Resposta
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        final binId = responseData['metadata']['id'];
+        final url = 'https://api.jsonbin.io/v3/b/$binId';
+
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Exportação Concluída ☁️'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Dados salvos na nuvem com sucesso!'),
+                  const SizedBox(height: 10),
+                  SelectableText('Bin ID: $binId', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 5),
+                  const Text('URL API:'),
+                  SelectableText(url, style: const TextStyle(color: Colors.blue, fontSize: 12)),
+                ],
+              ),
+              actions: [
+                TextButton.icon(
+                  icon: const Icon(Icons.copy),
+                  label: const Text('Copiar URL'),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: url));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('URL copiada!')));
+                  },
+                ),
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fechar')),
+              ],
+            ),
+          );
+        }
+      } else {
+        throw Exception('Erro API (${response.statusCode}): ${response.body}');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao exportar para web: $e')));
+      }
     }
   }
 
@@ -382,7 +462,13 @@ class _DevToolsViewState extends State<DevToolsView> {
                     PopupMenuButton<String>(
                       icon: const Icon(Icons.download, color: Colors.orange),
                       tooltip: 'Exportar',
-                      onSelected: (format) => _exportarCollection(collection, format),
+                      onSelected: (format) {
+                        if (format == 'web') {
+                          _exportarParaWeb(collection);
+                        } else {
+                          _exportarCollection(collection, format);
+                        }
+                      },
                       itemBuilder: (context) => [
                         const PopupMenuItem(
                           value: 'json',
@@ -391,6 +477,10 @@ class _DevToolsViewState extends State<DevToolsView> {
                         const PopupMenuItem(
                           value: 'csv',
                           child: Row(children: [Icon(Icons.table_view, size: 18), SizedBox(width: 8), Text('CSV')]),
+                        ),
+                        const PopupMenuItem(
+                          value: 'web',
+                          child: Row(children: [Icon(Icons.cloud_upload, size: 18), SizedBox(width: 8), Text('Web (JSONBin)')]),
                         ),
                       ],
                     ),
