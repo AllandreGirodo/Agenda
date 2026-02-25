@@ -303,6 +303,46 @@ class FirestoreService {
         .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   }
 
+  // --- Dev Tools (SQL-like Operations) ---
+  
+  // Apaga TODOS os documentos de uma coleção (Cuidado!)
+  Future<void> limparColecao(String collectionPath) async {
+    final batch = _db.batch();
+    var snapshot = await _db.collection(collectionPath).limit(500).get();
+    
+    // Firestore limita batches a 500 operações. Em produção, precisaria de um loop while.
+    // Para o TCC, assumimos que limpar 500 por vez é suficiente ou clicamos várias vezes.
+    for (var doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  // Retorna todos os dados de uma coleção como Lista de Mapas (para Exportação JSON/CSV)
+  Future<List<Map<String, dynamic>>> getFullCollection(String collectionPath) async {
+    final snapshot = await _db.collection(collectionPath).get();
+    return snapshot.docs.map((doc) => doc.data()..['id'] = doc.id).toList();
+  }
+
+  // Importa dados de uma lista de mapas para uma coleção (Batch Write)
+  Future<void> importarColecao(String collectionPath, List<Map<String, dynamic>> dados) async {
+    final batch = _db.batch();
+    
+    for (var item in dados) {
+      // Remove o ID do mapa de dados para não duplicar dentro do documento, 
+      // mas usa ele para definir a referência do documento
+      String? docId = item['id'];
+      if (docId != null) {
+        // Cria uma cópia para não alterar o original e remove o ID dos campos internos
+        final dadosParaSalvar = Map<String, dynamic>.from(item)..remove('id');
+        final docRef = _db.collection(collectionPath).doc(docId);
+        batch.set(docRef, dadosParaSalvar, SetOptions(merge: true));
+      }
+    }
+    
+    await batch.commit();
+  }
+
   // --- Logs ---
   Future<void> registrarLog(String tipo, String mensagem, {String? usuarioId}) async {
     final log = LogModel(

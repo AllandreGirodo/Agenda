@@ -4,13 +4,20 @@ import 'package:flutter/foundation.dart';
 class DbSeeder {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Popula o banco de dados com dados fictícios para teste.
-  /// ATENÇÃO: Use apenas em ambiente de desenvolvimento.
+  // Método mestre que chama todos
   static Future<void> popularBancoDados() async {
-    try {
-      debugPrint('Iniciando população do banco de dados...');
+    await seedClientes();
+    await seedAgendamentos();
+    await seedEstoque();
+    await seedConfiguracoes();
+  }
 
-      // 1. Criar Clientes Fictícios
+  static Future<void> seedClientes() async {
+    try {
+      debugPrint('Seeding Clientes e Usuários...');
+
+      // Usamos IDs fixos para garantir que se rodar 2 vezes, ele apenas atualiza (Merge)
+      // em vez de criar duplicatas.
       final clientes = [
         {
           'uid': 'teste_cliente_1',
@@ -33,52 +40,87 @@ class DbSeeder {
       ];
 
       for (var c in clientes) {
-        await _db.collection('clientes').doc(c['uid'] as String).set(c);
-        // Cria também o usuário correspondente para login funcionar visualmente nas listas
+        // SetOptions(merge: true) garante que se o dado já existe, não sobrescreve tudo, apenas atualiza
+        await _db.collection('clientes').doc(c['uid'] as String).set(c, SetOptions(merge: true));
+        
         await _db.collection('usuarios').doc(c['uid'] as String).set({
           'id': c['uid'],
           'nome': c['nome'],
           'email': '${c['uid']}@teste.com',
           'tipo': 'cliente',
           'aprovado': true,
-          'data_cadastro': DateTime.now(),
+          // Não sobrescreve data de cadastro se já existir
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('Erro ao popular Clientes: $e');
+    }
+  }
+
+  static Future<void> seedAgendamentos() async {
+    try {
+      debugPrint('Seeding Agendamentos...');
+      final agora = DateTime.now();
+      
+      // Verifica se já existem agendamentos para não duplicar infinitamente
+      final snapshot = await _db.collection('agendamentos').limit(1).get();
+      if (snapshot.docs.isNotEmpty) {
+        debugPrint('Agendamentos já existem. Pulando seed.');
+        return;
+      }
+
+      // Cria apenas se a coleção estiver vazia
+      await _db.collection('agendamentos').add({
+        'cliente_id': 'teste_cliente_1',
+        'data_hora': agora.add(const Duration(days: 1, hours: 2)),
+        'status': 'aprovado',
+        'tipo': 'Massagem Relaxante',
+        'lista_espera': [],
+      });
+      
+      await _db.collection('agendamentos').add({
+        'cliente_id': 'teste_cliente_2',
+        'data_hora': agora.add(const Duration(days: 2, hours: 4)),
+        'status': 'pendente',
+        'tipo': 'Drenagem Linfática',
+        'lista_espera': [],
+      });
+    } catch (e) {
+      debugPrint('Erro ao popular Agendamentos: $e');
+    }
+  }
+
+  static Future<void> seedEstoque() async {
+    try {
+      debugPrint('Seeding Estoque...');
+      // Verifica duplicidade pelo nome
+      final query = await _db.collection('estoque').where('nome', isEqualTo: 'Creme de Massagem Neutro').get();
+      
+      if (query.docs.isEmpty) {
+        await _db.collection('estoque').add({
+          'nome': 'Creme de Massagem Neutro',
+          'quantidade': 10,
+          'consumo_automatico': true,
+          'unidade': 'potes'
         });
       }
-
-      // 2. Criar Agendamentos
-      final agora = DateTime.now();
-      final agendamentos = [
-        {
-          'cliente_id': 'teste_cliente_1',
-          'data_hora': agora.add(const Duration(days: 1, hours: 2)), // Amanhã
-          'status': 'aprovado',
-          'tipo': 'Massagem Relaxante',
-          'lista_espera': [],
-        },
-        {
-          'cliente_id': 'teste_cliente_2',
-          'data_hora': agora.add(const Duration(days: 2, hours: 4)), // Depois de amanhã
-          'status': 'pendente',
-          'tipo': 'Drenagem Linfática',
-          'lista_espera': [],
-        },
-      ];
-
-      for (var a in agendamentos) {
-        await _db.collection('agendamentos').add(a);
-      }
-
-      // 3. Criar Estoque
-      await _db.collection('estoque').add({
-        'nome': 'Creme de Massagem Neutro',
-        'quantidade': 10,
-        'consumo_automatico': true,
-        'unidade': 'potes'
-      });
-
-      debugPrint('Banco de dados populado com sucesso!');
     } catch (e) {
-      debugPrint('Erro ao popular banco: $e');
+      debugPrint('Erro ao popular Estoque: $e');
+    }
+  }
+
+  static Future<void> seedConfiguracoes() async {
+    try {
+      await _db.collection('configuracoes').doc('geral').set({
+        'preco_sessao': 120.0,
+        'horas_antecedencia_cancelamento': 24,
+      }, SetOptions(merge: true));
+      
+      await _db.collection('configuracoes').doc('servicos').set({
+        'tipos': ['Massagem Relaxante', 'Drenagem Linfática', 'Shiatsu', 'Reflexologia']
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Erro ao popular Configurações: $e');
     }
   }
 }

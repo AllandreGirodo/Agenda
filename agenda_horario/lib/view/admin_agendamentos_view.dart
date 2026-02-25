@@ -11,6 +11,7 @@ import 'admin_estoque_view.dart';
 import 'admin_relatorios_view.dart';
 import 'admin_logs_view.dart';
 import 'admin_lgpd_logs_view.dart';
+import 'dev_tools_view.dart';
 
 class AdminAgendamentosView extends StatefulWidget {
   const AdminAgendamentosView({super.key});
@@ -90,6 +91,13 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
               tooltip: 'Configurações',
               onPressed: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminConfigView()));
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.developer_mode),
+              tooltip: 'Dev Tools (DB)',
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const DevToolsView()));
               },
             ),
             IconButton(
