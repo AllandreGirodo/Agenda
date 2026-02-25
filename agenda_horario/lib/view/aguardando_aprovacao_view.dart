@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart'; // Requer adicionar ao pubspec.yaml
+import '../controller/firestore_service.dart';
 
 class AguardandoAprovacaoView extends StatelessWidget {
   final DateTime dataCadastro;
@@ -75,15 +76,22 @@ class AguardandoAprovacaoView extends StatelessWidget {
   }
 
   Future<void> _abrirWhatsApp() async {
-    // Número fictício da administradora
-    const phone = '5516999999999'; 
+    // Busca o número atualizado do banco de dados
+    final firestoreService = FirestoreService();
+    final phone = await firestoreService.getTelefoneAdmin();
     const message = 'Olá! Acabei de me cadastrar no app e aguardo aprovação.';
-    final url = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
+    
+    // Tenta abrir diretamente o app do WhatsApp
+    final whatsappUrl = Uri.parse('whatsapp://send?phone=$phone&text=${Uri.encodeComponent(message)}');
+    // Link alternativo para navegador (caso não tenha o app)
+    final webUrl = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
 
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(whatsappUrl)) {
+      await launchUrl(whatsappUrl);
+    } else if (await canLaunchUrl(webUrl)) {
+      await launchUrl(webUrl, mode: LaunchMode.externalApplication);
     } else {
-      debugPrint('Não foi possível abrir o WhatsApp: $url');
+      debugPrint('Não foi possível abrir o WhatsApp.');
     }
   }
 }

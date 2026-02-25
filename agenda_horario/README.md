@@ -68,15 +68,11 @@ Pasta `lib/`:
 
 ## Cronograma sugerido
 
-Já estamos em fim de fevereiro de 2026 e a entrega é em abril:
-
 - **20‑28 fev**: setup Flutter/Firebase, modelagem de dados e primeiras classes.
 - **1‑15 mar**: login, CRUD de clientes e agendamento simples.
 - **16‑31 mar**: pacotes/pagamentos, integração WhatsApp, controle de estoque.
 - **1‑15 abr**: refinamento UI, testes de usabilidade e documentação final.
 - **resto de abr**: ajustes e preparação da apresentação.
-
-Dedique 30‑40 h por semana para cumprir o plano.
 
 ## Documentação acadêmica
 
@@ -100,6 +96,3 @@ avança.
 
 Fotos do caderno, esquemas de banco e outros rascunhos podem ser adicionados
 a `docs/` ou anexados ao repositório.
-
-Boa sorte! Trabalhando sistematicamente você terá um MVP funcional em poucas
-semanas e um relatório completo para submeter ao orientador.

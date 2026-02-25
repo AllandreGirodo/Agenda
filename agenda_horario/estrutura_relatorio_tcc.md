@@ -1,7 +1,5 @@
 # Estrutura do Relatório Final de TCC (Baseada no Modelo Aprovado)
 
-Allandre, ajustei esta estrutura para espelhar o nível de detalhe do TCC do Caio Sousa, adaptando para Software e Gestão.
-
 ## 1. Elementos Pré-Textuais
 
 *   **Capa e Folha de Rosto:** Conforme padrão FATEC Ribeirão Preto.
@@ -18,7 +16,7 @@ Allandre, ajustei esta estrutura para espelhar o nível de detalhe do TCC do Cai
 
 ### Capítulo 2: Referencial Teórico (Fundamentação)
 
-Seguindo o estilo do PDF, aqui você cita os "gigantes":
+Fundamentação teórica baseada em autores consagrados e documentação oficial:
 
 *   **2.1 Desenvolvimento Cross-Platform:** Estudo sobre o ecossistema Flutter/Dart.
 *   **2.2 Persistência de Dados NoSQL:** Fundamentação do Firestore (citações de Fowler/Sadalage).
@@ -27,7 +25,7 @@ Seguindo o estilo do PDF, aqui você cita os "gigantes":
 
 ### Capítulo 3: Levantamento e Análise de Requisitos
 
-Aqui entra o que estava no seu caderno:
+Detalhamento dos requisitos levantados junto ao cliente:
 
 *   **3.1 Descrição do Negócio:** Fluxo de trabalho da massoterapeuta.
 *   **3.2 Requisitos Funcionais:** (O que o app faz: agendar, cancelar, gerir stock).
@@ -35,8 +33,6 @@ Aqui entra o que estava no seu caderno:
 *   **3.4 Modelagem de Dados:** Explicar a estrutura JSON das coleções.
 
 ### Capítulo 4: Desenvolvimento do Sistema (A sua "Modelagem")
-
-No TCC do Caio, este foi o capítulo 4 e 5. Para você:
 
 *   **4.1 Arquitetura da Aplicação:** Como organizou as pastas no VS Code.
 *   **4.2 Integração Firebase:** Como configurou o Auth e o Firestore.

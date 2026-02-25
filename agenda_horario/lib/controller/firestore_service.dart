@@ -73,6 +73,20 @@ class FirestoreService {
     return ConfigModel(camposObrigatorios: ConfigModel.padrao);
   }
 
+  // Busca o telefone do admin (WhatsApp) configurado, ou retorna um padrão se não existir
+  Future<String> getTelefoneAdmin() async {
+    final doc = await _db.collection('configuracoes').doc('geral').get();
+    if (doc.exists && doc.data() != null) {
+      return doc.data()!['whatsapp_admin'] as String? ?? '5516999999999';
+    }
+    return '5516999999999';
+  }
+
+  // Salva o telefone do admin (Conectar este método a um TextField na tela de Admin)
+  Future<void> salvarTelefoneAdmin(String telefone) async {
+    await _db.collection('configuracoes').doc('geral').set({'whatsapp_admin': telefone}, SetOptions(merge: true));
+  }
+
   // --- Usuarios (Login) ---
   Future<UsuarioModel?> getUsuario(String uid) async {
     final doc = await _db.collection('usuarios').doc(uid).get();
@@ -126,6 +140,16 @@ class FirestoreService {
   Stream<List<Agendamento>> getAgendamentos() {
     return _db.collection('agendamentos')
         .orderBy('data_hora')
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => Agendamento.fromMap(doc.data(), id: doc.id))
+            .toList());
+  }
+
+  Stream<List<Agendamento>> getAgendamentosDoCliente(String uid) {
+    return _db.collection('agendamentos')
+        .where('cliente_id', isEqualTo: uid)
+        .orderBy('data_hora', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
             .map((doc) => Agendamento.fromMap(doc.data(), id: doc.id))
