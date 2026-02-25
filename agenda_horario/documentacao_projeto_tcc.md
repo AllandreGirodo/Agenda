@@ -50,6 +50,11 @@ O sistema foi projetado para resolver o problema de gestão manual (caderno/What
     *   Os logs de auditoria LGPD devem ser mantidos por um período legal de 5 anos.
     *   Uma rotina automática (Cloud Function) deve excluir definitivamente logs mais antigos que esse período.
 
+*   **[RF009] Padronização e Integridade de Dados (Audit Trail):**
+    *   Todos os registros críticos (agendamentos, pagamentos) devem conter carimbos de tempo (`data_criacao`, `data_atualizacao`) para auditoria.
+    *   Para garantir a integridade histórica (especialmente financeira), registros de transações devem armazenar um "snapshot" (cópia estática) dos dados do cliente no momento da operação, prevenindo perda de informação caso o cadastro original seja alterado ou anonimizado.
+    *   A nomenclatura dos campos no banco de dados deve seguir o padrão `entidade_id` ou `entidade_uid` para chaves estrangeiras.
+
 ### 1.2. Requisitos Não-Funcionais (RNF)
 
 *   **[RNF001] Disponibilidade:** O sistema deve operar em dispositivos móveis (Android/iOS).

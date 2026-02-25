@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import '../controller/cliente_model.dart';
 import '../controller/agendamento_model.dart';
+import '../controller/transacao_model.dart';
 import '../usuario_model.dart';
 import 'config_model.dart';
 import 'estoque_model.dart';
@@ -143,7 +145,22 @@ class FirestoreService {
 
   // --- Agendamentos ---
   Future<void> salvarAgendamento(Agendamento agendamento) async {
-    await _db.collection('agendamentos').add(agendamento.toMap());
+    // RF009: Snapshotting para Integridade Histórica
+    // Antes de salvar, buscamos os dados atuais do cliente para "congelar" no agendamento
+    final clienteDoc = await _db.collection('clientes').doc(agendamento.clienteId).get();
+    final clienteData = clienteDoc.data();
+
+    final dadosParaSalvar = agendamento.toMap();
+    
+    if (clienteData != null) {
+      dadosParaSalvar['cliente_nome_snapshot'] = clienteData['nome'];
+      dadosParaSalvar['cliente_telefone_snapshot'] = clienteData['whatsapp'];
+    } else {
+      dadosParaSalvar['cliente_nome_snapshot'] = 'Cliente Desconhecido';
+    }
+
+    // O toMap() já inclui 'data_criacao' automaticamente
+    await _db.collection('agendamentos').add(dadosParaSalvar);
   }
 
   // Retorna um Stream para atualização em tempo real
@@ -253,6 +270,21 @@ class FirestoreService {
     await registrarLog('cancelamento', 'Agendamento $id cancelado. Motivo: $motivo');
   }
 
+  // --- Transações Financeiras (Novo Módulo) ---
+  Future<void> salvarTransacao(TransacaoFinanceira transacao) async {
+    await _db.collection('transacoes_financeiras').add(transacao.toMap());
+  }
+
+  Stream<List<TransacaoFinanceira>> getTransacoes() {
+    return _db.collection('transacoes_financeiras')
+        .orderBy('data_pagamento', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => TransacaoFinanceira.fromMap(doc.data(), id: doc.id))
+            .toList());
+  }
+
+
   // --- LGPD / Anonimização de Conta ---
   // Não excluímos fisicamente para manter integridade financeira (agendamentos realizados),
   // mas removemos todos os dados pessoais identificáveis.
@@ -316,6 +348,15 @@ class FirestoreService {
       batch.delete(doc.reference);
     }
     await batch.commit();
+  }
+
+  // --- Métricas / Analytics (Histórico) ---
+  Future<void> salvarMetricasDiarias(Map<String, dynamic> metricas) async {
+    // Usa a data atual como ID (ex: 2023-10-25) para facilitar busca histórica
+    final id = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    
+    // Salva ou atualiza (merge) as métricas do dia
+    await _db.collection('metricas_diarias').doc(id).set(metricas, SetOptions(merge: true));
   }
 
   // Retorna todos os dados de uma coleção como Lista de Mapas (para Exportação JSON/CSV)

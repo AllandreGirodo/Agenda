@@ -8,6 +8,10 @@ class Agendamento {
   final String status; // 'pendente', 'aprovado', 'recusado'
   final String? motivoCancelamento;
   final List<String> listaEspera;
+  final DateTime? dataCriacao; // Log de auditoria
+  // Snapshots para integridade histórica (RF009)
+  final String? clienteNomeSnapshot;
+  final String? clienteTelefoneSnapshot;
 
   Agendamento({
     this.id,
@@ -17,6 +21,9 @@ class Agendamento {
     this.status = 'pendente',
     this.motivoCancelamento,
     this.listaEspera = const [],
+    this.dataCriacao,
+    this.clienteNomeSnapshot,
+    this.clienteTelefoneSnapshot,
   });
 
   Map<String, dynamic> toMap() => {
@@ -26,6 +33,9 @@ class Agendamento {
     'status': status,
     'motivo_cancelamento': motivoCancelamento,
     'lista_espera': listaEspera,
+    'data_criacao': dataCriacao != null ? Timestamp.fromDate(dataCriacao!) : FieldValue.serverTimestamp(),
+    'cliente_nome_snapshot': clienteNomeSnapshot,
+    'cliente_telefone_snapshot': clienteTelefoneSnapshot,
   };
 
   factory Agendamento.fromMap(Map<String, dynamic> map, {String? id}) {
@@ -39,6 +49,11 @@ class Agendamento {
       listaEspera: map['lista_espera'] != null 
           ? List<String>.from(map['lista_espera']) 
           : [],
+      dataCriacao: map['data_criacao'] != null 
+          ? (map['data_criacao'] as Timestamp).toDate() 
+          : null,
+      clienteNomeSnapshot: map['cliente_nome_snapshot'],
+      clienteTelefoneSnapshot: map['cliente_telefone_snapshot'],
     );
   }
 }

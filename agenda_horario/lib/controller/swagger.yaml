@@ -1,0 +1,108 @@
+openapi: 3.0.0
+info:
+  title: Agenda Massoterapia - Firestore API
+  description: Documentação da estrutura de dados do Firestore acessível via REST API.
+  version: 1.0.0
+servers:
+  - url: https://firestore.googleapis.com/v1/projects/{projectId}/databases/(default)/documents
+    description: Google Firestore REST API
+    variables:
+      projectId:
+        default: agenda-massoterapia-tcc
+        description: ID do projeto no Firebase
+
+paths:
+  /agendamentos:
+    get:
+      summary: Listar Agendamentos
+      description: Retorna a lista de agendamentos.
+      responses:
+        '200':
+          description: Sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  documents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Agendamento'
+    post:
+      summary: Criar Agendamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgendamentoInput'
+      responses:
+        '200':
+          description: Agendamento criado
+
+  /transacoes_financeiras:
+    get:
+      summary: Listar Transações
+      responses:
+        '200':
+          description: Lista de transações financeiras
+
+components:
+  schemas:
+    Agendamento:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Caminho do documento (projects/.../documents/agendamentos/{id})
+        fields:
+          type: object
+          properties:
+            cliente_id:
+              type: object
+              properties:
+                stringValue: { type: string }
+            data_hora:
+              type: object
+              properties:
+                timestampValue: { type: string, format: date-time }
+            status:
+              type: object
+              properties:
+                stringValue: { type: string, enum: [pendente, aprovado, recusado, cancelado] }
+            cliente_nome_snapshot:
+              type: object
+              properties:
+                stringValue: { type: string, description: "Snapshot do nome para integridade histórica" }
+
+    AgendamentoInput:
+      type: object
+      properties:
+        fields:
+          type: object
+          properties:
+            cliente_id:
+              type: object
+              properties:
+                stringValue: { type: string }
+            data_hora:
+              type: object
+              properties:
+                timestampValue: { type: string, format: date-time }
+            status:
+              type: object
+              properties:
+                stringValue: { type: string, default: "pendente" }
+            cliente_nome_snapshot:
+              type: object
+              properties:
+                stringValue: { type: string }
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []

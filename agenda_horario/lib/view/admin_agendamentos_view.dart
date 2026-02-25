@@ -12,6 +12,7 @@ import 'admin_relatorios_view.dart';
 import 'admin_logs_view.dart';
 import 'admin_lgpd_logs_view.dart';
 import 'dev_tools_view.dart';
+import 'admin_financeiro_view.dart';
 
 class AdminAgendamentosView extends StatefulWidget {
   const AdminAgendamentosView({super.key});
@@ -26,6 +27,7 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
   double _precoSessao = 100.00;
   final TextEditingController _searchController = TextEditingController();
   String _filtroNome = '';
+  bool _devGravarMetricas = false; // Flag para ativar gravação de histórico
 
   @override
   void initState() {
@@ -63,6 +65,13 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
               tooltip: 'Relatórios',
               onPressed: () {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminRelatoriosView()));
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.attach_money),
+              tooltip: 'Financeiro',
+              onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const AdminFinanceiroView()));
               },
             ),
             IconButton(
@@ -235,11 +244,62 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
                   ),
                 ),
               ),
+              
+              const SizedBox(height: 20),
+              const Divider(),
+              
+              // Área de Controle do Desenvolvedor (Gravação de Métricas)
+              SwitchListTile(
+                title: const Text('Dev: Ativar Gravação de Histórico', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+                subtitle: const Text('Permite salvar as métricas de hoje no banco de dados.'),
+                value: _devGravarMetricas,
+                onChanged: (val) => setState(() => _devGravarMetricas = val),
+                secondary: const Icon(Icons.developer_board, color: Colors.grey),
+              ),
+              
+              if (_devGravarMetricas)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.save_as),
+                      label: const Text('Gravar Snapshot do Dia (metricas_diarias)'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueGrey,
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () => _salvarSnapshotMetricas(
+                        agendamentosDia.length, receitaEstimada, pendentesDia, aprovadosDia, canceladosDia, taxaDia
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         );
       },
     );
+  }
+
+  Future<void> _salvarSnapshotMetricas(int totalDia, double receita, int pendentes, int aprovados, int cancelados, double taxaCancelamento) async {
+    try {
+      final metricas = {
+        'data_registro': FieldValue.serverTimestamp(),
+        'total_agendamentos': totalDia,
+        'receita_estimada': receita,
+        'pendentes': pendentes,
+        'aprovados': aprovados,
+        'cancelados': cancelados,
+        'taxa_cancelamento': taxaCancelamento,
+        'snapshot_hora': DateFormat('HH:mm:ss').format(DateTime.now()),
+      };
+
+      await _firestoreService.salvarMetricasDiarias(metricas);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Métricas do dia salvas com sucesso!')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao salvar métricas: $e')));
+    }
   }
 
   Widget _buildStatCard(String title, String value, Color color) {
