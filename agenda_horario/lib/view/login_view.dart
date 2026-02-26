@@ -10,6 +10,8 @@ import '../main.dart';
 import 'signup_view.dart';
 import 'db_seeder.dart';
 import '../widgets/language_selector.dart';
+import '../widgets/theme_selector.dart';
+import '../widgets/sound_control.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -113,6 +115,8 @@ class _LoginViewState extends State<LoginView> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: const [
+          SoundControl(),
+          ThemeSelector(),
           LanguageSelector(),
           SizedBox(width: 16),
         ],

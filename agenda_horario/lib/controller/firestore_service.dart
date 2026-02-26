@@ -143,6 +143,10 @@ class FirestoreService {
     await _db.collection('usuarios').doc(uid).update({'visualiza_todos': permitir});
   }
 
+  Future<void> atualizarTemaUsuario(String uid, String theme) async {
+    await _db.collection('usuarios').doc(uid).update({'theme': theme});
+  }
+
   // --- Agendamentos ---
   Future<void> salvarAgendamento(Agendamento agendamento) async {
     // RF009: Snapshotting para Integridade Histórica
@@ -428,6 +432,40 @@ class FirestoreService {
   }
 
   Future<void> inicializarChangeLog() async {
+    // Versão 1.3.0 - Interatividade e Física
+    final doc130 = await _db.collection('changelogs').doc('v1.3.0').get();
+    if (!doc130.exists) {
+      await _db.collection('changelogs').doc('v1.3.0').set(ChangeLogModel(
+        versao: '1.3.0',
+        data: DateTime.now(),
+        autor: 'Dev TCC',
+        mudancas: [
+          'Interatividade: Toque na tela para explodir fogos de artifício (Tema Aniversário).',
+          'Física Avançada: Simulação de gravidade para confetes e neve.',
+          'Efeitos Atmosféricos: Raios aleatórios no tema Tempestade.',
+          'Animação Espacial: Planetas em órbita e estrelas cintilantes.',
+          'Feedback Tátil (Haptic) nos botões principais.'
+        ],
+      ).toMap());
+    }
+
+    // Versão 1.2.0 - Temas e Visual
+    final doc120 = await _db.collection('changelogs').doc('v1.2.0').get();
+    if (!doc120.exists) {
+      await _db.collection('changelogs').doc('v1.2.0').set(ChangeLogModel(
+        versao: '1.2.0',
+        data: DateTime.now(),
+        autor: 'Dev TCC',
+        mudancas: [
+          'Novos Temas Visuais: Cyberpunk, Tempestade, Carnaval, Aniversário e Espaço.',
+          'Efeitos de Fundo Animados: Neve, Chuva, Glitch, Confetes e Fogos de Artifício.',
+          'Sons de Ambiente (Soundscapes) integrados aos temas.',
+          'Controle de Mute na tela de login.',
+          'Melhoria na persistência de preferências do usuário (Tema/Idioma).'
+        ],
+      ).toMap());
+    }
+
     // Versão 1.1.0 - LGPD e Auditoria
     final doc110 = await _db.collection('changelogs').doc('v1.1.0').get();
     if (!doc110.exists) {

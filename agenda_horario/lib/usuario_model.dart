@@ -9,6 +9,7 @@ class UsuarioModel {
   final DateTime? dataCadastro;
   final String? fcmToken;
   final bool visualizaTodos;
+  final String? theme;
 
   UsuarioModel({
     required this.id,
@@ -19,6 +20,7 @@ class UsuarioModel {
     this.dataCadastro,
     this.fcmToken,
     this.visualizaTodos = false,
+    this.theme,
   });
 
   // Converter para Map (para salvar no Firestore)
@@ -32,6 +34,7 @@ class UsuarioModel {
       'data_cadastro': dataCadastro != null ? Timestamp.fromDate(dataCadastro!) : FieldValue.serverTimestamp(),
       'fcm_token': fcmToken,
       'visualiza_todos': visualizaTodos,
+      'theme': theme,
     };
   }
 
@@ -48,6 +51,7 @@ class UsuarioModel {
           : null,
       fcmToken: map['fcm_token'],
       visualizaTodos: map['visualiza_todos'] ?? false,
+      theme: map['theme'],
     );
   }
 }

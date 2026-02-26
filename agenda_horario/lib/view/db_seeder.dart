@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import '../controller/firestore_service.dart';
 
 class DbSeeder {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -10,6 +11,7 @@ class DbSeeder {
     await seedAgendamentos();
     await seedEstoque();
     await seedConfiguracoes();
+    await FirestoreService().inicializarChangeLog();
   }
 
   static Future<void> seedClientes() async {

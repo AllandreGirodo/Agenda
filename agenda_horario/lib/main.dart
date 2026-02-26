@@ -3,6 +3,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'controller/firestore_service.dart';
+import 'utils/custom_theme_data.dart';
+import 'widgets/animated_background.dart';
+import 'widgets/background_sound_manager.dart';
 import 'view/login_view.dart';
 import 'app_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -31,11 +37,26 @@ void main() async {
   // registra o handler de mensagens em segundo plano
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   
-  runApp(const MyApp());
+  // Carregar preferências salvas
+  final prefs = await SharedPreferences.getInstance();
+  final String? languageCode = prefs.getString('language_code');
+  final String? countryCode = prefs.getString('country_code');
+  final String? themeMode = prefs.getString('theme_mode');
+  final String? customTheme = prefs.getString('custom_theme_type');
+
+  runApp(MyApp(
+    initialLocale: languageCode != null ? Locale(languageCode, countryCode) : null,
+    initialThemeMode: themeMode,
+    initialCustomTheme: customTheme,
+  ));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final Locale? initialLocale;
+  final String? initialThemeMode;
+  final String? initialCustomTheme;
+
+  const MyApp({super.key, this.initialLocale, this.initialThemeMode, this.initialCustomTheme});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -44,21 +65,84 @@ class MyApp extends StatefulWidget {
     _MyAppState? state = context.findAncestorStateOfType<_MyAppState>();
     state?.setLocale(newLocale);
   }
+
+  static void setCustomTheme(BuildContext context, AppThemeType type) {
+    _MyAppState? state = context.findAncestorStateOfType<_MyAppState>();
+    state?.setCustomTheme(type);
+  }
 }
 
 class _MyAppState extends State<MyApp> {
   Locale? _locale;
-
-  void setLocale(Locale locale) {
-    setState(() {
-      _locale = locale;
-    });
-  }
+  ThemeMode _themeMode = ThemeMode.system;
+  AppThemeType _customThemeType = AppThemeType.sistema;
 
   @override
   void initState() {
     super.initState();
+    _locale = widget.initialLocale;
+    if (widget.initialThemeMode != null) {
+      _themeMode = _getThemeModeFromString(widget.initialThemeMode!);
+    }
+    if (widget.initialCustomTheme != null) {
+      _customThemeType = AppThemeType.values.firstWhere(
+        (e) => e.toString() == widget.initialCustomTheme, 
+        orElse: () => AppThemeType.sistema
+      );
+    }
     _setupNotifications();
+  }
+
+  ThemeMode _getThemeModeFromString(String mode) {
+    switch (mode) {
+      case 'light': return ThemeMode.light;
+      case 'dark': return ThemeMode.dark;
+      default: return ThemeMode.system;
+    }
+  }
+
+  String _getStringFromThemeMode(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.light: return 'light';
+      case ThemeMode.dark: return 'dark';
+      default: return 'system';
+    }
+  }
+
+  void setLocale(Locale locale) async {
+    setState(() {
+      _locale = locale;
+    });
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('language_code', locale.languageCode);
+    if (locale.countryCode != null) {
+      await prefs.setString('country_code', locale.countryCode!);
+    }
+    _atualizarPreferenciasUsuario(locale: '${locale.languageCode}_${locale.countryCode ?? ""}');
+  }
+
+  void setCustomTheme(AppThemeType type) async {
+    setState(() {
+      _customThemeType = type;
+      // Mapeia o tipo customizado para o ThemeMode do Flutter
+      if (type == AppThemeType.claro) _themeMode = ThemeMode.light;
+      else if (type == AppThemeType.escuro) _themeMode = ThemeMode.dark;
+      else if (type == AppThemeType.sistema) _themeMode = ThemeMode.system;
+      else _themeMode = ThemeMode.light; // Temas coloridos usam base clara por padrão
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('custom_theme_type', type.toString());
+    await prefs.setString('theme_mode', _getStringFromThemeMode(_themeMode));
+    
+    _atualizarPreferenciasUsuario(theme: type.toString());
+  }
+
+  Future<void> _atualizarPreferenciasUsuario({String? theme, String? locale}) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await FirestoreService().atualizarPreferenciasUsuario(user.uid, theme: theme, locale: locale);
+    }
   }
 
   void _setupNotifications() async {
@@ -77,6 +161,10 @@ class _MyAppState extends State<MyApp> {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
       ),
+      darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal, brightness: Brightness.dark),
+      ),
+      themeMode: _themeMode,
       locale: _locale,
       localizationsDelegates: [
         AppLocalizations.delegate,
@@ -91,6 +179,20 @@ class _MyAppState extends State<MyApp> {
         Locale('ja', 'JP'),
       ],
       home: const LoginView(),
+      // Envolve todo o app no fundo animado
+      builder: (context, child) {
+        return BackgroundSoundManager(
+          themeType: _customThemeType,
+          child: AnimatedBackground(
+            themeType: _customThemeType,
+            // Garante que o fundo do Scaffold seja transparente para ver a animação
+            child: Theme(
+              data: Theme.of(context).copyWith(scaffoldBackgroundColor: _customThemeType != AppThemeType.sistema && _customThemeType != AppThemeType.claro && _customThemeType != AppThemeType.escuro ? Colors.transparent : null),
+              child: child!,
+            ),
+          ),
+        );
+      },
     );
   }
 }

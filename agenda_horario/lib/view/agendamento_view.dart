@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import necessário para HapticFeedback
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../controller/firestore_service.dart';
@@ -205,7 +206,10 @@ class _AgendamentoViewState extends State<AgendamentoView> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _mostrarDialogoNovoAgendamento,
+        onPressed: () {
+          HapticFeedback.selectionClick(); // Vibração leve ao clicar
+          _mostrarDialogoNovoAgendamento();
+        },
         backgroundColor: Colors.teal,
         child: const Icon(Icons.add, color: Colors.white),
       ),

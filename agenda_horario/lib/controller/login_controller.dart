@@ -6,6 +6,8 @@ import '../view/admin_agendamentos_view.dart';
 import '../view/aguardando_aprovacao_view.dart';
 import 'firestore_service.dart';
 import '../usuario_model.dart';
+import '../main.dart';
+import '../utils/custom_theme_data.dart';
 
 class LoginController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -34,6 +36,17 @@ class LoginController {
 
         if (context.mounted) {
           if (usuario != null) {
+            // Sincronizar tema do usuário salvo no banco
+            if (usuario.theme != null) {
+              try {
+                final themeEnum = AppThemeType.values.firstWhere(
+                  (e) => e.toString() == usuario.theme,
+                  orElse: () => AppThemeType.sistema
+                );
+                MyApp.setCustomTheme(context, themeEnum);
+              } catch (_) {}
+            }
+
             // 3. Redirecionar com base no tipo de usuário
             if (usuario.tipo == 'admin') {
               Navigator.pushReplacement(
@@ -100,6 +113,7 @@ class LoginController {
           tipo: 'cliente',
           aprovado: false,
           dataCadastro: dataAgora,
+          theme: AppThemeType.sistema.toString(),
         );
 
         // 3. Salvar no Firestore

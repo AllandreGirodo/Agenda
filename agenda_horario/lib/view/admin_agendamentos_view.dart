@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Import necessário para HapticFeedback
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../controller/firestore_service.dart';
@@ -13,6 +14,9 @@ import 'admin_logs_view.dart';
 import 'admin_lgpd_logs_view.dart';
 import 'dev_tools_view.dart';
 import 'admin_financeiro_view.dart';
+import '../widgets/language_selector.dart';
+import '../widgets/theme_selector.dart';
+import '../utils/custom_theme_data.dart';
 
 class AdminAgendamentosView extends StatefulWidget {
   const AdminAgendamentosView({super.key});
@@ -109,6 +113,8 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const DevToolsView()));
               },
             ),
+            const ThemeSelector(),
+            const LanguageSelector(),
             IconButton(
               icon: const Icon(Icons.exit_to_app),
               onPressed: () async {
@@ -121,8 +127,9 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
               },
             ),
           ],
-          bottom: const TabBar(
-            tabs: [
+          bottom: TabBar(
+            onTap: (index) => HapticFeedback.mediumImpact(), // Vibração ao trocar de aba
+            tabs: const [
               Tab(icon: Icon(Icons.dashboard), text: 'Dash'),
               Tab(icon: Icon(Icons.calendar_today), text: 'Agenda'),
               Tab(icon: Icon(Icons.people), text: 'Clientes'),
@@ -464,6 +471,11 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
                               );
                             },
                           ),
+                          IconButton(
+                            icon: const Icon(Icons.palette, color: Colors.purple),
+                            tooltip: 'Alterar Tema do Usuário',
+                            onPressed: () => _alterarTemaUsuarioDialog(cliente),
+                          ),
                           ElevatedButton.icon(
                             icon: const Icon(Icons.add_circle, size: 16),
                             label: const Text('Pacote'),
@@ -480,6 +492,36 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _alterarTemaUsuarioDialog(Cliente cliente) async {
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return SimpleDialog(
+          title: Text('Tema de ${cliente.nome}'),
+          children: AppThemeType.values.map((theme) {
+            final data = CustomThemeData.getData(theme);
+            return SimpleDialogOption(
+              child: Row(
+                children: [
+                  Icon(data.iconAsset ?? Icons.circle, color: data.iconColor != Colors.white24 ? data.iconColor : Colors.grey),
+                  const SizedBox(width: 10),
+                  Text(data.label),
+                ],
+              ),
+              onPressed: () async {
+                await _firestoreService.atualizarTemaUsuario(cliente.uid, theme.toString());
+                if (mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tema alterado para ${data.label}')));
+                }
+              },
+            );
+          }).toList(),
+        );
+      },
     );
   }
 
