@@ -2,14 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import '../controller/cliente_model.dart';
-import '../controller/agendamento_model.dart';
-import '../controller/transacao_model.dart';
-import '../usuario_model.dart';
-import 'config_model.dart';
-import 'estoque_model.dart';
-import 'log_model.dart';
-import 'changelog_model.dart';
+import 'package:agenda/controller/cliente_model.dart';
+import 'package:agenda/controller/agendamento_model.dart';
+import 'package:agenda/controller/transacao_model.dart';
+import 'package:agenda/usuario_model.dart';
+import 'package:agenda/controller/config_model.dart';
+import 'package:agenda/controller/estoque_model.dart';
+import 'package:agenda/controller/log_model.dart';
+import 'package:agenda/controller/changelog_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;

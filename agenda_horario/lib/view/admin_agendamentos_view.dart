@@ -2,21 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Import necessário para HapticFeedback
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import '../controller/firestore_service.dart';
-import '../controller/agendamento_model.dart';
-import '../usuario_model.dart';
-import '../controller/cliente_model.dart';
-import 'login_view.dart';
-import 'admin_config_view.dart';
-import 'admin_estoque_view.dart';
-import 'admin_relatorios_view.dart';
-import 'admin_logs_view.dart';
-import 'admin_lgpd_logs_view.dart';
-import 'dev_tools_view.dart';
-import 'admin_financeiro_view.dart';
-import '../widgets/language_selector.dart';
-import '../widgets/theme_selector.dart';
-import '../utils/custom_theme_data.dart';
+import 'package:agenda/controller/firestore_service.dart';
+import 'package:agenda/controller/agendamento_model.dart';
+import 'package:agenda/usuario_model.dart';
+import 'package:agenda/controller/cliente_model.dart';
+import 'package:agenda/view/login_view.dart';
+import 'package:agenda/view/admin_config_view.dart';
+import 'package:agenda/view/admin_estoque_view.dart';
+import 'package:agenda/view/admin_relatorios_view.dart';
+import 'package:agenda/view/admin_logs_view.dart';
+import 'package:agenda/view/admin_lgpd_logs_view.dart';
+import 'package:agenda/view/dev_tools_view.dart';
+import 'package:agenda/view/admin_financeiro_view.dart';
+import 'package:agenda/widgets/language_selector.dart';
+import 'package:agenda/widgets/theme_selector.dart';
+import 'package:agenda/utils/custom_theme_data.dart';
 
 class AdminAgendamentosView extends StatefulWidget {
   const AdminAgendamentosView({super.key});

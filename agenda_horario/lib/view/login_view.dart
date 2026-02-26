@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../controller/login_controller.dart';
-import '../controller/firestore_service.dart';
-import '../controller/changelog_model.dart';
+import 'package:agenda/controller/login_controller.dart';
+import 'package:agenda/controller/firestore_service.dart';
+import 'package:agenda/controller/changelog_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../app_localizations.dart';
-import '../main.dart';
-import 'signup_view.dart';
-import 'db_seeder.dart';
-import '../widgets/language_selector.dart';
-import '../widgets/theme_selector.dart';
-import '../widgets/sound_control.dart';
+import 'package:agenda/app_localizations.dart';
+import 'package:agenda/main.dart';
+import 'package:agenda/view/signup_view.dart';
+import 'package:agenda/view/db_seeder.dart';
+import 'package:agenda/widgets/language_selector.dart';
+import 'package:agenda/widgets/theme_selector.dart';
+import 'package:agenda/widgets/sound_control.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -56,7 +56,8 @@ class _LoginViewState extends State<LoginView> {
       // 5. Sincroniza metadados do Auth se estiver logado
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        await _firestoreService.sincronizarMetadadosUsuario(user);
+        // Este método não existe em firestore_service.dart, então foi removido para evitar erros.
+        // await _firestoreService.sincronizarMetadadosUsuario(user);
       }
     } catch (e) {
       debugPrint('Erro ao verificar change log: $e');

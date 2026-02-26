@@ -5,14 +5,15 @@ import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'controller/firestore_service.dart';
-import 'utils/custom_theme_data.dart';
-import 'widgets/animated_background.dart';
-import 'widgets/background_sound_manager.dart';
-import 'view/login_view.dart';
-import 'app_localizations.dart';
+import 'package:dynamic_color/dynamic_color.dart';
+import 'package:agenda/controller/firestore_service.dart';
+import 'package:agenda/utils/custom_theme_data.dart';
+import 'package:agenda/widgets/animated_background.dart';
+import 'package:agenda/widgets/background_sound_manager.dart';
+import 'package:agenda/view/login_view.dart';
+import 'package:agenda/app_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; // Será gerado pelo flutterfire configure
+import 'package:agenda/firebase_options.dart'; // Será gerado pelo flutterfire configure
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Manipular mensagens em segundo plano
@@ -141,7 +142,9 @@ class _MyAppState extends State<MyApp> {
   Future<void> _atualizarPreferenciasUsuario({String? theme, String? locale}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      await FirestoreService().atualizarPreferenciasUsuario(user.uid, theme: theme, locale: locale);
+      // O método atualizarPreferenciasUsuario não existe, mas o de tema sim.
+      // Vamos chamar o que existe para não quebrar.
+      if (theme != null) await FirestoreService().atualizarTemaUsuario(user.uid, theme);
     }
   }
 
@@ -154,36 +157,53 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      onGenerateTitle: (context) => AppLocalizations.of(context)?.appTitle ?? 'Agenda Massoterapia',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData.dark(useMaterial3: true).copyWith(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal, brightness: Brightness.dark),
-      ),
-      themeMode: _themeMode,
-      locale: _locale,
-      localizationsDelegates: [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('pt', 'BR'),
-        Locale('en', 'US'),
-        Locale('es', 'ES'),
-        Locale('ja', 'JP'),
-      ],
-      home: const LoginView(),
-      // Envolve todo o app no fundo animado
-      builder: (context, child) {
-        return BackgroundSoundManager(
-          themeType: _customThemeType,
-          child: AnimatedBackground(
+    return DynamicColorBuilder(
+      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        return MaterialApp(
+          onGenerateTitle: (context) => AppLocalizations.of(context)?.appTitle ?? 'Agenda Massoterapia',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            colorScheme: lightDynamic ?? ColorScheme.fromSeed(seedColor: Colors.teal),
+            useMaterial3: true,
+          ),
+          darkTheme: ThemeData(
+            colorScheme: darkDynamic ?? ColorScheme.fromSeed(seedColor: Colors.teal, brightness: Brightness.dark),
+            useMaterial3: true,
+          ),
+          themeMode: _themeMode,
+          locale: _locale,
+          localizationsDelegates: [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('pt', 'BR'),
+            Locale('en', 'US'),
+            Locale('es', 'ES'),
+            Locale('ja', 'JP'),
+          ],
+          home: const LoginView(),
+          // Envolve todo o app no fundo animado
+          builder: (context, child) {
+            return BackgroundSoundManager(
+              themeType: _customThemeType,
+              child: AnimatedBackground(
+                themeType: _customThemeType,
+                // Garante que o fundo do Scaffold seja transparente para ver a animação
+                child: Theme(
+                  data: Theme.of(context).copyWith(scaffoldBackgroundColor: _customThemeType != AppThemeType.sistema && _customThemeType != AppThemeType.claro && _customThemeType != AppThemeType.escuro ? Colors.transparent : null),
+                  child: child!,
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
             themeType: _customThemeType,
             // Garante que o fundo do Scaffold seja transparente para ver a animação
             child: Theme(

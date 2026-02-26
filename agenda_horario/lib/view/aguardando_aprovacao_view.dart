@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart'; // Requer adicionar ao pubspec.yaml
-import '../controller/firestore_service.dart';
-import '../app_localizations.dart';
-import '../widgets/language_selector.dart';
+import 'package:agenda/controller/firestore_service.dart';
+import 'package:agenda/app_localizations.dart';
+import 'package:agenda/widgets/language_selector.dart';
+import 'package:agenda/widgets/confetti_animation.dart';
 
 class AguardandoAprovacaoView extends StatelessWidget {
   final DateTime dataCadastro;
@@ -21,41 +22,43 @@ class AguardandoAprovacaoView extends StatelessWidget {
         actions: const [LanguageSelector()],
         automaticallyImplyLeading: false, // Remove botão de voltar para não burlar
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.access_time, size: 80, color: Colors.orange),
-            const SizedBox(height: 24),
-            Text(
-              AppLocalizations.of(context)!.analysisTitle,
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              AppLocalizations.of(context)!.analysisMessage(DateFormat('dd/MM/yyyy HH:mm').format(dataCadastro)),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton.icon(
-              onPressed: _abrirWhatsApp,
-              icon: const Icon(Icons.chat),
-              label: Text(AppLocalizations.of(context)!.contactAdminButton),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      body: ConfettiAnimation(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.access_time, size: 80, color: Colors.orange),
+              const SizedBox(height: 24),
+              Text(
+                AppLocalizations.of(context)!.analysisTitle,
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(height: 20),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(), // Voltar para Login
-              child: Text(AppLocalizations.of(context)!.backToLoginButton),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Text(
+                AppLocalizations.of(context)!.analysisMessage(DateFormat('dd/MM/yyyy HH:mm').format(dataCadastro)),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 40),
+              ElevatedButton.icon(
+                onPressed: _abrirWhatsApp,
+                icon: const Icon(Icons.chat),
+                label: Text(AppLocalizations.of(context)!.contactAdminButton),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(), // Voltar para Login
+                child: Text(AppLocalizations.of(context)!.backToLoginButton),
+              ),
+            ],
+          ),
         ),
       ),
       bottomSheet: StreamBuilder<DateTime>(

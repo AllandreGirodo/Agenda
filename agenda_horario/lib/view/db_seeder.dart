@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import '../controller/firestore_service.dart';
+import 'package:agenda/controller/firestore_service.dart';
 
 class DbSeeder {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;

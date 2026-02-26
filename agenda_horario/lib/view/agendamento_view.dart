@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
+import 'dart:math'; // Para Random
 import 'package:flutter/services.dart'; // Import necessário para HapticFeedback
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import '../controller/firestore_service.dart';
-import '../controller/agendamento_model.dart';
-import '../controller/scheduling_service.dart';
-import 'login_view.dart';
-import 'perfil_view.dart';
-import '../controller/config_model.dart';
-import '../usuario_model.dart';
-import '../app_localizations.dart';
-import '../widgets/language_selector.dart';
+import 'package:agenda/controller/firestore_service.dart';
+import 'package:agenda/controller/agendamento_model.dart';
+import 'package:agenda/controller/scheduling_service.dart';
+import 'package:agenda/view/login_view.dart';
+import 'package:agenda/view/perfil_view.dart';
+import 'package:agenda/controller/config_model.dart';
+import 'package:agenda/usuario_model.dart';
+import 'package:agenda/app_localizations.dart';
+import 'package:agenda/widgets/language_selector.dart';
 
 class AgendamentoView extends StatefulWidget {
   const AgendamentoView({super.key});
@@ -26,12 +27,23 @@ class _AgendamentoViewState extends State<AgendamentoView> {
   ConfigModel? _config;
   bool _mostrarTodos = false;
   late final Stream<DateTime> _clockStream;
+  
+  // Dicas do Dia
+  String? _dicaDoDia;
+  final List<String> _dicas = [
+    "Beba bastante água após a massagem para ajudar a eliminar toxinas.",
+    "Evite refeições pesadas pelo menos 1 hora antes da sua sessão.",
+    "Chegue 5 minutos antes para relaxar e aproveitar melhor seu tempo.",
+    "Alongamentos leves diários ajudam a prolongar os efeitos da massagem.",
+    "Informe sempre se houver alguma dor nova ou desconforto recente."
+  ];
 
   @override
   void initState() {
     super.initState();
     _carregarConfig();
     _clockStream = Stream.periodic(const Duration(seconds: 1), (_) => DateTime.now());
+    _dicaDoDia = _dicas[Random().nextInt(_dicas.length)];
   }
 
   Future<void> _carregarConfig() async {
@@ -88,6 +100,26 @@ class _AgendamentoViewState extends State<AgendamentoView> {
       ),
       body: Column(
         children: [
+          // Dica do Dia
+          if (_dicaDoDia != null)
+            Container(
+              width: double.infinity,
+              color: Colors.teal.shade50,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  const Icon(Icons.lightbulb, color: Colors.orange, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(_dicaDoDia!, style: TextStyle(color: Colors.teal.shade900, fontSize: 13, fontStyle: FontStyle.italic)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 16, color: Colors.grey),
+                    onPressed: () => setState(() => _dicaDoDia = null),
+                  )
+                ],
+              ),
+            ),
           Expanded(
             child: StreamBuilder<List<Agendamento>>(
         stream: _firestoreService.getAgendamentos(),

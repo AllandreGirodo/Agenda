@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'background_sound_manager.dart';
+import 'package:agenda/widgets/background_sound_manager.dart';
 
 class SoundControl extends StatelessWidget {
   const SoundControl({super.key});

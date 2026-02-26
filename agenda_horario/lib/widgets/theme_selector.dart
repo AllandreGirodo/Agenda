@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'theme_preview_dialog.dart';
+import 'package:agenda/widgets/theme_preview_dialog.dart';
 
 class ThemeSelector extends StatelessWidget {
   const ThemeSelector({super.key});

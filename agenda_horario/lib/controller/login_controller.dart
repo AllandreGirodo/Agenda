@@ -1,13 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import '../view/agendamento_view.dart';
-import '../view/admin_agendamentos_view.dart';
-import '../view/aguardando_aprovacao_view.dart';
-import 'firestore_service.dart';
-import '../usuario_model.dart';
-import '../main.dart';
-import '../utils/custom_theme_data.dart';
+import 'package:agenda/view/agendamento_view.dart';
+import 'package:agenda/view/admin_agendamentos_view.dart';
+import 'package:agenda/view/aguardando_aprovacao_view.dart';
+import 'package:agenda/controller/firestore_service.dart';
+import 'package:agenda/usuario_model.dart';
+import 'package:agenda/main.dart';
+import 'package:agenda/utils/custom_theme_data.dart';
 
 class LoginController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
