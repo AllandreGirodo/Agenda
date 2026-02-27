@@ -10,6 +10,7 @@ import 'package:agenda/controller/firestore_service.dart';
 import 'package:agenda/utils/custom_theme_data.dart';
 import 'package:agenda/widgets/animated_background.dart';
 import 'package:agenda/widgets/background_sound_manager.dart';
+import 'package:agenda/view/app_styles.dart';
 import 'package:agenda/view/login_view.dart';
 import 'package:agenda/app_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -163,11 +164,11 @@ class _MyAppState extends State<MyApp> {
           onGenerateTitle: (context) => AppLocalizations.of(context)?.appTitle ?? 'Agenda Massoterapia',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
-            colorScheme: lightDynamic ?? ColorScheme.fromSeed(seedColor: Colors.teal),
+            colorScheme: lightDynamic ?? AppColors.lightScheme,
             useMaterial3: true,
           ),
           darkTheme: ThemeData(
-            colorScheme: darkDynamic ?? ColorScheme.fromSeed(seedColor: Colors.teal, brightness: Brightness.dark),
+            colorScheme: darkDynamic ?? AppColors.darkScheme,
             useMaterial3: true,
           ),
           themeMode: _themeMode,

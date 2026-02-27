@@ -87,4 +87,13 @@ Service and package prices are subject to change. Payment must be made as agreed
     'cirurgias': 'Recent Surgeries',
     'termos_uso': 'Terms of Use (Mandatory Acceptance)',
   };
+
+  // Login
+  static String get loginTitulo => _isPt ? 'Bem-vindo(a)' : 'Welcome';
+  static String get loginSubtitulo => _isPt ? 'Faça login para agendar sua sessão' : 'Sign in to schedule your session';
+  static String get emailLabel => _isPt ? 'E-mail' : 'Email';
+  static String get senhaLabel => _isPt ? 'Senha' : 'Password';
+  static String get entrarBtn => _isPt ? 'Entrar' : 'Sign In';
+  static String get cadastrarBtn => _isPt ? 'Criar Conta' : 'Create Account';
+  static String get esqueceuSenha => _isPt ? 'Esqueceu a senha?' : 'Forgot password?';
 }

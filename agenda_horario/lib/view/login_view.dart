@@ -1,17 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:agenda/controller/login_controller.dart';
-import 'package:agenda/controller/firestore_service.dart';
-import 'package:agenda/controller/changelog_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:agenda/app_localizations.dart';
-import 'package:agenda/main.dart';
-import 'package:agenda/view/signup_view.dart';
-import 'package:agenda/view/db_seeder.dart';
+import 'package:agenda/view/app_styles.dart';
+import 'package:agenda/view/app_strings.dart';
+import 'package:agenda/view/agendamento_view.dart';
+import 'package:agenda/view/admin_agendamentos_view.dart';
+import 'package:agenda/view/perfil_view.dart'; // Para cadastro, se necessário redirecionar
 import 'package:agenda/widgets/language_selector.dart';
-import 'package:agenda/widgets/theme_selector.dart';
-import 'package:agenda/widgets/sound_control.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -23,195 +17,146 @@ class LoginView extends StatefulWidget {
 class _LoginViewState extends State<LoginView> {
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
-  final _controller = LoginController();
-  final _firestoreService = FirestoreService();
+  bool _isLoading = false;
+  bool _isObscure = true;
 
-  @override
-  void initState() {
-    super.initState();
-    // Verifica atualizações após a construção da interface
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _verificarNovidades();
-    });
-  }
-
-  Future<void> _verificarNovidades() async {
+  Future<void> _login() async {
+    setState(() => _isLoading = true);
     try {
-      // 1. Busca a última versão no banco
-      final latestLog = await _firestoreService.getLatestChangeLog();
-      if (latestLog == null) return;
-
-      // 2. Busca a última versão vista localmente
-      final prefs = await SharedPreferences.getInstance();
-      final lastSeenVersion = prefs.getString('last_seen_version');
-
-      // 3. Se forem diferentes, mostra o modal
-      if (lastSeenVersion != latestLog.versao && mounted) {
-        await _mostrarModalChangeLog(latestLog);
-        
-        // 4. Atualiza a versão vista
-        await prefs.setString('last_seen_version', latestLog.versao);
-      }
-
-      // 5. Sincroniza metadados do Auth se estiver logado
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _senhaController.text.trim(),
+      );
+      
+      if (!mounted) return;
+      
+      // Verifica se é admin (lógica simples por email, ideal seria claim ou banco)
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // Este método não existe em firestore_service.dart, então foi removido para evitar erros.
-        // await _firestoreService.sincronizarMetadadosUsuario(user);
+        if (user.email == 'admin@agenda.com') { // Exemplo de verificação
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminAgendamentosView()));
+        } else {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AgendamentoView()));
+        }
       }
-    } catch (e) {
-      debugPrint('Erro ao verificar change log: $e');
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.message ?? 'Erro ao fazer login'),
+        backgroundColor: AppColors.error,
+      ));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _mostrarModalChangeLog(ChangeLogModel log) async {
-    return showDialog(
-      context: context,
-      barrierDismissible: false, // Obriga o usuário a clicar em "Entendi"
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.new_releases, color: Colors.teal),
-            const SizedBox(width: 10),
-            Expanded(child: Text('Novidades da v${log.versao}')),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Atualizado em: ${DateFormat('dd/MM/yyyy').format(log.data)}',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
-              ),
-              const SizedBox(height: 16),
-              ...log.mudancas.map((mudanca) => Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
-                    Expanded(child: Text(mudanca)),
-                  ],
-                ),
-              )),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Legal, entendi!'),
-          ),
-        ],
-      ),
-    );
+  Future<void> _cadastro() async {
+    // Lógica simplificada de cadastro direto ou navegação para tela de registro
+    setState(() => _isLoading = true);
+    try {
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _senhaController.text.trim(),
+      );
+      if (!mounted) return;
+      // Após cadastro, vai para perfil para completar dados
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PerfilView()));
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.message ?? 'Erro ao cadastrar'),
+        backgroundColor: AppColors.error,
+      ));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Usa o tema atual (Light ou Dark) configurado no main.dart
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        actions: const [
-          SoundControl(),
-          ThemeSelector(),
-          LanguageSelector(),
-          SizedBox(width: 16),
-        ],
-      ),
+      // Fundo transparente para permitir ver o AnimatedBackground do main.dart
+      backgroundColor: Colors.transparent, 
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onLongPress: () async {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Iniciando população do banco (DEV)...')),
-                  );
-                  await DbSeeder.popularBancoDados();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Banco de dados populado com sucesso!')),
-                    );
-                  }
-                },
-                child: const Icon(Icons.spa, size: 80, color: Colors.teal),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                AppLocalizations.of(context)!.loginTitle,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 40),
-              
-              TextField(
-                controller: _emailController,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.emailLabel,
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.email),
-                ),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              const SizedBox(height: 16),
-              
-              TextField(
-                controller: _senhaController,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.of(context)!.passwordLabel,
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.lock),
-                ),
-                obscureText: true,
-              ),
-              
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    _controller.recuperarSenha(context, _emailController.text.trim());
-                  },
-                  child: Text(AppLocalizations.of(context)!.forgotPasswordButton),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-              
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    _controller.logar(
-                      context,
-                      _emailController.text,
-                      _senhaController.text,
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal,
-                    foregroundColor: Colors.white,
+          child: Card(
+            elevation: 8,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            // Cor do card adapta-se ao tema (Surface)
+            color: theme.colorScheme.surface.withOpacity(0.9),
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Align(alignment: Alignment.topRight, child: LanguageSelector()),
+                  const Icon(Icons.spa, size: 64, color: AppColors.primary),
+                  const SizedBox(height: 16),
+                  Text(
+                    AppStrings.loginTitulo,
+                    style: AppStyles.title.copyWith(color: theme.colorScheme.onSurface),
                   ),
-                  child: Text(AppLocalizations.of(context)!.enterButton),
-                ),
+                  Text(
+                    AppStrings.loginSubtitulo,
+                    style: AppStyles.subtitle.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  TextField(
+                    controller: _emailController,
+                    decoration: InputDecoration(
+                      labelText: AppStrings.emailLabel,
+                      prefixIcon: const Icon(Icons.email),
+                      border: const OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _senhaController,
+                    decoration: InputDecoration(
+                      labelText: AppStrings.senhaLabel,
+                      prefixIcon: const Icon(Icons.lock),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(_isObscure ? Icons.visibility : Icons.visibility_off),
+                        onPressed: () => setState(() => _isObscure = !_isObscure),
+                      ),
+                    ),
+                    obscureText: _isObscure,
+                  ),
+                  const SizedBox(height: 24),
+                  if (_isLoading)
+                    const CircularProgressIndicator()
+                  else
+                    Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _login,
+                            style: AppStyles.primaryButton,
+                            child: Text(AppStrings.entrarBtn),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextButton(
+                          onPressed: _cadastro,
+                          child: Text(AppStrings.cadastrarBtn),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            // Lógica de recuperação de senha
+                          },
+                          child: Text(AppStrings.esqueceuSenha, style: const TextStyle(color: Colors.grey)),
+                        ),
+                      ],
+                    ),
+                ],
               ),
-              
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const SignUpView()),
-                  );
-                },
-                child: Text(AppLocalizations.of(context)!.createAccountButton),
-              ),
-            ],
+            ),
           ),
         ),
       ),

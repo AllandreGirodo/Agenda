@@ -9,6 +9,31 @@ class AppColors {
   static const Color textPrimary = Colors.black87;
   static const Color textSecondary = Colors.grey;
   static const Color accent = Colors.pink;
+
+  // Cores Dark Mode
+  static const Color backgroundDark = Color(0xFF121212);
+  static const Color surfaceDark = Color(0xFF1E1E1E);
+  static const Color textPrimaryDark = Colors.white;
+  static const Color textSecondaryDark = Colors.white70;
+
+  static const ColorScheme lightScheme = ColorScheme(
+    brightness: Brightness.light,
+    primary: primary,
+    onPrimary: Colors.white,
+    secondary: secondary,
+    onSecondary: Colors.white,
+    error: error,
+    onError: Colors.white,
+    surface: surface,
+    onSurface: textPrimary,
+  );
+
+  static const ColorScheme darkScheme = ColorScheme.dark(
+    primary: primary,
+    secondary: secondary,
+    surface: surfaceDark,
+    onSurface: textPrimaryDark,
+  );
 }
 
 class AppStyles {
