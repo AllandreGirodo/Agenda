@@ -158,6 +158,22 @@ class _MyAppState extends State<MyApp> {
     await messaging.requestPermission(
       alert: true, badge: true, sound: true,
     );
+
+    // Obter e salvar token
+    String? token = await messaging.getToken();
+    if (token != null) {
+      _salvarTokenNoBanco(token);
+    }
+
+    // Ouvir atualização de token
+    messaging.onTokenRefresh.listen(_salvarTokenNoBanco);
+  }
+
+  void _salvarTokenNoBanco(String token) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      FirestoreService().atualizarToken(user.uid, token);
+    }
   }
 
   @override

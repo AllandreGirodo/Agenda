@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:agenda/controller/cliente_model.dart';
 import 'package:agenda/controller/agendamento_model.dart';
@@ -11,6 +13,7 @@ import 'package:agenda/controller/estoque_model.dart';
 import 'package:agenda/controller/log_model.dart';
 import 'package:agenda/controller/changelog_model.dart';
 import 'package:agenda/controller/cupom_model.dart';
+import 'package:agenda/view/app_strings.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -219,11 +222,14 @@ class FirestoreService {
         final agendamentoRef = _db.collection('agendamentos').doc(id);
         transaction.update(agendamentoRef, {'status': novoStatus});
 
-        // Simulação de envio de notificação (Requer Backend/Cloud Functions para envio real seguro)
-        // Aqui apenas logamos que o token seria usado
-        // final usuarioDoc = await transaction.get(_db.collection('usuarios').doc(clienteId));
-        // final token = usuarioDoc.data()?['fcm_token'];
-        // if (token != null) print('Enviando push para $token: Seu agendamento foi aprovado!');
+        // Envio de Notificação Push Real
+        final usuarioDoc = await transaction.get(_db.collection('usuarios').doc(clienteId));
+        final token = usuarioDoc.data()?['fcm_token'];
+        if (token != null) {
+          // Chama o método de envio (fora da transação pois é async/http)
+          // Usamos Future.microtask para não bloquear a transação
+          Future.microtask(() => enviarNotificacaoPush(token, AppStrings.notifAgendamentoAprovadoTitulo, AppStrings.notifAgendamentoAprovadoCorpo));
+        }
         
         // Registrar Log na transação (ou logo após)
         // Como registrarLog é Future<void> fora da transaction, faremos após o commit ou aqui se usarmos a transaction para escrever em 'logs'
@@ -245,6 +251,33 @@ class FirestoreService {
     } else {
       await _db.collection('agendamentos').doc(id).update({'status': novoStatus});
       await registrarLog('atualizacao', 'Status do agendamento $id alterado para $novoStatus', usuarioId: clienteId);
+    }
+  }
+
+  // --- Notificações Push (FCM) ---
+  Future<void> enviarNotificacaoPush(String token, String titulo, String corpo) async {
+    try {
+      // ATENÇÃO: Em produção, mova isso para uma Cloud Function para proteger sua Server Key.
+      // Para o TCC, você pode usar a chave de servidor (Legacy) do console do Firebase.
+      const String serverKey = 'SUA_SERVER_KEY_AQUI'; 
+      
+      await http.post(
+        Uri.parse('https://fcm.googleapis.com/fcm/send'),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'key=$serverKey',
+        },
+        body: jsonEncode(
+          <String, dynamic>{
+            'notification': <String, dynamic>{'body': corpo, 'title': titulo},
+            'priority': 'high',
+            'data': <String, dynamic>{'click_action': 'FLUTTER_NOTIFICATION_CLICK', 'id': '1', 'status': 'done'},
+            'to': token,
+          },
+        ),
+      );
+    } catch (e) {
+      debugPrint('Erro ao enviar push: $e');
     }
   }
 
