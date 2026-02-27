@@ -12,6 +12,11 @@ class Agendamento {
   // Snapshots para integridade histórica (RF009)
   final String? clienteNomeSnapshot;
   final String? clienteTelefoneSnapshot;
+  final int? avaliacao; // 1 a 5 estrelas
+  final String? comentarioAvaliacao;
+  final String? cupomAplicado;
+  final double? valorOriginal;
+  final double? valorFinal;
 
   Agendamento({
     this.id,
@@ -24,6 +29,11 @@ class Agendamento {
     this.dataCriacao,
     this.clienteNomeSnapshot,
     this.clienteTelefoneSnapshot,
+    this.avaliacao,
+    this.comentarioAvaliacao,
+    this.cupomAplicado,
+    this.valorOriginal,
+    this.valorFinal,
   });
 
   Map<String, dynamic> toMap() => {
@@ -36,6 +46,11 @@ class Agendamento {
     'data_criacao': dataCriacao != null ? Timestamp.fromDate(dataCriacao!) : FieldValue.serverTimestamp(),
     'cliente_nome_snapshot': clienteNomeSnapshot,
     'cliente_telefone_snapshot': clienteTelefoneSnapshot,
+    'avaliacao': avaliacao,
+    'comentario_avaliacao': comentarioAvaliacao,
+    'cupom_aplicado': cupomAplicado,
+    'valor_original': valorOriginal,
+    'valor_final': valorFinal,
   };
 
   factory Agendamento.fromMap(Map<String, dynamic> map, {String? id}) {
@@ -54,6 +69,11 @@ class Agendamento {
           : null,
       clienteNomeSnapshot: map['cliente_nome_snapshot'],
       clienteTelefoneSnapshot: map['cliente_telefone_snapshot'],
+      avaliacao: map['avaliacao'],
+      comentarioAvaliacao: map['comentario_avaliacao'],
+      cupomAplicado: map['cupom_aplicado'],
+      valorOriginal: (map['valor_original'] ?? 0.0).toDouble(),
+      valorFinal: (map['valor_final'] ?? 0.0).toDouble(),
     );
   }
 }

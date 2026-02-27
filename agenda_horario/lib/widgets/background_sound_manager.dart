@@ -22,12 +22,29 @@ class BackgroundSoundManager extends StatefulWidget {
 class _BackgroundSoundManagerState extends State<BackgroundSoundManager> {
   final AudioPlayer _player = AudioPlayer();
   String? _currentAsset;
+  String? _targetAsset; // Rastreia o ativo que desejamos tocar para evitar condições de corrida
+  final AudioCache _audioCache = AudioCache(prefix: 'assets/'); // Cache dedicado
 
   @override
   void initState() {
     super.initState();
     BackgroundSoundManager.isMuted.addListener(_onMuteChanged);
+    _preLoadSounds();
     _updateSound();
+  }
+
+  // Sistema de Cache: Pré-carrega sons comuns para evitar delay na primeira execução
+  Future<void> _preLoadSounds() async {
+    try {
+      await _audioCache.loadAll([
+        'sounds/ocean_waves.mp3',
+        'sounds/space_ambient.mp3',
+        'sounds/celebration.mp3',
+        // Adicione outros sons do seu projeto aqui
+      ]);
+    } catch (e) {
+      debugPrint('Erro ao pré-carregar sons: $e');
+    }
   }
 
   @override
@@ -62,8 +79,10 @@ class _BackgroundSoundManagerState extends State<BackgroundSoundManager> {
       return;
     }
 
-    // Se o som é o mesmo que já está tocando, não faz nada
-    if (_currentAsset == assetToPlay) return;
+    // Se o som alvo já é o que queremos, ignora (evita múltiplas chamadas rápidas)
+    if (_targetAsset == assetToPlay) return;
+    _targetAsset = assetToPlay;
+
 
     try {
       // Fade Out (se estiver tocando algo)
@@ -77,6 +96,9 @@ class _BackgroundSoundManagerState extends State<BackgroundSoundManager> {
         await _player.stop();
       }
 
+      // Verifica se o alvo mudou durante o fade out
+      if (_targetAsset != assetToPlay) return;
+
       _currentAsset = assetToPlay;
       
       await _player.setReleaseMode(ReleaseMode.loop); // Loop infinito
@@ -87,7 +109,7 @@ class _BackgroundSoundManagerState extends State<BackgroundSoundManager> {
       // Fade In
       double targetVol = BackgroundSoundManager.isMuted.value ? 0 : 0.15;
       for (int i = 1; i <= 10; i++) {
-        if (!mounted || _currentAsset != assetToPlay) return;
+        if (!mounted || _targetAsset != assetToPlay) return;
         await _player.setVolume(targetVol * (i / 10));
         await Future.delayed(const Duration(milliseconds: 50));
       }

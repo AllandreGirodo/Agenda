@@ -13,6 +13,7 @@ class Cliente {
   final String cirurgias;
   final bool anamneseOk;
   final int saldoSessoes;
+  final List<String> favoritos;
 
   Cliente({
     required this.uid,
@@ -26,6 +27,7 @@ class Cliente {
     this.cirurgias = '',
     this.anamneseOk = false,
     this.saldoSessoes = 0,
+    this.favoritos = const [],
   });
 
   Map<String, dynamic> toMap() => {
@@ -40,6 +42,7 @@ class Cliente {
     'cirurgias': cirurgias,
     'anamnese_ok': anamneseOk,
     'saldo_sessoes': saldoSessoes,
+    'favoritos': favoritos,
   };
 
   factory Cliente.fromMap(Map<String, dynamic> map) {
@@ -55,6 +58,7 @@ class Cliente {
       cirurgias: map['cirurgias'] ?? '',
       anamneseOk: map['anamnese_ok'] ?? false,
       saldoSessoes: map['saldo_sessoes'] ?? 0,
+      favoritos: List<String>.from(map['favoritos'] ?? []),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Import necessário para HapticFeedback
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:agenda/controller/firestore_service.dart';
 import 'package:agenda/controller/agendamento_model.dart';
@@ -198,6 +199,12 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
         final taxaSemana = calcularTaxa(inicioSemana, fimSemana);
         final taxaMes = calcularTaxa(inicioMes, fimMes);
 
+        // Distribuição de Tipos (Para o Gráfico)
+        final Map<String, int> distribuicaoTipos = {};
+        for (var a in agendamentosMes) {
+          distribuicaoTipos[a.tipo] = (distribuicaoTipos[a.tipo] ?? 0) + 1;
+        }
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -252,6 +259,55 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
                 ),
               ),
               
+              const SizedBox(height: 20),
+              const Text('Tipos Mais Agendados (Mês)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 10),
+              
+              if (distribuicaoTipos.isNotEmpty)
+                SizedBox(
+                  height: 200,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: PieChart(
+                          PieChartData(
+                            sections: distribuicaoTipos.entries.map((e) {
+                              final index = distribuicaoTipos.keys.toList().indexOf(e.key);
+                              final color = Colors.primaries[index % Colors.primaries.length];
+                              return PieChartSectionData(
+                                color: color,
+                                value: e.value.toDouble(),
+                                title: '${e.value}',
+                                radius: 50,
+                                titleStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
+                              );
+                            }).toList(),
+                            sectionsSpace: 2,
+                            centerSpaceRadius: 40,
+                          ),
+                        ),
+                      ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: distribuicaoTipos.entries.map((e) {
+                          final index = distribuicaoTipos.keys.toList().indexOf(e.key);
+                          final color = Colors.primaries[index % Colors.primaries.length];
+                          return Row(
+                            children: [
+                              Container(width: 12, height: 12, color: color),
+                              const SizedBox(width: 4),
+                              Text('${e.key} (${e.value})', style: const TextStyle(fontSize: 12)),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                const Center(child: Text('Sem dados para gráfico.', style: TextStyle(color: Colors.grey))),
+
               const SizedBox(height: 20),
               const Divider(),
               

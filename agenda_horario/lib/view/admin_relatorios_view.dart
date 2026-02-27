@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import '../controller/firestore_service.dart';
 import '../controller/agendamento_model.dart';
 
@@ -15,6 +20,14 @@ class AdminRelatoriosView extends StatelessWidget {
         title: const Text('Relatórios Gerenciais'),
         backgroundColor: Colors.indigo,
         foregroundColor: Colors.white,
+        actions: [
+          // Botão de Exportar PDF
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: 'Exportar PDF e Compartilhar',
+            onPressed: () => _gerarECompartilharPdf(context, firestoreService),
+          ),
+        ],
       ),
       body: StreamBuilder<List<Agendamento>>(
         stream: firestoreService.getAgendamentos(),
@@ -100,5 +113,93 @@ class AdminRelatoriosView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _gerarECompartilharPdf(BuildContext context, FirestoreService service) async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gerando PDF...')));
+
+      // 1. Obter dados (snapshot único para o relatório)
+      final snapshot = await service.getAgendamentos().first;
+      final now = DateTime.now();
+      final agendamentosMes = snapshot.where((a) => 
+        a.dataHora.year == now.year && a.dataHora.month == now.month
+      ).toList();
+
+      // Ordenar por data
+      agendamentosMes.sort((a, b) => a.dataHora.compareTo(b.dataHora));
+
+      // Cálculos
+      final realizados = agendamentosMes.where((a) => a.status == 'aprovado').length;
+      final config = await service.getConfiguracao();
+      final receitaEstimada = realizados * config.precoSessao;
+
+      // 2. Criar Documento PDF
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Header(
+                  level: 0,
+                  child: pw.Text('Relatório Mensal - Agenda Massoterapia', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Text('Mês de Referência: ${DateFormat('MMMM yyyy', 'pt_BR').format(now)}'),
+                pw.Text('Data de Emissão: ${DateFormat('dd/MM/yyyy HH:mm').format(now)}'),
+                pw.Divider(),
+                pw.SizedBox(height: 20),
+                
+                // Resumo Financeiro
+                pw.Container(
+                  padding: const pw.EdgeInsets.all(10),
+                  decoration: pw.BoxDecoration(border: pw.Border.all()),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text('Resumo Financeiro', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                      pw.SizedBox(height: 5),
+                      pw.Text('Total de Agendamentos: ${agendamentosMes.length}'),
+                      pw.Text('Sessões Realizadas/Aprovadas: $realizados'),
+                      pw.Text('Receita Bruta Estimada: R\$ ${receitaEstimada.toStringAsFixed(2)}', style: pw.TextStyle(color: PdfColors.green, fontWeight: pw.FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 20),
+
+                // Tabela de Agendamentos
+                pw.Text('Detalhamento', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 10),
+                pw.Table.fromTextArray(
+                  context: context,
+                  headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                  headers: ['Data', 'Cliente', 'Tipo', 'Status', 'Valor'],
+                  data: agendamentosMes.map((a) => [
+                    DateFormat('dd/MM HH:mm').format(a.dataHora),
+                    a.clienteNomeSnapshot ?? 'ID: ${a.clienteId.substring(0, 5)}...', // Proteção de dados se snapshot falhar
+                    a.tipo,
+                    a.status.toUpperCase(),
+                    a.status == 'aprovado' ? 'R\$ ${config.precoSessao}' : '-',
+                  ]).toList(),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      // 3. Salvar e Compartilhar
+      final output = await getTemporaryDirectory();
+      final file = File("${output.path}/relatorio_${DateFormat('MM_yyyy').format(now)}.pdf");
+      await file.writeAsBytes(await pdf.save());
+
+      await Share.shareXFiles([XFile(file.path)], text: 'Segue o relatório financeiro de ${DateFormat('MMMM').format(now)}.');
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao gerar PDF: $e')));
+    }
   }
 }

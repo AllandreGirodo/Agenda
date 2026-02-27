@@ -10,6 +10,7 @@ import 'package:agenda/controller/config_model.dart';
 import 'package:agenda/controller/estoque_model.dart';
 import 'package:agenda/controller/log_model.dart';
 import 'package:agenda/controller/changelog_model.dart';
+import 'package:agenda/controller/cupom_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -43,6 +44,20 @@ class FirestoreService {
     await _db.collection('clientes').doc(uid).update({
       'saldo_sessoes': FieldValue.increment(quantidade),
     });
+  }
+
+  Future<void> toggleFavorito(String uid, String tipo) async {
+    final docRef = _db.collection('clientes').doc(uid);
+    final doc = await docRef.get();
+    if (doc.exists) {
+      final favoritos = List<String>.from(doc.data()?['favoritos'] ?? []);
+      if (favoritos.contains(tipo)) {
+        favoritos.remove(tipo);
+      } else {
+        favoritos.add(tipo);
+      }
+      await docRef.update({'favoritos': favoritos});
+    }
   }
 
   // --- Estoque ---
@@ -272,6 +287,31 @@ class FirestoreService {
       }
     });
     await registrarLog('cancelamento', 'Agendamento $id cancelado. Motivo: $motivo');
+  }
+
+  // --- Avaliação ---
+  Future<void> avaliarAgendamento(String id, int nota, String comentario) async {
+    await _db.collection('agendamentos').doc(id).update({
+      'avaliacao': nota,
+      'comentario_avaliacao': comentario,
+    });
+  }
+
+  // --- Cupons ---
+  Future<CupomModel?> validarCupom(String codigo) async {
+    final snapshot = await _db.collection('cupons')
+        .where('codigo', isEqualTo: codigo.toUpperCase())
+        .where('ativo', isEqualTo: true)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isNotEmpty) {
+      final cupom = CupomModel.fromMap(snapshot.docs.first.data());
+      if (cupom.validade.isAfter(DateTime.now())) {
+        return cupom;
+      }
+    }
+    return null;
   }
 
   // --- Transações Financeiras (Novo Módulo) ---

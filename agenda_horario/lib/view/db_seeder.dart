@@ -11,6 +11,7 @@ class DbSeeder {
     await seedAgendamentos();
     await seedEstoque();
     await seedConfiguracoes();
+    await seedCupons();
     await FirestoreService().inicializarChangeLog();
   }
 
@@ -123,6 +124,21 @@ class DbSeeder {
       }, SetOptions(merge: true));
     } catch (e) {
       debugPrint('Erro ao popular Configurações: $e');
+    }
+  }
+
+  static Future<void> seedCupons() async {
+    try {
+      // Cria um cupom de teste: BEMVINDO (10% de desconto)
+      await _db.collection('cupons').doc('BEMVINDO').set({
+        'codigo': 'BEMVINDO',
+        'tipo': 'porcentagem',
+        'valor': 10.0,
+        'validade': Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
+        'ativo': true,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('Erro ao popular Cupons: $e');
     }
   }
 }

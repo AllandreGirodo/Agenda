@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui'; // Necessário para PointMode
 import 'package:flutter/material.dart';
-import '../utils/custom_theme_data.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import 'package:agenda/utils/custom_theme_data.dart';
 
 class AnimatedBackground extends StatefulWidget {
@@ -31,6 +31,11 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
   final Random _random = Random();
   late AnimationController _controller;
   double _lightningOpacity = 0.0; // Controle da opacidade do raio
+  double _continuousTime = 0.0; // Tempo contínuo para animações sem loop (ex: peixes)
+  
+  // Variáveis para o efeito Parallax
+  double _parallaxX = 0.0, _parallaxY = 0.0;
+  StreamSubscription<AccelerometerEvent>? _sensorSubscription;
 
   @override
   void initState() {
@@ -48,6 +53,21 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
     _controller.addListener(_updateWavePhysics);
     _controller.addListener(_updateVacationPhysics);
     _generateItems();
+    _initSensors();
+  }
+
+  void _initSensors() {
+    // Escuta o acelerômetro para criar o efeito de profundidade
+    _sensorSubscription = accelerometerEvents.listen((event) {
+      if (mounted) {
+        setState(() {
+          // Filtro simples (Low-pass) para suavizar o movimento e evitar tremedeira
+          // Invertemos o sinal (-) para que o fundo mova na direção oposta (profundidade)
+          _parallaxX = _parallaxX * 0.9 + (-event.x * 0.1); 
+          _parallaxY = _parallaxY * 0.9 + (event.y * 0.1);
+        });
+      }
+    });
   }
 
   @override
@@ -184,10 +204,12 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
 
   void _updateVacationPhysics() {
     if (widget.themeType.toString() == 'AppThemeType.ferias' && _vacationIndex == 3) {
+       _continuousTime += 0.05; // Incremento constante para movimento suave
+
        for (var fish in _fishes) {
          fish.x -= fish.speed;
          if (fish.x < -0.1) fish.x = 1.1; // Loop na tela
-         fish.y += sin(_controller.value * 10 + fish.x * 10) * 0.001; // Nadar ondulado
+         fish.y += sin(_continuousTime + fish.x * 10) * 0.001; // Nadar ondulado sem "pulos"
          
          // Gera bolhas na cauda (lado direito do peixe, pois ele nada para a esquerda)
          if (_random.nextDouble() < 0.1) { // 10% de chance por frame
@@ -326,6 +348,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
     _controller.removeListener(_updateWavePhysics);
     _controller.removeListener(_updateVacationPhysics);
     _vacationTimer?.cancel();
+    _sensorSubscription?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -352,34 +375,48 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
       bgColors = [Colors.transparent, Colors.transparent];
     }
 
+    // Define o deslocamento base do Parallax
+    // Multiplicamos por valores diferentes para cada camada criar profundidade
+    final Offset bgOffset = Offset(_parallaxX * 3, _parallaxY * 3);
+    final Offset particleOffset = Offset(_parallaxX * 6, _parallaxY * 6);
+
     return Stack(
       children: [
         // 1. Gradiente de Fundo
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeInOut,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: bgColors.length >= 2 ? bgColors : [bgColors.first, bgColors.first],
+        Transform.translate(
+          offset: bgOffset, // Fundo move mais devagar
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeInOut,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: bgColors.length >= 2 ? bgColors : [bgColors.first, bgColors.first],
+              ),
             ),
           ),
         ),
         
         // 1.2. Camada de Raios (Tempestade) - Atrás das partículas, sobre o fundo
         if (widget.themeType == AppThemeType.tempestade)
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, child) => Container(
-              color: Colors.white.withOpacity(_lightningOpacity),
+          Transform.translate(
+            offset: bgOffset,
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, child) => Container(
+                color: Colors.white.withOpacity(_lightningOpacity),
+              ),
             ),
           ),
 
         // 2. Camada de Partículas (Neve, Glitch, Ícones) com Transição Suave
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 800),
-          child: _buildParticleLayer(data),
+        Transform.translate(
+          offset: particleOffset, // Partículas movem mais rápido (estão "mais perto")
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 800),
+            child: _buildParticleLayer(data),
+          ),
         ),
 
         // 3. Conteúdo da Tela (Scaffold)
