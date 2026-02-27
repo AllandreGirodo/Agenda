@@ -171,6 +171,8 @@ class _MyAppState extends State<MyApp> {
             colorScheme: darkDynamic ?? AppColors.darkScheme,
             useMaterial3: true,
           ),
+          themeAnimationDuration: const Duration(milliseconds: 800), // Transição suave (Fade)
+          themeAnimationCurve: Curves.easeInOut,
           themeMode: _themeMode,
           locale: _locale,
           localizationsDelegates: [

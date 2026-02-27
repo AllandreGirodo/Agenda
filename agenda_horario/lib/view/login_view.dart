@@ -70,6 +70,35 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
+  Future<void> _recuperarSenha() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppStrings.erroEmailObrigatorio),
+        backgroundColor: AppColors.error,
+      ));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppStrings.emailRecuperacaoEnviado),
+        backgroundColor: Colors.green,
+      ));
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(e.message ?? 'Erro ao enviar email'),
+        backgroundColor: AppColors.error,
+      ));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Usa o tema atual (Light ou Dark) configurado no main.dart
@@ -147,9 +176,7 @@ class _LoginViewState extends State<LoginView> {
                           child: Text(AppStrings.cadastrarBtn),
                         ),
                         TextButton(
-                          onPressed: () {
-                            // Lógica de recuperação de senha
-                          },
+                          onPressed: _recuperarSenha,
                           child: Text(AppStrings.esqueceuSenha, style: const TextStyle(color: Colors.grey)),
                         ),
                       ],

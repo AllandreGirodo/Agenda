@@ -96,4 +96,6 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get entrarBtn => _isPt ? 'Entrar' : 'Sign In';
   static String get cadastrarBtn => _isPt ? 'Criar Conta' : 'Create Account';
   static String get esqueceuSenha => _isPt ? 'Esqueceu a senha?' : 'Forgot password?';
+  static String get erroEmailObrigatorio => _isPt ? 'Por favor, digite seu e-mail para recuperar a senha.' : 'Please enter your email to reset password.';
+  static String get emailRecuperacaoEnviado => _isPt ? 'E-mail de recuperação enviado! Verifique sua caixa de entrada.' : 'Recovery email sent! Check your inbox.';
 }
