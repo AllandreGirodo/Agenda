@@ -5,6 +5,8 @@ class ConfigModel {
   final int fimSono; // Hora inteira (0-23)
   final double precoSessao;
   final bool biometriaAtiva;
+  final bool chatAtivo;
+  final bool reciboLeitura;
 
   ConfigModel({
     required this.camposObrigatorios,
@@ -13,6 +15,8 @@ class ConfigModel {
     this.fimSono = 6, // 06:00
     this.precoSessao = 100.0,
     this.biometriaAtiva = true,
+    this.chatAtivo = true,
+    this.reciboLeitura = true,
   });
 
   // Campos padrão do sistema
@@ -35,6 +39,8 @@ class ConfigModel {
       'fim_sono': fimSono,
       'preco_sessao': precoSessao,
       'biometria_ativa': biometriaAtiva,
+      'chat_ativo': chatAtivo,
+      'recibo_leitura': reciboLeitura,
     };
   }
 
@@ -48,6 +54,8 @@ class ConfigModel {
       fimSono: map['fim_sono'] ?? 6,
       precoSessao: (map['preco_sessao'] ?? 100).toDouble(),
       biometriaAtiva: map['biometria_ativa'] ?? true,
+      chatAtivo: map['chat_ativo'] ?? true,
+      reciboLeitura: map['recibo_leitura'] ?? true,
     );
   }
 }

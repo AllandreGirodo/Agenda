@@ -14,6 +14,7 @@ import 'package:agenda/controller/log_model.dart';
 import 'package:agenda/controller/changelog_model.dart';
 import 'package:agenda/controller/cupom_model.dart';
 import 'package:agenda/view/app_strings.dart';
+import 'package:agenda/controller/chat_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -330,6 +331,39 @@ class FirestoreService {
     });
   }
 
+  // --- Chat (Agendamento) ---
+  Future<void> enviarMensagem(String agendamentoId, String texto, String autorId) async {
+    final mensagem = ChatMensagem(
+      texto: texto,
+      autorId: autorId,
+      dataHora: DateTime.now(),
+      lida: false,
+    );
+    await _db.collection('agendamentos').doc(agendamentoId).collection('mensagens').add(mensagem.toMap());
+  }
+
+  Stream<List<ChatMensagem>> getMensagens(String agendamentoId) {
+    return _db.collection('agendamentos').doc(agendamentoId).collection('mensagens')
+        .orderBy('data_hora', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => ChatMensagem.fromMap(doc.data(), id: doc.id)).toList());
+  }
+
+  Future<void> marcarMensagensComoLidas(String agendamentoId, String usuarioLogadoId) async {
+    final batch = _db.batch();
+    final snapshot = await _db.collection('agendamentos').doc(agendamentoId).collection('mensagens')
+        .where('lida', isEqualTo: false)
+        .get();
+
+    for (var doc in snapshot.docs) {
+      // Só marca como lida se a mensagem NÃO foi enviada por mim (usuário logado)
+      if (doc.data()['autor_id'] != usuarioLogadoId) {
+        batch.update(doc.reference, {'lida': true});
+      }
+    }
+    await batch.commit();
+  }
+
   // --- Cupons ---
   Future<CupomModel?> validarCupom(String codigo) async {
     final snapshot = await _db.collection('cupons')
@@ -459,6 +493,28 @@ class FirestoreService {
     }
     
     await batch.commit();
+  }
+
+  // --- Backup Completo (JSON) ---
+  Future<String> gerarBackupJson() async {
+    final dados = <String, dynamic>{};
+    
+    // Exporta coleções principais
+    dados['clientes'] = await getFullCollection('clientes');
+    dados['agendamentos'] = await getFullCollection('agendamentos');
+    dados['estoque'] = await getFullCollection('estoque');
+    dados['configuracoes'] = await getFullCollection('configuracoes');
+    
+    return jsonEncode(dados);
+  }
+
+  Future<void> restaurarBackupJson(String jsonString) async {
+    final dados = jsonDecode(jsonString) as Map<String, dynamic>;
+    
+    if (dados.containsKey('clientes')) await importarColecao('clientes', List<Map<String, dynamic>>.from(dados['clientes']));
+    if (dados.containsKey('agendamentos')) await importarColecao('agendamentos', List<Map<String, dynamic>>.from(dados['agendamentos']));
+    if (dados.containsKey('estoque')) await importarColecao('estoque', List<Map<String, dynamic>>.from(dados['estoque']));
+    if (dados.containsKey('configuracoes')) await importarColecao('configuracoes', List<Map<String, dynamic>>.from(dados['configuracoes']));
   }
 
   // --- Logs ---
