@@ -12,6 +12,7 @@ import 'package:agenda/widgets/animated_background.dart';
 import 'package:agenda/widgets/background_sound_manager.dart';
 import 'package:agenda/view/app_styles.dart';
 import 'package:agenda/view/login_view.dart';
+import 'package:agenda/view/onboarding_view.dart';
 import 'package:agenda/app_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:agenda/firebase_options.dart'; // Será gerado pelo flutterfire configure
@@ -45,11 +46,13 @@ void main() async {
   final String? countryCode = prefs.getString('country_code');
   final String? themeMode = prefs.getString('theme_mode');
   final String? customTheme = prefs.getString('custom_theme_type');
+  final bool onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
 
   runApp(MyApp(
     initialLocale: languageCode != null ? Locale(languageCode, countryCode) : null,
     initialThemeMode: themeMode,
     initialCustomTheme: customTheme,
+    onboardingComplete: onboardingComplete,
   ));
 }
 
@@ -57,8 +60,9 @@ class MyApp extends StatefulWidget {
   final Locale? initialLocale;
   final String? initialThemeMode;
   final String? initialCustomTheme;
+  final bool onboardingComplete;
 
-  const MyApp({super.key, this.initialLocale, this.initialThemeMode, this.initialCustomTheme});
+  const MyApp({super.key, this.initialLocale, this.initialThemeMode, this.initialCustomTheme, required this.onboardingComplete});
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -187,7 +191,7 @@ class _MyAppState extends State<MyApp> {
             Locale('es', 'ES'),
             Locale('ja', 'JP'),
           ],
-          home: const LoginView(),
+          home: widget.onboardingComplete ? const LoginView() : const OnboardingView(),
           // Envolve todo o app no fundo animado
           builder: (context, child) {
             return BackgroundSoundManager(

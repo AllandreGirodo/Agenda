@@ -19,6 +19,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
   double _precoSessao = 100.0;
   int _statusCampoCupom = 1;
   bool _isLoading = true;
+  bool _biometriaAtiva = true;
 
   // Campos que não podem ser desmarcados pelo admin (Regra de Negócio/Segurança)
   final List<String> _camposCriticos = ['whatsapp', 'data_nascimento', 'termos_uso'];
@@ -47,6 +48,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
       _fimSono = config.fimSono;
       _precoSessao = config.precoSessao;
       _statusCampoCupom = config.statusCampoCupom;
+      _biometriaAtiva = config.biometriaAtiva;
       _isLoading = false;
     });
   }
@@ -59,6 +61,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
       fimSono: _fimSono,
       precoSessao: _precoSessao,
       statusCampoCupom: _statusCampoCupom,
+      biometriaAtiva: _biometriaAtiva,
     ));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -164,6 +167,14 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 20),
+                Text(AppStrings.configBiometria, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
+                SwitchListTile(
+                  title: const Text('Ativar FaceID/TouchID'),
+                  subtitle: Text(AppStrings.configBiometriaDesc),
+                  value: _biometriaAtiva,
+                  onChanged: (val) => setState(() => _biometriaAtiva = val),
                 ),
                 const SizedBox(height: 20),
                 Text(AppStrings.configCamposObrigatorios, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),

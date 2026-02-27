@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   firebase_core: ^4.4.0
   firebase_auth: ^6.1.4
+  google_sign_in: ^6.2.1
   cloud_firestore: ^6.1.2
   shared_preferences: ^2.3.0
   intl: ^0.20.2
@@ -58,6 +59,8 @@ dependencies:
   sensors_plus: ^6.1.0
   fl_chart: ^0.66.0
   pdf: ^3.10.4
+  local_auth: ^2.1.6
+  lottie: ^3.1.0
 
 dev_dependencies:
   flutter_test:

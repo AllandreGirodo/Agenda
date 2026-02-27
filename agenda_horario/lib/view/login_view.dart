@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:agenda/view/app_styles.dart';
 import 'package:agenda/view/app_strings.dart';
 import 'package:agenda/view/agendamento_view.dart';
 import 'package:agenda/view/admin_agendamentos_view.dart';
 import 'package:agenda/view/perfil_view.dart'; // Para cadastro, se necessário redirecionar
 import 'package:agenda/widgets/language_selector.dart';
+import 'package:agenda/controller/firestore_service.dart';
+import 'package:agenda/controller/config_model.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -19,6 +23,13 @@ class _LoginViewState extends State<LoginView> {
   final _senhaController = TextEditingController();
   bool _isLoading = false;
   bool _isObscure = true;
+  final LocalAuthentication auth = LocalAuthentication();
+
+  @override
+  void initState() {
+    super.initState();
+    _verificarBiometriaAutomatica();
+  }
 
   Future<void> _login() async {
     setState(() => _isLoading = true);
@@ -96,6 +107,73 @@ class _LoginViewState extends State<LoginView> {
       ));
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _googleLogin() async {
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return; // Usuário cancelou
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+      if (!mounted) return;
+      // Redirecionamento é tratado pelo StreamBuilder no AgendamentoView ou aqui manualmente
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AgendamentoView()));
+      
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro no Google Login: $e')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _verificarBiometriaAutomatica() async {
+    // Verifica se a biometria está ativa nas configurações globais
+    final config = await FirestoreService().getConfiguracao();
+    if (!config.biometriaAtiva) return;
+
+    // Verifica se o dispositivo suporta
+    final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
+    final bool canAuthenticate = canAuthenticateWithBiometrics || await auth.isDeviceSupported();
+
+    if (canAuthenticate) {
+      // Opcional: Tentar autenticar automaticamente se já houver sessão válida (mas expirada na UI)
+      // Para este exemplo, deixaremos apenas o botão visível.
+    }
+  }
+
+  Future<void> _loginBiometrico() async {
+    try {
+      final bool didAuthenticate = await auth.authenticate(
+        localizedReason: AppStrings.biometriaBtn,
+        options: const AuthenticationOptions(biometricOnly: false),
+      );
+
+      if (didAuthenticate) {
+        // Em um app real, aqui recuperaríamos as credenciais do SecureStorage.
+        // Como estamos usando Firebase Auth que persiste a sessão, se o currentUser não for nulo,
+        // podemos pular o login. Se for nulo, a biometria serve apenas como "atalho" visual,
+        // mas ainda precisaria de credenciais.
+        // Para o TCC, simularemos que a biometria valida o usuário atual se ele já estiver logado no cache.
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+           Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AgendamentoView()));
+        } else {
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Faça login com senha uma vez para habilitar o acesso rápido.')));
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppStrings.biometriaErro}: $e')));
     }
   }
 
@@ -178,6 +256,20 @@ class _LoginViewState extends State<LoginView> {
                         TextButton(
                           onPressed: _recuperarSenha,
                           child: Text(AppStrings.esqueceuSenha, style: const TextStyle(color: Colors.grey)),
+                        ),
+                        const Divider(),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.login, color: Colors.red), // Ícone genérico, ideal seria logo do Google
+                          label: Text(AppStrings.googleLoginBtn),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black),
+                          onPressed: _googleLogin,
+                        ),
+                        const SizedBox(height: 10),
+                        // Botão de Biometria
+                        IconButton(
+                          icon: const Icon(Icons.fingerprint, size: 40, color: AppColors.primary),
+                          tooltip: AppStrings.biometriaBtn,
+                          onPressed: _loginBiometrico,
                         ),
                       ],
                     ),

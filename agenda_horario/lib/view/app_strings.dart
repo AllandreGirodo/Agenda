@@ -98,4 +98,15 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get esqueceuSenha => _isPt ? 'Esqueceu a senha?' : 'Forgot password?';
   static String get erroEmailObrigatorio => _isPt ? 'Por favor, digite seu e-mail para recuperar a senha.' : 'Please enter your email to reset password.';
   static String get emailRecuperacaoEnviado => _isPt ? 'E-mail de recuperação enviado! Verifique sua caixa de entrada.' : 'Recovery email sent! Check your inbox.';
+
+  // Onboarding
+  static String get onboardingTitulo1 => _isPt ? 'Bem-vindo(a)' : 'Welcome';
+  static String get onboardingTexto1 => _isPt ? 'Gerencie seus agendamentos de massoterapia de forma fácil e rápida.' : 'Manage your massage therapy appointments easily and quickly.';
+  static String get onboardingTitulo2 => _isPt ? 'Notificações' : 'Notifications';
+  static String get onboardingTexto2 => _isPt ? 'Receba lembretes automáticos e atualizações sobre suas sessões.' : 'Receive automatic reminders and updates about your sessions.';
+  static String get onboardingTitulo3 => _isPt ? 'Histórico Completo' : 'Full History';
+  static String get onboardingTexto3 => _isPt ? 'Acompanhe seu histórico de atendimentos e controle seus pacotes.' : 'Track your service history and control your packages.';
+  static String get pularBtn => _isPt ? 'Pular' : 'Skip';
+  static String get comecarBtn => _isPt ? 'Começar' : 'Get Started';
+  static String get googleLoginBtn => _isPt ? 'Entrar com Google' : 'Sign in with Google';
 }
