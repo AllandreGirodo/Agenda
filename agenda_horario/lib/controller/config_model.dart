@@ -22,6 +22,7 @@ class ConfigModel {
         'alergias': false,
         'medicamentos': false,
         'cirurgias': false,
+        'termos_uso': true,
       };
 
   Map<String, dynamic> toMap() {

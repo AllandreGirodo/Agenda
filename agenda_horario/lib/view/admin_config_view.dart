@@ -16,7 +16,11 @@ class _AdminConfigViewState extends State<AdminConfigView> {
   int _inicioSono = 22;
   int _fimSono = 6;
   double _precoSessao = 100.0;
+  int _statusCampoCupom = 1;
   bool _isLoading = true;
+
+  // Campos que não podem ser desmarcados pelo admin (Regra de Negócio/Segurança)
+  final List<String> _camposCriticos = ['whatsapp', 'data_nascimento', 'termos_uso'];
 
   // Mapa de nomes amigáveis para exibição
   final Map<String, String> _labels = {
@@ -27,6 +31,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
     'alergias': 'Alergias',
     'medicamentos': 'Uso de Medicamentos',
     'cirurgias': 'Cirurgias Recentes',
+    'termos_uso': 'Termos de Uso (Aceite Obrigatório)',
   };
 
   @override
@@ -39,10 +44,17 @@ class _AdminConfigViewState extends State<AdminConfigView> {
     final config = await _firestoreService.getConfiguracao();
     setState(() {
       _campos = Map.from(config.camposObrigatorios);
+      
+      // Garante que campos críticos estejam marcados como TRUE, mesmo que venham false do banco
+      for (var critico in _camposCriticos) {
+        _campos[critico] = true;
+      }
+
       _horasAntecedencia = config.horasAntecedenciaCancelamento;
       _inicioSono = config.inicioSono;
       _fimSono = config.fimSono;
       _precoSessao = config.precoSessao;
+      _statusCampoCupom = config.statusCampoCupom;
       _isLoading = false;
     });
   }
@@ -54,6 +66,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
       inicioSono: _inicioSono,
       fimSono: _fimSono,
       precoSessao: _precoSessao,
+      statusCampoCupom: _statusCampoCupom,
     ));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -139,13 +152,37 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                   ),
                 ),
                 const SizedBox(height: 20),
+                const Text('Configuração de Cupons', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
+                const SizedBox(height: 10),
+                Card(
+                  child: Column(
+                    children: [
+                      RadioListTile<int>(
+                        title: const Text('Ativo (Campo visível)'),
+                        value: 1, groupValue: _statusCampoCupom, onChanged: (v) => setState(() => _statusCampoCupom = v!),
+                      ),
+                      RadioListTile<int>(
+                        title: const Text('Oculto (Campo não aparece)'),
+                        value: 2, groupValue: _statusCampoCupom, onChanged: (v) => setState(() => _statusCampoCupom = v!),
+                      ),
+                      RadioListTile<int>(
+                        title: const Text('Opacidade (Visível mas inativo)'),
+                        subtitle: const Text('Aparece com transparência e não clicável'),
+                        value: 3, groupValue: _statusCampoCupom, onChanged: (v) => setState(() => _statusCampoCupom = v!),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
                 const Text('Marque os campos que devem ser OBRIGATÓRIOS para o cliente:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
-                ..._campos.keys.map((key) {
+                ..._labels.keys.map((key) {
+                  final isCritico = _camposCriticos.contains(key);
                   return SwitchListTile(
-                    title: Text(_labels[key] ?? key),
+                    title: Text(_labels[key]!),
+                    subtitle: isCritico ? const Text('Campo crítico (Sempre obrigatório)', style: TextStyle(color: Colors.red, fontSize: 12)) : null,
                     value: _campos[key] ?? false,
-                    onChanged: (val) => setState(() => _campos[key] = val),
+                    onChanged: isCritico ? null : (val) => setState(() => _campos[key] = val),
                   );
                 }),
               ],
