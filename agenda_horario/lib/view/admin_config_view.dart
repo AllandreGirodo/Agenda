@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../controller/firestore_service.dart';
 import '../controller/config_model.dart';
+import 'package:agenda/utils/app_strings.dart';
 
 class AdminConfigView extends StatefulWidget {
   const AdminConfigView({super.key});
@@ -23,16 +24,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
   final List<String> _camposCriticos = ['whatsapp', 'data_nascimento', 'termos_uso'];
 
   // Mapa de nomes amigáveis para exibição
-  final Map<String, String> _labels = {
-    'whatsapp': 'WhatsApp',
-    'endereco': 'Endereço Completo',
-    'data_nascimento': 'Data de Nascimento',
-    'historico_medico': 'Histórico Médico',
-    'alergias': 'Alergias',
-    'medicamentos': 'Uso de Medicamentos',
-    'cirurgias': 'Cirurgias Recentes',
-    'termos_uso': 'Termos de Uso (Aceite Obrigatório)',
-  };
+  final Map<String, String> _labels = AppStrings.labelsConfig;
 
   @override
   void initState() {
@@ -70,7 +62,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
     ));
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Configurações salvas com sucesso!')),
+        SnackBar(content: Text(AppStrings.configSalvaSucesso)),
       );
     }
   }
@@ -79,7 +71,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Configuração de Campos'),
+        title: Text(AppStrings.configTitulo),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         actions: [
@@ -91,21 +83,21 @@ class _AdminConfigViewState extends State<AdminConfigView> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                const Text('Financeiro', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
+                Text(AppStrings.configFinanceiro, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
                 const SizedBox(height: 10),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
                     child: TextFormField(
                       initialValue: _precoSessao.toString(),
-                      decoration: const InputDecoration(labelText: 'Preço da Sessão (R\$)'),
+                      decoration: InputDecoration(labelText: AppStrings.configPrecoSessao),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       onChanged: (val) => setState(() => _precoSessao = double.tryParse(val) ?? 0.0),
                     ),
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text('Regras de Cancelamento', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
+                Text(AppStrings.configRegrasCancelamento, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
                 const SizedBox(height: 10),
                 Card(
                   child: Padding(
@@ -113,7 +105,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Antecedência mínima (horas): $_horasAntecedencia h'),
+                        Text('${AppStrings.configAntecedencia}: $_horasAntecedencia h'),
                         Slider(
                           value: _horasAntecedencia.toDouble(),
                           min: 0,
@@ -123,15 +115,15 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                           onChanged: (val) => setState(() => _horasAntecedencia = val.toInt()),
                         ),
                         const Divider(),
-                        const Text('Horário de Sono da Administradora', style: TextStyle(fontWeight: FontWeight.bold)),
-                        const Text('Este intervalo não conta para o cálculo de antecedência.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(AppStrings.configHorarioSono, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text(AppStrings.configHorarioSonoDesc, style: const TextStyle(fontSize: 12, color: Colors.grey)),
                         const SizedBox(height: 10),
                         Row(
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<int>(
                                 initialValue: _inicioSono,
-                                decoration: const InputDecoration(labelText: 'Dorme às'),
+                                decoration: InputDecoration(labelText: AppStrings.configDormeAs),
                                 items: List.generate(24, (i) => DropdownMenuItem(value: i, child: Text('$i:00'))),
                                 onChanged: (v) => setState(() => _inicioSono = v!),
                               ),
@@ -140,7 +132,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                             Expanded(
                               child: DropdownButtonFormField<int>(
                                 initialValue: _fimSono,
-                                decoration: const InputDecoration(labelText: 'Acorda às'),
+                                decoration: InputDecoration(labelText: AppStrings.configAcordaAs),
                                 items: List.generate(24, (i) => DropdownMenuItem(value: i, child: Text('$i:00'))),
                                 onChanged: (v) => setState(() => _fimSono = v!),
                               ),
@@ -152,35 +144,35 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text('Configuração de Cupons', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
+                Text(AppStrings.configCupons, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
                 const SizedBox(height: 10),
                 Card(
                   child: Column(
                     children: [
                       RadioListTile<int>(
-                        title: const Text('Ativo (Campo visível)'),
+                        title: Text(AppStrings.configCupomAtivo),
                         value: 1, groupValue: _statusCampoCupom, onChanged: (v) => setState(() => _statusCampoCupom = v!),
                       ),
                       RadioListTile<int>(
-                        title: const Text('Oculto (Campo não aparece)'),
+                        title: Text(AppStrings.configCupomOculto),
                         value: 2, groupValue: _statusCampoCupom, onChanged: (v) => setState(() => _statusCampoCupom = v!),
                       ),
                       RadioListTile<int>(
-                        title: const Text('Opacidade (Visível mas inativo)'),
-                        subtitle: const Text('Aparece com transparência e não clicável'),
+                        title: Text(AppStrings.configCupomOpaco),
+                        subtitle: Text(AppStrings.configCupomOpacoDesc),
                         value: 3, groupValue: _statusCampoCupom, onChanged: (v) => setState(() => _statusCampoCupom = v!),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text('Marque os campos que devem ser OBRIGATÓRIOS para o cliente:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(AppStrings.configCamposObrigatorios, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 16),
                 ..._labels.keys.map((key) {
                   final isCritico = _camposCriticos.contains(key);
                   return SwitchListTile(
                     title: Text(_labels[key]!),
-                    subtitle: isCritico ? const Text('Campo crítico (Sempre obrigatório)', style: TextStyle(color: Colors.red, fontSize: 12)) : null,
+                    subtitle: isCritico ? Text(AppStrings.configCampoCritico, style: const TextStyle(color: Colors.red, fontSize: 12)) : null,
                     value: _campos[key] ?? false,
                     onChanged: isCritico ? null : (val) => setState(() => _campos[key] = val),
                   );

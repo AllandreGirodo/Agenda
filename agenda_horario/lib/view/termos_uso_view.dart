@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:agenda/utils/app_strings.dart';
 
 class TermosUsoView extends StatefulWidget {
   final VoidCallback onAceitar;
@@ -13,28 +14,13 @@ class _TermosUsoViewState extends State<TermosUsoView> {
   bool _aceito = false;
   
   // Texto padrão dos termos.
-  final String _textoTermos = """
-1. Aceitação dos Termos
-Ao utilizar este aplicativo para agendamento de serviços de massoterapia, você concorda com os termos descritos abaixo.
-
-2. Agendamentos e Cancelamentos
-Os cancelamentos devem ser feitos respeitando a antecedência mínima configurada no sistema. Cancelamentos tardios ou não comparecimento podem estar sujeitos a restrições em agendamentos futuros.
-
-3. Saúde e Anamnese
-É responsabilidade do cliente informar condições de saúde, alergias, cirurgias recentes e uso de medicamentos na ficha de anamnese. A omissão de dados pode acarretar riscos à saúde durante o procedimento.
-
-4. Privacidade e Dados (LGPD)
-Seus dados pessoais são coletados para fins de cadastro e histórico de atendimento. Você tem o direito de solicitar a anonimização da sua conta a qualquer momento através das configurações do perfil.
-
-5. Pagamentos
-Os valores dos serviços e pacotes estão sujeitos a alteração. O pagamento deve ser realizado conforme combinado com a profissional.
-""";
+  final String _textoTermos = AppStrings.termosUsoTexto;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Termos de Uso'),
+        title: Text(AppStrings.termosUsoTitulo),
         backgroundColor: Colors.teal,
         foregroundColor: Colors.white,
         automaticallyImplyLeading: false, // Impede voltar sem aceitar se for modal obrigatório
@@ -54,7 +40,7 @@ Os valores dos serviços e pacotes estão sujeitos a alteração. O pagamento de
           Container(
             color: Colors.grey.shade50,
             child: CheckboxListTile(
-              title: const Text('Li e concordo com os Termos de Uso e Política de Privacidade.'),
+              title: Text(AppStrings.termosUsoAceite),
               value: _aceito,
               onChanged: (val) => setState(() => _aceito = val ?? false),
               controlAffinity: ListTileControlAffinity.leading,
@@ -73,7 +59,7 @@ Os valores dos serviços e pacotes estão sujeitos a alteração. O pagamento de
                   foregroundColor: Colors.white,
                   disabledBackgroundColor: Colors.grey.shade300,
                 ),
-                child: const Text('Confirmar e Continuar', style: TextStyle(fontSize: 16)),
+                child: Text(AppStrings.termosUsoBotao, style: const TextStyle(fontSize: 16)),
               ),
             ),
           ),

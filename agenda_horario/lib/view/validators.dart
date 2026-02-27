@@ -1,7 +1,9 @@
+import 'package:agenda/utils/app_strings.dart';
+
 class Validators {
   /// Valida se a idade baseada na data de nascimento é maior ou igual a [idadeMinima].
   static String? validarIdade(DateTime? dataNascimento, {int idadeMinima = 18}) {
-    if (dataNascimento == null) return 'Data de nascimento obrigatória.';
+    if (dataNascimento == null) return AppStrings.dataNascimentoObrigatoria;
     
     final hoje = DateTime.now();
     int idade = hoje.year - dataNascimento.year;
@@ -13,7 +15,7 @@ class Validators {
     }
     
     if (idade < idadeMinima) {
-      return 'É necessário ter pelo menos $idadeMinima anos para se cadastrar.';
+      return AppStrings.erroIdadeMinima(idadeMinima);
     }
     
     return null;
