@@ -192,7 +192,7 @@ class _LoginViewState extends State<LoginView> {
             elevation: 8,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             // Cor do card adapta-se ao tema (Surface)
-            color: theme.colorScheme.surface.withOpacity(0.9),
+            color: theme.colorScheme.surface.withValues(alpha: 0.9),
             child: Padding(
               padding: const EdgeInsets.all(32.0),
               child: Column(
@@ -207,7 +207,7 @@ class _LoginViewState extends State<LoginView> {
                   ),
                   Text(
                     AppStrings.loginSubtitulo,
-                    style: AppStyles.subtitle.copyWith(color: theme.colorScheme.onSurface.withOpacity(0.7)),
+                    style: AppStyles.subtitle.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),

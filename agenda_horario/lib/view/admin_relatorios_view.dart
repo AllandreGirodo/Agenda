@@ -36,7 +36,6 @@ class AdminRelatoriosView extends StatelessWidget {
 
           final agendamentos = snapshot.data!;
           final now = DateTime.now();
-          final mesAtual = DateTime(now.year, now.month);
           
           // Filtrar agendamentos do mês atual
           final agendamentosMes = agendamentos.where((a) => 
@@ -53,7 +52,6 @@ class AdminRelatoriosView extends StatelessWidget {
           final realizados = agendamentosMes.where((a) => a.status == 'aprovado').length; // Considerando aprovados como realizados/futuros confirmados
           
           final taxaCancelamento = total > 0 ? (cancelados / total) * 100 : 0.0;
-          final taxaOcupacao = total > 0 ? (realizados / total) * 100 : 0.0; // Simplificado: Ocupação sobre o total agendado
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -100,8 +98,8 @@ class AdminRelatoriosView extends StatelessWidget {
   Widget _buildMetricCard(String title, String value, Color color) {
     return Card(
       elevation: 4,
-      color: color.withOpacity(0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: color.withOpacity(0.3))),
+      color: color.withValues(alpha: 0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: color.withValues(alpha: 0.3))),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

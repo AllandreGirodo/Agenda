@@ -21,7 +21,6 @@ class BackgroundSoundManager extends StatefulWidget {
 
 class _BackgroundSoundManagerState extends State<BackgroundSoundManager> {
   final AudioPlayer _player = AudioPlayer();
-  String? _currentAsset;
   String? _targetAsset; // Rastreia o ativo que desejamos tocar para evitar condições de corrida
   final AudioCache _audioCache = AudioCache(prefix: 'assets/'); // Cache dedicado
 
@@ -75,7 +74,6 @@ class _BackgroundSoundManagerState extends State<BackgroundSoundManager> {
     // Se o tema não tem som ou mudou para um tema sem som
     if (assetToPlay == null) {
       await _player.stop();
-      _currentAsset = null;
       return;
     }
 
@@ -99,8 +97,6 @@ class _BackgroundSoundManagerState extends State<BackgroundSoundManager> {
       // Verifica se o alvo mudou durante o fade out
       if (_targetAsset != assetToPlay) return;
 
-      _currentAsset = assetToPlay;
-      
       await _player.setReleaseMode(ReleaseMode.loop); // Loop infinito
       // Começa mudo para fazer o Fade In
       await _player.setVolume(0); 

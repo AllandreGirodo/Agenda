@@ -32,9 +32,9 @@ void main() async {
   
   await FirebaseAppCheck.instance.activate(
     // Web: Usa o reCAPTCHA v3 com a chave do site
-    webProvider: ReCaptchaV3Provider(dotenv.env['RECAPTCHA_SITE_KEY'] ?? ''),
+    providerWeb: ReCaptchaV3Provider(dotenv.env['RECAPTCHA_SITE_KEY'] ?? ''),
     // Android: Usa o provedor de Debug para emuladores (em produção usaria PlayIntegrity)
-    androidProvider: AndroidProvider.debug,
+    providerAndroid: AndroidProvider.debug,
   );
 
   // registra o handler de mensagens em segundo plano

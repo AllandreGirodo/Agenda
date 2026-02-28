@@ -304,7 +304,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
           y: _random.nextDouble(),
           size: 10 + _random.nextDouble() * 15,
           speed: 0.002 + _random.nextDouble() * 0.003,
-          color: Colors.pinkAccent.withOpacity(0.6 + _random.nextDouble() * 0.4),
+          color: Colors.pinkAccent.withValues(alpha: 0.6 + _random.nextDouble() * 0.4),
         ));
       }
     }
@@ -405,7 +405,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
             child: AnimatedBuilder(
               animation: _controller,
               builder: (context, child) => Container(
-                color: Colors.white.withOpacity(_lightningOpacity),
+                color: Colors.white.withValues(alpha: _lightningOpacity),
               ),
             ),
           ),
@@ -510,7 +510,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
                 return Positioned(
                   left: item.x * MediaQuery.of(context).size.width,
                   top: currentY * MediaQuery.of(context).size.height,
-                  child: Icon(data.iconAsset, size: item.size, color: data.iconColor.withOpacity(item.opacity)),
+                  child: Icon(data.iconAsset, size: item.size, color: data.iconColor.withValues(alpha: item.opacity)),
                 );
               }).toList(),
           );
@@ -561,7 +561,7 @@ class SnowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white.withOpacity(0.8);
+    final paint = Paint()..color = Colors.white.withValues(alpha: 0.8);
     
     // Otimização: Agrupar por tamanho para usar drawPoints
     // Isso evita centenas de chamadas de drawCircle
@@ -607,9 +607,9 @@ class BubblePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white.withOpacity(0.4)..style = PaintingStyle.stroke..strokeWidth = 1;
+    final paint = Paint()..color = Colors.white.withValues(alpha: 0.4)..style = PaintingStyle.stroke..strokeWidth = 1;
     for (var b in bubbles) {
-      paint.color = Colors.white.withOpacity(b.opacity.clamp(0.0, 0.5));
+      paint.color = Colors.white.withValues(alpha: b.opacity.clamp(0.0, 0.5));
       canvas.drawCircle(Offset(b.x * size.width, b.y * size.height), b.size, paint);
     }
   }
@@ -643,7 +643,7 @@ class WavePainter extends CustomPainter {
     final paint = Paint()..style = PaintingStyle.fill;
     
     // Onda de trás (mais escura)
-    paint.color = Colors.blue.shade800.withOpacity(0.5);
+    paint.color = Colors.blue.shade800.withValues(alpha: 0.5);
     final path1 = Path();
     path1.moveTo(0, size.height);
     for (double i = 0; i <= size.width; i++) {
@@ -654,7 +654,7 @@ class WavePainter extends CustomPainter {
     canvas.drawPath(path1, paint);
 
     // Onda da frente (mais clara)
-    paint.color = Colors.blue.shade400.withOpacity(0.6);
+    paint.color = Colors.blue.shade400.withValues(alpha: 0.6);
     final path2 = Path();
     path2.moveTo(0, size.height);
     for (double i = 0; i <= size.width; i++) {
@@ -800,7 +800,7 @@ class SparklePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.white;
     for (var s in sparkles) {
-      paint.color = Colors.white.withOpacity(s.opacity.clamp(0.0, 1.0));
+      paint.color = Colors.white.withValues(alpha: s.opacity.clamp(0.0, 1.0));
       final cx = s.x * size.width;
       final cy = s.y * size.height;
       // Desenha um losango/estrela simples
@@ -859,7 +859,7 @@ class RainPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white.withOpacity(0.5)..strokeWidth = 1.5..strokeCap = StrokeCap.round;
+    final paint = Paint()..color = Colors.white.withValues(alpha: 0.5)..strokeWidth = 1.5..strokeCap = StrokeCap.round;
     for (var drop in drops) {
       canvas.drawLine(Offset(drop.x * size.width, drop.y * size.height), Offset(drop.x * size.width, (drop.y + drop.length) * size.height), paint);
     }
@@ -883,7 +883,7 @@ class GlitchPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     for (var bar in bars) {
-      final paint = Paint()..color = bar.color.withOpacity(0.6)..style = PaintingStyle.fill;
+      final paint = Paint()..color = bar.color.withValues(alpha: 0.6)..style = PaintingStyle.fill;
       canvas.drawRect(Rect.fromLTWH(0, bar.y * size.height, size.width, bar.height * size.height), paint);
     }
   }
