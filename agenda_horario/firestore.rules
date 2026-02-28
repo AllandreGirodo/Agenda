@@ -1,76 +1,19 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Funções Auxiliares ---
-
-    // Verifica se o usuário está autenticado
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    // Verifica se o ID do usuário logado corresponde ao ID fornecido
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    // Verifica se o usuário é Admin (lendo o documento do usuário no banco)
-    function isAdmin() {
-      return isAuthenticated() &&
-        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.tipo == 'admin';
-    }
-
-    // --- Regras por Coleção ---
-
-    // Usuários: Cada um lê/edita o seu. Admin tem acesso total.
-    match /usuarios/{userId} {
-      allow create: if isOwner(userId); // Permite cadastro inicial
-      allow read, update, delete: if isOwner(userId) || isAdmin();
-    }
-
-    // Clientes: Dados específicos (saldo, etc). Similar a usuários.
-    match /clientes/{clienteId} {
-      allow create: if isOwner(clienteId) || isAdmin();
-      allow read, update: if isOwner(clienteId) || isAdmin();
-    }
-
-    // Agendamentos:
-    match /agendamentos/{agendamentoId} {
-      // Leitura: Dono do agendamento ou Admin
-      allow read: if (isAuthenticated() && resource.data.cliente_id == request.auth.uid) || isAdmin();
-      
-      // Criação: Cliente cria para si mesmo ou Admin cria
-      allow create: if (isAuthenticated() && request.resource.data.cliente_id == request.auth.uid) || isAdmin();
-      
-      // Atualização: Cliente (cancelar/alterar) ou Admin (aprovar)
-      allow update: if (isAuthenticated() && resource.data.cliente_id == request.auth.uid) || isAdmin();
-      
-      // Exclusão: Apenas Admin
-      allow delete: if isAdmin();
-    }
-
-    // Estoque: Apenas Admin vê e altera
-    match /estoque/{itemId} {
-      allow read, write: if isAdmin();
-    }
-
-    // Configurações: Todos leem, apenas Admin altera
-    match /configuracoes/{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
-    }
-
-    // Logs: Sistema grava (usuário logado), apenas Admin lê
-    match /logs/{logId} {
-      allow create: if isAuthenticated();
-      allow read, update, delete: if isAdmin();
-    }
-
-    // Change Logs: Todos autenticados leem (para ver novidades), apenas Admin escreve
-    match /changelogs/{versionId} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+    // This rule allows anyone with your Firestore database reference to view, edit,
+    // and delete all data in your Firestore database. It is useful for getting
+    // started, but it is configured to expire after 30 days because it
+    // leaves your app open to attackers. At that time, all client
+    // requests to your Firestore database will be denied. (Reworked!)
+    //
+    // Make sure to write security rules for your app before that time, or else
+    // all client requests to your Firestore database will be denied until you Update
+    // your rules
+    match /{document=**} {
+      allow read, write: if request.time < timestamp.date(2070, 12, 30);
     }
   }
 }

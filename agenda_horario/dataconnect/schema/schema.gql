@@ -1,43 +1,50 @@
 type User @table {
   displayName: String!
-  email: String!
-  photoUrl: String
   createdAt: Timestamp!
+  email: String
+  photoUrl: String
+}
+
+type Class @table {
+  user: User!
+  name: String!
+  startTime: String!
+  endTime: String!
+  daysOfWeek: String!
+  location: String!
+  professorName: String
+  professorEmail: String
+  courseCode: String
+  description: String
+}
+
+type Assignment @table {
+  user: User!
+  class: Class
+  title: String!
+  dueDate: Timestamp!
+  status: String!
+  description: String
+  priority: String
+}
+
+type Exam @table {
+  user: User!
+  class: Class
+  title: String!
+  examDate: Timestamp!
+  startTime: String!
+  endTime: String!
+  location: String
+  notes: String
 }
 
 type Event @table {
   user: User!
   title: String!
+  eventDate: Timestamp!
+  startTime: String!
+  endTime: String!
   description: String
   location: String
-  startTime: Timestamp!
-  endTime: Timestamp!
-  isAllDay: Boolean
-  reminderTime: Timestamp
-  createdAt: Timestamp!
-}
-
-type Task @table {
-  user: User!
-  title: String!
-  dueDate: Date
-  isCompleted: Boolean!
-  priority: Int
-  notes: String
-  createdAt: Timestamp!
-}
-
-type TaskList @table {
-  user: User!
-  name: String!
-  description: String
-  createdAt: Timestamp!
-}
-
-type Note @table {
-  user: User!
-  title: String!
-  content: String!
-  category: String
-  createdAt: Timestamp!
 }
