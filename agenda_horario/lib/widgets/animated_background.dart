@@ -3,7 +3,7 @@ import 'dart:math';
 import 'dart:ui'; // Necessário para PointMode
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
-import 'package:agenda/utils/custom_theme_data.dart';
+import 'package:agenda/custom_theme_data.dart';
 
 class AnimatedBackground extends StatefulWidget {
   final AppThemeType themeType;
@@ -118,7 +118,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
           _glitchBars.add(_GlitchBar(
             y: _random.nextDouble(),
             height: _random.nextDouble() * 0.05 + 0.01,
-            color: _random.nextBool() ? Colors.cyanAccent : Colors.magentaAccent,
+            color: _random.nextBool() ? Colors.cyanAccent : Colors.pinkAccent,
           ));
         }
       }

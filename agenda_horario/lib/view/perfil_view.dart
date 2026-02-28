@@ -431,7 +431,7 @@ class _PerfilViewState extends State<PerfilView> {
     if (_user == null) return const Center(child: Text('Usuário não identificado'));
 
     return StreamBuilder<List<Agendamento>>(
-      stream: _firestoreService.getAgendamentosDoCliente(_user!.uid),
+      stream: _firestoreService.getAgendamentosDoCliente(_user.uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

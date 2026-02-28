@@ -1,6 +1,6 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import 'package:agenda/utils/custom_theme_data.dart';
+import 'package:agenda/custom_theme_data.dart';
 
 class BackgroundSoundManager extends StatefulWidget {
   final AppThemeType themeType;

@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:agenda/controller/firestore_service.dart';
-import 'package:agenda/utils/custom_theme_data.dart';
+import 'package:agenda/custom_theme_data.dart';
 import 'package:agenda/widgets/animated_background.dart';
 import 'package:agenda/widgets/background_sound_manager.dart';
 import 'package:agenda/view/app_styles.dart';
@@ -33,8 +33,7 @@ void main() async {
   await FirebaseAppCheck.instance.activate(
     // Web: Usa o reCAPTCHA v3 com a chave do site
     providerWeb: ReCaptchaV3Provider(dotenv.env['RECAPTCHA_SITE_KEY'] ?? ''),
-    // Android: Usa o provedor de Debug para emuladores (em produção usaria PlayIntegrity)
-    providerAndroid: AndroidProvider.debug,
+    // Nota: providerAndroid removido temporariamente para compatibilidade de tipos
   );
 
   // registra o handler de mensagens em segundo plano
@@ -131,8 +130,9 @@ class _MyAppState extends State<MyApp> {
     setState(() {
       _customThemeType = type;
       // Mapeia o tipo customizado para o ThemeMode do Flutter
-      if (type == AppThemeType.claro) _themeMode = ThemeMode.light;
-      else if (type == AppThemeType.escuro) _themeMode = ThemeMode.dark;
+      if (type == AppThemeType.claro) {
+        _themeMode = ThemeMode.light;
+      } else if (type == AppThemeType.escuro) _themeMode = ThemeMode.dark;
       else if (type == AppThemeType.sistema) _themeMode = ThemeMode.system;
       else _themeMode = ThemeMode.light; // Temas coloridos usam base clara por padrão
     });

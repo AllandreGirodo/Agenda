@@ -7,7 +7,7 @@ import 'package:agenda/view/aguardando_aprovacao_view.dart';
 import 'package:agenda/controller/firestore_service.dart';
 import 'package:agenda/usuario_model.dart';
 import 'package:agenda/main.dart';
-import 'package:agenda/utils/custom_theme_data.dart';
+import 'package:agenda/custom_theme_data.dart';
 
 class LoginController {
   final FirebaseAuth _auth = FirebaseAuth.instance;

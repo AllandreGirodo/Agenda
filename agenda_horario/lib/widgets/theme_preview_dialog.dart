@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:agenda/main.dart';
-import 'package:agenda/utils/custom_theme_data.dart';
+import 'package:agenda/custom_theme_data.dart';
 import 'package:agenda/widgets/animated_background.dart';
 
 class ThemePreviewDialog extends StatefulWidget {
@@ -66,7 +66,7 @@ class _ThemePreviewDialogState extends State<ThemePreviewDialog> {
             const SizedBox(height: 16),
             // Dropdown de Seleção
             DropdownButtonFormField<AppThemeType>(
-              value: _selectedTheme,
+              initialValue: _selectedTheme,
               decoration: const InputDecoration(
                 labelText: 'Selecione um tema',
                 border: OutlineInputBorder(),

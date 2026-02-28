@@ -28,6 +28,8 @@ void main() {
 
 // Widget auxiliar para o teste
 class TestFormWidget extends StatefulWidget {
+  const TestFormWidget({super.key});
+
   @override
   _TestFormWidgetState createState() => _TestFormWidgetState();
 }

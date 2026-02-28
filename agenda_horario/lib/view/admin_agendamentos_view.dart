@@ -18,7 +18,7 @@ import 'package:agenda/view/dev_tools_view.dart';
 import 'package:agenda/view/admin_financeiro_view.dart';
 import 'package:agenda/widgets/language_selector.dart';
 import 'package:agenda/widgets/theme_selector.dart';
-import 'package:agenda/utils/custom_theme_data.dart';
+import 'package:agenda/custom_theme_data.dart';
 
 class AdminAgendamentosView extends StatefulWidget {
   const AdminAgendamentosView({super.key});
