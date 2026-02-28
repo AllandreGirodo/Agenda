@@ -9,7 +9,6 @@ import 'package:agenda/view/admin_agendamentos_view.dart';
 import 'package:agenda/view/perfil_view.dart'; // Para cadastro, se necessário redirecionar
 import 'package:agenda/widgets/language_selector.dart';
 import 'package:agenda/controller/firestore_service.dart';
-import 'package:agenda/controller/config_model.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});

@@ -4,7 +4,6 @@ import '../controller/config_model.dart';
 import 'package:agenda/view/app_strings.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
-import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 

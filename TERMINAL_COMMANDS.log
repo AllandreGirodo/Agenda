@@ -90,14 +90,8 @@ flutter build apk --release
 firebase init hosting
 firebase login
 firebase init
-flutter pub firebase_core
-flutter pub add firebase_core
+flutter run
+cd adenda_horario
 cd agenda_horario
-flutter pub add firebase_core
-flutter pub outdated
-flutter pub add cloud_firestore
-flutter pub outdated
-flutter pub add firebase_auth
-flutter pub outdated
-flutter pub add firebase_auth
+flutter run
 history | sed 's/\s*[0-9]*\s*//' > /workspaces/Agenda/TERMINAL_COMMANDS.log

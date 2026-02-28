@@ -11,7 +11,7 @@ import '../controller/firestore_service.dart';
 import '../controller/cliente_model.dart';
 import '../controller/config_model.dart';
 import '../controller/agendamento_model.dart';
-import '../test/validadores.dart';
+import 'package:agenda/utils/validadores.dart';
 import 'login_view.dart';
 import 'app_strings.dart';
 import '../widgets/language_selector.dart';
@@ -189,7 +189,7 @@ class _PerfilViewState extends State<PerfilView> {
       nome: _nomeController.text,
       whatsapp: _whatsappController.text,
       // cpf: _cpfController.text, // Adicione este campo ao ClienteModel
-      // fotoUrl: urlFinal,        // Adicione este campo ao ClienteModel
+      fotoUrl: urlFinal,
       endereco: _enderecoController.text,
       dataNascimento: _dataNascimento,
       historicoMedico: _historicoController.text,

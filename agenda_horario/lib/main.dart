@@ -132,9 +132,13 @@ class _MyAppState extends State<MyApp> {
       // Mapeia o tipo customizado para o ThemeMode do Flutter
       if (type == AppThemeType.claro) {
         _themeMode = ThemeMode.light;
-      } else if (type == AppThemeType.escuro) _themeMode = ThemeMode.dark;
-      else if (type == AppThemeType.sistema) _themeMode = ThemeMode.system;
-      else _themeMode = ThemeMode.light; // Temas coloridos usam base clara por padrão
+      } else if (type == AppThemeType.escuro) {
+        _themeMode = ThemeMode.dark;
+      } else if (type == AppThemeType.sistema) {
+        _themeMode = ThemeMode.system;
+      } else {
+        _themeMode = ThemeMode.light;
+      } // Temas coloridos usam base clara por padrão
     });
 
     final prefs = await SharedPreferences.getInstance();
