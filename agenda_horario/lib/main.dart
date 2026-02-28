@@ -227,15 +227,3 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
-            themeType: _customThemeType,
-            // Garante que o fundo do Scaffold seja transparente para ver a animação
-            child: Theme(
-              data: Theme.of(context).copyWith(scaffoldBackgroundColor: _customThemeType != AppThemeType.sistema && _customThemeType != AppThemeType.claro && _customThemeType != AppThemeType.escuro ? Colors.transparent : null),
-              child: child!,
-            ),
-          ),
-        );
-      },
-    );
-  }
-}

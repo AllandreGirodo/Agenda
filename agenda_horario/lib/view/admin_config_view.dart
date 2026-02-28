@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../controller/firestore_service.dart';
 import '../controller/config_model.dart';
-import 'package:agenda/utils/app_strings.dart';
+import 'package:agenda/view/app_strings.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:convert';
@@ -92,6 +92,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
       
       await Share.shareXFiles([XFile(file.path)], text: 'Backup Agenda Massoterapia');
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao exportar: $e')));
     } finally {
       setState(() => _isLoading = false);
@@ -106,9 +107,11 @@ class _AdminConfigViewState extends State<AdminConfigView> {
         final file = File(result.files.single.path!);
         final jsonStr = await file.readAsString();
         await _firestoreService.restaurarBackupJson(jsonStr);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Backup restaurado com sucesso!')));
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao importar: $e')));
     } finally {
       setState(() => _isLoading = false);

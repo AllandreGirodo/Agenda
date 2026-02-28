@@ -1,4 +1,4 @@
-import 'package:agenda/utils/app_strings.dart';
+import 'package:agenda/view/app_strings.dart';
 
 class Validators {
   /// Valida se a idade baseada na data de nascimento é maior ou igual a [idadeMinima].

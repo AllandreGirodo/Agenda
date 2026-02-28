@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:agenda/utils/app_strings.dart';
+import 'package:agenda/view/app_strings.dart';
 
 class TermosUsoView extends StatefulWidget {
   final VoidCallback onAceitar;

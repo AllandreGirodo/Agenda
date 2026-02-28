@@ -166,9 +166,9 @@ class _LoginViewState extends State<LoginView> {
         // mas ainda precisaria de credenciais.
         // Para o TCC, simularemos que a biometria valida o usuário atual se ele já estiver logado no cache.
         final user = FirebaseAuth.instance.currentUser;
-        if (user != null) {
+        if (user != null && mounted) {
            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AgendamentoView()));
-        } else {
+        } else if (mounted) {
            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Faça login com senha uma vez para habilitar o acesso rápido.')));
         }
       }

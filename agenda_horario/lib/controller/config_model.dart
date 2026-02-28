@@ -6,6 +6,7 @@ class ConfigModel {
   final double precoSessao;
   final bool biometriaAtiva;
   final bool chatAtivo;
+  final int statusCampoCupom;
   final bool reciboLeitura;
 
   ConfigModel({
@@ -15,6 +16,7 @@ class ConfigModel {
     this.fimSono = 6, // 06:00
     this.precoSessao = 100.0,
     this.biometriaAtiva = true,
+    this.statusCampoCupom = 1,
     this.chatAtivo = true,
     this.reciboLeitura = true,
   });
@@ -40,6 +42,7 @@ class ConfigModel {
       'preco_sessao': precoSessao,
       'biometria_ativa': biometriaAtiva,
       'chat_ativo': chatAtivo,
+      'status_campo_cupom': statusCampoCupom,
       'recibo_leitura': reciboLeitura,
     };
   }
@@ -55,6 +58,7 @@ class ConfigModel {
       precoSessao: (map['preco_sessao'] ?? 100).toDouble(),
       biometriaAtiva: map['biometria_ativa'] ?? true,
       chatAtivo: map['chat_ativo'] ?? true,
+      statusCampoCupom: map['status_campo_cupom'] ?? 1,
       reciboLeitura: map['recibo_leitura'] ?? true,
     );
   }

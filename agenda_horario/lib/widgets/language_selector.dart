@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../main.dart';
-import 'package:agenda/utils/app_strings.dart';
+import 'package:agenda/view/app_strings.dart';
 
 class LanguageSelector extends StatelessWidget {
   const LanguageSelector({super.key});

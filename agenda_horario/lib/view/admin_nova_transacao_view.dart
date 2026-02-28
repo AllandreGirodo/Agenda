@@ -114,7 +114,8 @@ class _AdminNovaTransacaoViewState extends State<AdminNovaTransacaoView> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   DropdownButtonFormField<String>(
-                    value: _clienteUidSelecionado,
+                    key: ValueKey(_clienteUidSelecionado),
+                    initialValue: _clienteUidSelecionado,
                     decoration: const InputDecoration(labelText: 'Cliente', border: OutlineInputBorder()),
                     items: _clientes.map((c) => DropdownMenuItem(value: c.uid, child: Text(c.nome))).toList(),
                     onChanged: (v) => setState(() => _clienteUidSelecionado = v),
@@ -149,7 +150,8 @@ class _AdminNovaTransacaoViewState extends State<AdminNovaTransacaoView> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _metodoPagamento,
+                    key: ValueKey(_metodoPagamento),
+                    initialValue: _metodoPagamento,
                     decoration: const InputDecoration(labelText: 'Método de Pagamento', border: OutlineInputBorder()),
                     items: const [
                       DropdownMenuItem(value: 'pix', child: Text('Pix')),
@@ -161,7 +163,8 @@ class _AdminNovaTransacaoViewState extends State<AdminNovaTransacaoView> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _statusPagamento,
+                    key: ValueKey(_statusPagamento),
+                    initialValue: _statusPagamento,
                     decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
                     items: const [
                       DropdownMenuItem(value: 'pendente', child: Text('Pendente')),

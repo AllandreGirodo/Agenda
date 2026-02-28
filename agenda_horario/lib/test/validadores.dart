@@ -25,14 +25,18 @@ class Validadores {
     
     // Validação do primeiro dígito verificador (multiplicadores 10 a 2)
     int sum = 0;
-    for (int i = 0; i < 9; i++) sum += numbers[i] * (10 - i);
+    for (int i = 0; i < 9; i++) {
+      sum += numbers[i] * (10 - i);
+    }
     int digit1 = 11 - (sum % 11);
     if (digit1 >= 10) digit1 = 0;
     if (numbers[9] != digit1) return 'CPF inválido';
 
     // Validação do segundo dígito verificador (multiplicadores 11 a 2)
     sum = 0;
-    for (int i = 0; i < 10; i++) sum += numbers[i] * (11 - i);
+    for (int i = 0; i < 10; i++) {
+      sum += numbers[i] * (11 - i);
+    }
     int digit2 = 11 - (sum % 11);
     if (digit2 >= 10) digit2 = 0;
     if (numbers[10] != digit2) return 'CPF inválido';

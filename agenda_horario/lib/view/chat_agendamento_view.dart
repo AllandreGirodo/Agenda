@@ -51,8 +51,6 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
   }
 
   void _enviar() {
-    if (_controller.text.trim().isEmpty) return;
-    _service.enviarMensagem(widget.agendamentoId, _controller.text.trim(), _uid);
     if (_controller.text.trim().isEmpty || _isUploading) return;
     _service.enviarMensagem(widget.agendamentoId, _controller.text.trim(), _uid, tipo: 'texto');
     _controller.clear();
@@ -177,48 +175,6 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
                   itemBuilder: (context, index) {
                     final msg = mensagens[index];
                     final isMe = msg.autorId == _uid;
-                    
-                    return Align(
-                      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isMe ? AppColors.primary : Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(16).copyWith(
-                            bottomRight: isMe ? Radius.zero : null,
-                            bottomLeft: !isMe ? Radius.zero : null,
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              msg.texto,
-                              style: TextStyle(color: isMe ? Colors.white : Colors.black87),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  DateFormat('HH:mm').format(msg.dataHora),
-                                  style: TextStyle(fontSize: 10, color: isMe ? Colors.white70 : Colors.black54),
-                                ),
-                                if (isMe && (_config?.reciboLeitura ?? true)) ...[
-                                  const SizedBox(width: 4),
-                                  Icon(
-                                    msg.lida ? Icons.done_all : Icons.done,
-                                    size: 12,
-                                    color: msg.lida ? Colors.lightBlueAccent : Colors.white70,
-                                  )
-                                ]
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
                     return _buildMessageBubble(msg, isMe);
                   },
                 );
@@ -250,7 +206,6 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
                 ),
                 IconButton(
                   icon: const Icon(Icons.send, color: AppColors.primary),
-                  onPressed: _enviar,
                   onPressed: _isUploading ? null : _enviar,
                 ),
               ],

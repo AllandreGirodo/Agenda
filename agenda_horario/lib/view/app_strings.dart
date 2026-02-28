@@ -8,6 +8,16 @@ class AppStrings {
   }
 
   static bool get _isPt => _currentLocale.languageCode == 'pt';
+  
+  // Helper para selecionar a string baseada no idioma atual
+  static String _tr({required String pt, required String en, required String es, required String jp}) {
+    switch (_currentLocale.languageCode) {
+      case 'pt': return pt;
+      case 'es': return es;
+      case 'ja': return jp;
+      default: return en;
+    }
+  }
 
   // Validators
   static String get dataNascimentoObrigatoria => _isPt ? 'Data de nascimento obrigatória.' : 'Birth date is required.';
@@ -109,4 +119,17 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get pularBtn => _isPt ? 'Pular' : 'Skip';
   static String get comecarBtn => _isPt ? 'Começar' : 'Get Started';
   static String get googleLoginBtn => _isPt ? 'Entrar com Google' : 'Sign in with Google';
+
+  // Notificações e Chat
+  static String get notifAgendamentoAprovadoTitulo => _isPt ? 'Agendamento Aprovado!' : 'Appointment Approved!';
+  static String get notifAgendamentoAprovadoCorpo => _isPt ? 'Seu horário foi confirmado. Te esperamos!' : 'Your slot is confirmed. See you there!';
+  static String get notifNovaMensagemTitulo => _isPt ? 'Nova Mensagem' : 'New Message';
+  static String notifNovaMensagemCorpo(String remetente, String tipo, String conteudo) {
+    if (tipo == 'texto') return '$remetente: $conteudo';
+    return '$remetente enviou um(a) $tipo';
+  }
+  static String get chatDesativadoMsg => _isPt ? 'O chat pelo aplicativo está desativado para este atendimento.' : 'In-app chat is disabled for this service.';
+  static String get chatIrWhatsapp => _isPt ? 'Conversar no WhatsApp' : 'Chat on WhatsApp';
+  static String get chatTitulo => _isPt ? 'Chat do Agendamento' : 'Appointment Chat';
+  static String get chatPlaceholder => _isPt ? 'Digite sua mensagem...' : 'Type your message...';
 }

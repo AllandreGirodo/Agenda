@@ -334,7 +334,6 @@ class FirestoreService {
   }
 
   // --- Chat (Agendamento) ---
-  Future<void> enviarMensagem(String agendamentoId, String texto, String autorId) async {
   Future<void> enviarMensagem(String agendamentoId, String texto, String autorId, {String tipo = 'texto'}) async {
     final mensagem = ChatMensagem(
       texto: texto,

@@ -121,6 +121,7 @@ class _DevToolsViewState extends State<DevToolsView> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Tabela $collection populada (Merge/Ignore se existe).')),
     );
+    if (!mounted) return;
     setState(() {}); // Atualiza contadores
   }
 
@@ -143,6 +144,7 @@ class _DevToolsViewState extends State<DevToolsView> {
 
     if (confirm == true) {
       await _firestoreService.limparColecao(collection);
+      if (!mounted) return;
       setState(() {});
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -192,6 +194,7 @@ class _DevToolsViewState extends State<DevToolsView> {
       await file.writeAsString(conteudo);
 
       // 4. Compartilha (Share Sheet do OS)
+      if (!mounted) return;
       await Share.shareXFiles([XFile(file.path)], text: 'Exportação da tabela $collection');
 
     } catch (e) {
@@ -204,6 +207,7 @@ class _DevToolsViewState extends State<DevToolsView> {
     try {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enviando para JSONBin...')));
 
+      if (!mounted) return;
       // 1. Busca dados
       final data = await _firestoreService.getFullCollection(collection);
       if (data.isEmpty) {
@@ -300,6 +304,7 @@ class _DevToolsViewState extends State<DevToolsView> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Importando ${dados.length} registros...')));
         await _firestoreService.importarColecao(collection, dados);
 
+        if (!mounted) return;
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Importação concluída com sucesso!')),
@@ -310,6 +315,7 @@ class _DevToolsViewState extends State<DevToolsView> {
         // Usuário cancelou
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao importar: $e')));
     }
   }
