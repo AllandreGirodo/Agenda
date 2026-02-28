@@ -3,8 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io';
+import 'package:cross_file/cross_file.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:agenda/controller/cliente_model.dart';
 import 'package:agenda/controller/agendamento_model.dart';
 import 'package:agenda/controller/transacao_model.dart';
@@ -100,9 +101,10 @@ class FirestoreService {
   Future<String> getTelefoneAdmin() async {
     final doc = await _db.collection('configuracoes').doc('geral').get();
     if (doc.exists && doc.data() != null) {
-      return doc.data()!['whatsapp_admin'] as String? ?? '5516999999999';
+      // Tenta pegar do banco, se não tiver, tenta do .env, se não, usa padrão
+      return doc.data()!['whatsapp_admin'] as String? ?? dotenv.env['WHATSAPP_ADMIN'] ?? '5516999999999';
     }
-    return '5516999999999';
+    return dotenv.env['WHATSAPP_ADMIN'] ?? '5516999999999';
   }
 
   // Salva o telefone do admin (Conectar este método a um TextField na tela de Admin)
@@ -117,6 +119,14 @@ class FirestoreService {
       return List<String>.from(doc.data()!['tipos'] ?? []);
     }
     return ['Massagem Relaxante', 'Drenagem Linfática', 'Massagem Terapêutica']; // Fallback padrão
+  }
+
+  // --- Manutenção ---
+  Stream<bool> getManutencaoStream() {
+    return _db.collection('configuracoes').doc('geral').snapshots().map((doc) {
+      // Retorna true se o campo 'em_manutencao' for verdadeiro
+      return doc.data()?['em_manutencao'] ?? false;
+    });
   }
 
   // --- Usuarios (Login) ---
@@ -405,10 +415,10 @@ class FirestoreService {
   }
 
   // Helper para upload de arquivos
-  Future<String> uploadArquivoChat(String agendamentoId, File arquivo) async {
-    final nomeArquivo = '${DateTime.now().millisecondsSinceEpoch}_${arquivo.path.split('/').last}';
+  Future<String> uploadArquivoChat(String agendamentoId, XFile arquivo) async {
+    final nomeArquivo = '${DateTime.now().millisecondsSinceEpoch}_${arquivo.name}';
     final ref = FirebaseStorage.instance.ref().child('chats/$agendamentoId/$nomeArquivo');
-    await ref.putFile(arquivo);
+    await ref.putData(await arquivo.readAsBytes());
     return await ref.getDownloadURL();
   }
 

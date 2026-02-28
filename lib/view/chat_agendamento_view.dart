@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'dart:io';
+import 'package:cross_file/cross_file.dart';
 import 'package:agenda/controller/firestore_service.dart';
 import 'package:agenda/controller/config_model.dart';
 import 'package:agenda/controller/chat_model.dart';
@@ -56,7 +57,7 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
     _controller.clear();
   }
 
-  Future<void> _enviarMidia(File arquivo, String tipo) async {
+  Future<void> _enviarMidia(XFile arquivo, String tipo) async {
     setState(() => _isUploading = true);
     try {
       final url = await _service.uploadArquivoChat(widget.agendamentoId, arquivo);
@@ -81,7 +82,7 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
                 Navigator.pop(context);
                 final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 70);
                 if (pickedFile != null) {
-                  _enviarMidia(File(pickedFile.path), 'imagem');
+                  _enviarMidia(pickedFile, 'imagem');
                 }
               },
             ),
@@ -91,8 +92,17 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
               onTap: () async {
                 Navigator.pop(context);
                 final result = await FilePicker.platform.pickFiles(type: FileType.audio);
-                if (result != null && result.files.single.path != null) {
-                  _enviarMidia(File(result.files.single.path!), 'audio');
+                if (result != null) {
+                  final file = result.files.single;
+                  if (kIsWeb) {
+                    if (file.bytes != null) {
+                      _enviarMidia(XFile.fromData(file.bytes!, name: file.name), 'audio');
+                    }
+                  } else {
+                    if (file.path != null) {
+                      _enviarMidia(XFile(file.path!), 'audio');
+                    }
+                  }
                 }
               },
             ),
@@ -221,17 +231,20 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
     switch (msg.tipo) {
       case 'imagem':
         content = GestureDetector(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenImageView(url: msg.texto))),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(
-              msg.texto,
-              width: 200,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return const SizedBox(width: 200, height: 150, child: Center(child: CircularProgressIndicator()));
-              },
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenImageView(url: msg.texto, heroTag: msg.texto))),
+          child: Hero(
+            tag: msg.texto, // A tag deve ser única (URL serve bem aqui)
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                msg.texto,
+                width: 200,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const SizedBox(width: 200, height: 150, child: Center(child: CircularProgressIndicator()));
+                },
+              ),
             ),
           ),
         );

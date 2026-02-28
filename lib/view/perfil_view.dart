@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io'; // Necessário para File
+import 'dart:typed_data';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart'; // Adicionar ao pubspec.yaml
 import 'package:firebase_storage/firebase_storage.dart'; // Adicionar ao pubspec.yaml
@@ -40,7 +40,8 @@ class _PerfilViewState extends State<PerfilView> {
   final _cirurgiasController = TextEditingController();
   DateTime? _dataNascimento;
 
-  File? _imagemLocal;
+  XFile? _imagemLocal;
+  Uint8List? _imagemBytes;
   String? _urlImagemRemota;
   ConfigModel? _config;
   bool _isLoading = true;
@@ -155,8 +156,10 @@ class _PerfilViewState extends State<PerfilView> {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50);
     if (image != null) {
+      final bytes = await image.readAsBytes();
       setState(() {
-        _imagemLocal = File(image.path);
+        _imagemLocal = image;
+        _imagemBytes = bytes;
       });
     }
   }
@@ -177,7 +180,7 @@ class _PerfilViewState extends State<PerfilView> {
     if (_imagemLocal != null) {
       try {
         final ref = FirebaseStorage.instance.ref().child('perfis/${_user!.uid}.jpg');
-        await ref.putFile(_imagemLocal!);
+        await ref.putData(_imagemBytes!);
         urlFinal = await ref.getDownloadURL();
       } catch (e) {
         debugPrint('Erro ao fazer upload da imagem: $e');
@@ -305,10 +308,10 @@ class _PerfilViewState extends State<PerfilView> {
                   CircleAvatar(
                     radius: 50,
                     backgroundColor: Colors.grey.shade200,
-                    backgroundImage: _imagemLocal != null 
-                        ? FileImage(_imagemLocal!) 
+                    backgroundImage: _imagemBytes != null 
+                        ? MemoryImage(_imagemBytes!) 
                         : (_urlImagemRemota != null ? NetworkImage(_urlImagemRemota!) : null) as ImageProvider?,
-                    child: (_imagemLocal == null && _urlImagemRemota == null) 
+                    child: (_imagemBytes == null && _urlImagemRemota == null) 
                         ? const Icon(Icons.person, size: 50, color: Colors.grey) 
                         : null,
                   ),

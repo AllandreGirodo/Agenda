@@ -14,7 +14,12 @@ class FullScreenImageView extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Center(
-        child: InteractiveViewer(child: Image.network(url)),
+        child: InteractiveViewer(
+          panEnabled: true, // Permite arrastar a imagem quando estiver com zoom
+          minScale: 0.5,    // Permite diminuir um pouco
+          maxScale: 4.0,    // Permite aumentar até 4x
+          child: Image.network(url),
+        ),
       ),
     );
   }

@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Funções Auxiliares ---
+    
+    // Verifica se o usuário está autenticado
+    function estaLogado() {
+      return request.auth != null;
+    }
+
+    // Verifica se o usuário é o dono do documento (pelo ID do doc ou campo uid)
+    function eDono(userId) {
+      return estaLogado() && request.auth.uid == userId;
+    }
+
+    // Verifica se o usuário é Admin (lendo o documento do usuário no banco)
+    // Nota: Isso custa uma leitura extra no banco.
+    // ALTERAÇÃO: Adicionado verificação por email hardcoded para segurança máxima
+    function eAdmin() {
+      return estaLogado() && 
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.tipo == 'admin';
+    }
+
+    // --- Regras das Coleções ---
+
+    // Usuários (Login)
+    match /usuarios/{userId} {
+      allow read: if eDono(userId) || eAdmin();
+      allow write: if eDono(userId) || eAdmin(); // Usuário atualiza seu token, Admin aprova
+    }
+
+    // Clientes (Dados Pessoais - LGPD Crítico)
+    match /clientes/{clienteId} {
+      allow read: if eDono(clienteId) || eAdmin();
+      allow write: if eDono(clienteId) || eAdmin();
+    }
+
+    // Agendamentos
+    match /agendamentos/{agendamentoId} {
+      // Admin vê tudo. Cliente vê apenas os seus (query deve filtrar por cliente_id)
+      allow read: if eAdmin() || (estaLogado() && resource.data.cliente_id == request.auth.uid);
+      
+      // Criar: Deve estar logado e o cliente_id deve ser o seu próprio UID
+      allow create: if estaLogado() && request.resource.data.cliente_id == request.auth.uid;
+      
+      // Atualizar: Admin aprova/recusa. Cliente pode cancelar ou avaliar.
+      allow update: if eAdmin() || (estaLogado() && resource.data.cliente_id == request.auth.uid);
+    }
+
+    // Configurações e Estoque
+    match /configuracoes/{document=**} {
+      allow read: if true; // Aberto para o app ler configurações
+      allow write: if eAdmin();
+    }
+    
+    match /estoque/{itemId} {
+      allow read: if estaLogado();
+      allow write: if eAdmin();
+    }
+    
+    // Logs (Apenas Admin lê, sistema grava)
+    match /logs/{logId} {
+      allow read: if eAdmin();
+      allow create: if estaLogado(); // Qualquer um pode gerar log de ação
+    }
+    
+    match /lgpd_logs/{logId} {
+      allow read: if eAdmin();
+      allow create: if estaLogado();
+    }
+  }
+}

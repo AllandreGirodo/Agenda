@@ -24,35 +24,61 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
-  // Inicialização do Firebase (descomente após configurar o projeto no console)
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
   
-  await FirebaseAppCheck.instance.activate(
-    // Web: Usa o reCAPTCHA v3 com a chave do site
-    providerWeb: ReCaptchaV3Provider(dotenv.env['RECAPTCHA_SITE_KEY'] ?? ''),
-    // Nota: providerAndroid removido temporariamente para compatibilidade de tipos
-  );
+  try {
+    // 1. Tenta carregar o .env (falha silenciosa se não existir para não travar o app em dev)
+    try {
+      await dotenv.load(fileName: ".env");
+    } catch (e) {
+      debugPrint("Aviso: Arquivo .env não encontrado ou erro ao carregar: $e");
+    }
 
-  // registra o handler de mensagens em segundo plano
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  
-  // Carregar preferências salvas
-  final prefs = await SharedPreferences.getInstance();
-  final String? languageCode = prefs.getString('language_code');
-  final String? countryCode = prefs.getString('country_code');
-  final String? themeMode = prefs.getString('theme_mode');
-  final String? customTheme = prefs.getString('custom_theme_type');
-  final bool onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+    // 2. Inicialização do Firebase
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    
+    // 3. App Check (Só ativa se tiver a chave, evita crash)
+    final recaptchaKey = dotenv.env['RECAPTCHA_SITE_KEY'];
+    if (recaptchaKey != null && recaptchaKey.isNotEmpty) {
+      await FirebaseAppCheck.instance.activate(
+        providerWeb: ReCaptchaV3Provider(recaptchaKey),
+      );
+    } else {
+      debugPrint("Aviso: RECAPTCHA_SITE_KEY não configurado. App Check ignorado.");
+    }
 
-  runApp(MyApp(
-    initialLocale: languageCode != null ? Locale(languageCode, countryCode) : null,
-    initialThemeMode: themeMode,
-    initialCustomTheme: customTheme,
-    onboardingComplete: onboardingComplete,
-  ));
+    // 4. Configurações adicionais
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    
+    final prefs = await SharedPreferences.getInstance();
+    final String? languageCode = prefs.getString('language_code');
+    final String? countryCode = prefs.getString('country_code');
+    final String? themeMode = prefs.getString('theme_mode');
+    final String? customTheme = prefs.getString('custom_theme_type');
+    final bool onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+
+    runApp(MyApp(
+      initialLocale: languageCode != null ? Locale(languageCode, countryCode) : null,
+      initialThemeMode: themeMode,
+      initialCustomTheme: customTheme,
+      onboardingComplete: onboardingComplete,
+    ));
+  } catch (e, stack) {
+    // Se der erro fatal, mostra na tela em vez de ficar branco
+    debugPrint("Erro fatal na inicialização: $e");
+    runApp(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Text("Erro ao iniciar o app:\n\n$e\n\nVerifique o console (F12) para detalhes.", 
+              style: const TextStyle(color: Colors.red, fontSize: 16), textAlign: TextAlign.center),
+          ),
+        ),
+      ),
+    ));
+  }
 }
 
 class MyApp extends StatefulWidget {
@@ -81,6 +107,7 @@ class _MyAppState extends State<MyApp> {
   Locale? _locale;
   ThemeMode _themeMode = ThemeMode.system;
   AppThemeType _customThemeType = AppThemeType.sistema;
+  final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override
   void initState() {
@@ -163,8 +190,27 @@ class _MyAppState extends State<MyApp> {
       alert: true, badge: true, sound: true,
     );
 
+    // Listener para mensagens em Primeiro Plano (Foreground)
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      debugPrint('Notificação em primeiro plano: ${message.notification?.title}');
+      
+      if (message.notification != null) {
+        _scaffoldMessengerKey.currentState?.showSnackBar(
+          SnackBar(
+            content: Text('${message.notification!.title}: ${message.notification!.body ?? ""}'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.teal,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    });
+
     // Obter e salvar token
-    String? token = await messaging.getToken();
+    String? token = await messaging.getToken(
+      // Substitua pela chave copiada do Console do Firebase
+      vapidKey: dotenv.env['VAPID_KEY'], 
+    );
     if (token != null) {
       _salvarTokenNoBanco(token);
     }
@@ -185,6 +231,7 @@ class _MyAppState extends State<MyApp> {
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
         return MaterialApp(
+          scaffoldMessengerKey: _scaffoldMessengerKey, // Chave para exibir SnackBars globais
           onGenerateTitle: (context) => AppLocalizations.of(context)?.appTitle ?? 'Agenda Massoterapia',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(

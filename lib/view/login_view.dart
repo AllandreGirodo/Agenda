@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:agenda/view/app_styles.dart';
 import 'package:agenda/view/app_strings.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:agenda/view/agendamento_view.dart';
 import 'package:agenda/view/admin_agendamentos_view.dart';
 import 'package:agenda/view/perfil_view.dart'; // Para cadastro, se necessário redirecionar
@@ -43,7 +44,8 @@ class _LoginViewState extends State<LoginView> {
       // Verifica se é admin (lógica simples por email, ideal seria claim ou banco)
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        if (user.email == 'admin@agenda.com') { // Exemplo de verificação
+        final adminEmail = dotenv.env['ADMIN_EMAIL'];
+        if (user.email == adminEmail) { 
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminAgendamentosView()));
         } else {
           Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AgendamentoView()));
@@ -81,13 +83,30 @@ class _LoginViewState extends State<LoginView> {
   }
 
   Future<void> _recuperarSenha() async {
-    final email = _emailController.text.trim();
+    String email = _emailController.text.trim();
+    
+    // Se o campo estiver vazio, abre um diálogo para digitar o email
     if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(AppStrings.erroEmailObrigatorio),
-        backgroundColor: AppColors.error,
-      ));
-      return;
+      final emailDigitado = await showDialog<String>(
+        context: context,
+        builder: (context) {
+          final controllerTemp = TextEditingController();
+          return AlertDialog(
+            title: Text(AppStrings.esqueceuSenha),
+            content: TextField(
+              controller: controllerTemp,
+              decoration: const InputDecoration(labelText: 'Digite seu e-mail cadastrado'),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: Text(AppStrings.cancelButton)),
+              ElevatedButton(onPressed: () => Navigator.pop(context, controllerTemp.text.trim()), child: const Text('Enviar')),
+            ],
+          );
+        },
+      );
+      if (emailDigitado == null || emailDigitado.isEmpty) return;
+      email = emailDigitado;
     }
 
     setState(() => _isLoading = true);
