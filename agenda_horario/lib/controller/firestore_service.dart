@@ -1,8 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:agenda/controller/cliente_model.dart';
 import 'package:agenda/controller/agendamento_model.dart';
@@ -333,13 +335,53 @@ class FirestoreService {
 
   // --- Chat (Agendamento) ---
   Future<void> enviarMensagem(String agendamentoId, String texto, String autorId) async {
+  Future<void> enviarMensagem(String agendamentoId, String texto, String autorId, {String tipo = 'texto'}) async {
     final mensagem = ChatMensagem(
       texto: texto,
+      tipo: tipo,
       autorId: autorId,
       dataHora: DateTime.now(),
       lida: false,
     );
     await _db.collection('agendamentos').doc(agendamentoId).collection('mensagens').add(mensagem.toMap());
+
+    // --- Lógica de Notificação Push ---
+    try {
+      // 1. Obter dados do agendamento para saber quem é o cliente
+      final agendamentoDoc = await _db.collection('agendamentos').doc(agendamentoId).get();
+      if (!agendamentoDoc.exists) return;
+      final agendamento = Agendamento.fromMap(agendamentoDoc.data()!, id: agendamentoDoc.id);
+
+      // 2. Identificar o destinatário
+      String? destinatarioUid;
+      String? nomeRemetente;
+
+      // Se o autor da mensagem é o cliente do agendamento
+      if (autorId == agendamento.clienteId) {
+        // O destinatário é o admin. Vamos buscar o primeiro admin.
+        final adminSnapshot = await _db.collection('usuarios').where('tipo', isEqualTo: 'admin').limit(1).get();
+        if (adminSnapshot.docs.isNotEmpty) {
+          destinatarioUid = adminSnapshot.docs.first.id;
+        }
+        nomeRemetente = agendamento.clienteNomeSnapshot ?? 'Um cliente';
+      } else { // Se o autor é o admin
+        // O destinatário é o cliente
+        destinatarioUid = agendamento.clienteId;
+        nomeRemetente = 'Administradora';
+      }
+
+      if (destinatarioUid == null) return;
+
+      // 3. Obter o token FCM do destinatário
+      final usuarioDoc = await _db.collection('usuarios').doc(destinatarioUid).get();
+      final token = usuarioDoc.data()?['fcm_token'] as String?;
+
+      if (token != null) {
+        await enviarNotificacaoPush(token, AppStrings.notifNovaMensagemTitulo, AppStrings.notifNovaMensagemCorpo(nomeRemetente, tipo, texto));
+      }
+    } catch (e) {
+      debugPrint('Erro ao tentar enviar notificação de chat: $e');
+    }
   }
 
   Stream<List<ChatMensagem>> getMensagens(String agendamentoId) {
@@ -362,6 +404,14 @@ class FirestoreService {
       }
     }
     await batch.commit();
+  }
+
+  // Helper para upload de arquivos
+  Future<String> uploadArquivoChat(String agendamentoId, File arquivo) async {
+    final nomeArquivo = '${DateTime.now().millisecondsSinceEpoch}_${arquivo.path.split('/').last}';
+    final ref = FirebaseStorage.instance.ref().child('chats/$agendamentoId/$nomeArquivo');
+    await ref.putFile(arquivo);
+    return await ref.getDownloadURL();
   }
 
   // --- Cupons ---

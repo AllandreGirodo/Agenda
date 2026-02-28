@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'dart:io';
 import 'package:agenda/controller/firestore_service.dart';
 import 'package:agenda/controller/config_model.dart';
 import 'package:agenda/controller/chat_model.dart';
 import 'package:agenda/view/app_strings.dart';
 import 'package:agenda/view/app_styles.dart';
 import 'package:intl/intl.dart';
+import 'package:agenda/widgets/full_screen_image_view.dart';
 
 class ChatAgendamentoView extends StatefulWidget {
   final String agendamentoId;
@@ -30,6 +35,7 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
   final String _uid = FirebaseAuth.instance.currentUser?.uid ?? '';
   ConfigModel? _config;
   bool _isLoadingConfig = true;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -47,7 +53,55 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
   void _enviar() {
     if (_controller.text.trim().isEmpty) return;
     _service.enviarMensagem(widget.agendamentoId, _controller.text.trim(), _uid);
+    if (_controller.text.trim().isEmpty || _isUploading) return;
+    _service.enviarMensagem(widget.agendamentoId, _controller.text.trim(), _uid, tipo: 'texto');
     _controller.clear();
+  }
+
+  Future<void> _enviarMidia(File arquivo, String tipo) async {
+    setState(() => _isUploading = true);
+    try {
+      final url = await _service.uploadArquivoChat(widget.agendamentoId, arquivo);
+      await _service.enviarMensagem(widget.agendamentoId, url, _uid, tipo: tipo);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro no envio: $e')));
+    } finally {
+      if (mounted) setState(() => _isUploading = false);
+    }
+  }
+
+  void _mostrarOpcoesAnexo() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: <Widget>[
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Galeria de Imagens'),
+              onTap: () async {
+                Navigator.pop(context);
+                final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 70);
+                if (pickedFile != null) {
+                  _enviarMidia(File(pickedFile.path), 'imagem');
+                }
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.audiotrack),
+              title: const Text('Arquivo de Áudio'),
+              onTap: () async {
+                Navigator.pop(context);
+                final result = await FilePicker.platform.pickFiles(type: FileType.audio);
+                if (result != null && result.files.single.path != null) {
+                  _enviarMidia(File(result.files.single.path!), 'audio');
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _abrirWhatsapp() async {
@@ -165,10 +219,15 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
                         ),
                       ),
                     );
+                    return _buildMessageBubble(msg, isMe);
                   },
                 );
               },
             ),
+          ),
+          if (_isUploading) const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: LinearProgressIndicator(),
           ),
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -186,14 +245,127 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
                   ),
                 ),
                 IconButton(
+                  icon: const Icon(Icons.attach_file, color: AppColors.primary),
+                  onPressed: _isUploading ? null : _mostrarOpcoesAnexo,
+                ),
+                IconButton(
                   icon: const Icon(Icons.send, color: AppColors.primary),
                   onPressed: _enviar,
+                  onPressed: _isUploading ? null : _enviar,
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMessageBubble(ChatMensagem msg, bool isMe) {
+    Widget content;
+    switch (msg.tipo) {
+      case 'imagem':
+        content = GestureDetector(
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => FullScreenImageView(url: msg.texto))),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              msg.texto,
+              width: 200,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const SizedBox(width: 200, height: 150, child: Center(child: CircularProgressIndicator()));
+              },
+            ),
+          ),
+        );
+        break;
+      case 'audio':
+        content = AudioPlayerWidget(url: msg.texto, isMe: isMe);
+        break;
+      default: // texto
+        content = Text(
+          msg.texto,
+          style: TextStyle(color: isMe ? Colors.white : Colors.black87),
+        );
+    }
+
+    return Align(
+      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isMe ? AppColors.primary : Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(16).copyWith(
+            bottomRight: isMe ? Radius.zero : null,
+            bottomLeft: !isMe ? Radius.zero : null,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            content,
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  DateFormat('HH:mm').format(msg.dataHora),
+                  style: TextStyle(fontSize: 10, color: isMe ? Colors.white70 : Colors.black54),
+                ),
+                if (isMe && (_config?.reciboLeitura ?? true)) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    msg.lida ? Icons.done_all : Icons.done,
+                    size: 12,
+                    color: msg.lida ? Colors.lightBlueAccent : Colors.white70,
+                  )
+                ]
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class AudioPlayerWidget extends StatefulWidget {
+  final String url;
+  final bool isMe;
+  const AudioPlayerWidget({super.key, required this.url, required this.isMe});
+
+  @override
+  State<AudioPlayerWidget> createState() => _AudioPlayerWidgetState();
+}
+
+class _AudioPlayerWidgetState extends State<AudioPlayerWidget> {
+  final AudioPlayer _audioPlayer = AudioPlayer();
+  bool _isPlaying = false;
+
+  @override
+  void dispose() {
+    _audioPlayer.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = widget.isMe ? Colors.white : AppColors.primary;
+    return IconButton(
+      icon: Icon(_isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled, color: color, size: 40),
+      onPressed: () async {
+        if (_isPlaying) {
+          await _audioPlayer.pause();
+          setState(() => _isPlaying = false);
+        } else {
+          await _audioPlayer.play(UrlSource(widget.url));
+          setState(() => _isPlaying = true);
+        }
+      },
     );
   }
 }
