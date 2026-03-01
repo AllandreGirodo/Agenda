@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:cross_file/cross_file.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:agenda/controller/cliente_model.dart';
 import 'package:agenda/controller/agendamento_model.dart';
 import 'package:agenda/controller/transacao_model.dart';

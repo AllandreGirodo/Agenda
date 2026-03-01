@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // Para kReleaseMode
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
@@ -16,6 +17,7 @@ import 'package:agenda/view/onboarding_view.dart';
 import 'package:agenda/app_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:agenda/firebase_options.dart'; // Será gerado pelo flutterfire configure
+import 'package:agenda/view/config_error_view.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Manipular mensagens em segundo plano
@@ -26,10 +28,40 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    // 1. Tenta carregar o .env (falha silenciosa se não existir para não travar o app em dev)
+    // 1. Configuração de Ambiente (.env)
+    // Uso: flutter run --dart-define=ENV=prod (Padrão: dev)
+    const String env = String.fromEnvironment('ENV', defaultValue: 'dev');
+    // Permite testar a tela de erro mesmo em debug via --dart-define=FORCE_CONFIG_CHECK=true
+    const bool forceConfigCheck = bool.fromEnvironment('FORCE_CONFIG_CHECK', defaultValue: false);
+    final String envFile = ".env.$env";
+
     try {
-      await dotenv.load(fileName: ".env");
+      await dotenv.load(fileName: envFile);
+
+      // Verificação de chaves críticas
+      final missingKeys = [
+        'DB_ADMIN_PASSWORD',
+        'ADMIN_EMAIL',
+        'FCM_SERVER_KEY'
+      ].where((key) => dotenv.env[key] == null || dotenv.env[key]!.isEmpty).toList();
+
+      if (missingKeys.isNotEmpty) {
+        debugPrint("\n⚠️  [ALERTA DE CONFIGURAÇÃO] As seguintes chaves críticas não foram encontradas no .env: ${missingKeys.join(', ')}");
+        
+        // Em Release, bloqueia o app se faltar configuração crítica
+        if (kReleaseMode || forceConfigCheck) {
+          runApp(ConfigErrorView(
+            message: "O aplicativo não pode ser iniciado devido a configurações de segurança ausentes.",
+            details: "Ambiente: $env\nChaves ausentes: ${missingKeys.join(', ')}",
+          ));
+          return;
+        }
+      }
     } catch (e) {
+      if (kReleaseMode || forceConfigCheck) {
+        runApp(ConfigErrorView(message: "Arquivo de configuração não encontrado.", details: "Arquivo esperado: $envFile\nErro: $e"));
+        return;
+      }
       debugPrint("Aviso: Arquivo .env não encontrado ou erro ao carregar: $e");
     }
 
@@ -64,7 +96,7 @@ void main() async {
       initialCustomTheme: customTheme,
       onboardingComplete: onboardingComplete,
     ));
-  } catch (e, stack) {
+  } catch (e) {
     // Se der erro fatal, mostra na tela em vez de ficar branco
     debugPrint("Erro fatal na inicialização: $e");
     runApp(MaterialApp(

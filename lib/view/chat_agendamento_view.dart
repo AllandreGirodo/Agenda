@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:cross_file/cross_file.dart';
 import 'package:agenda/controller/firestore_service.dart';
 import 'package:agenda/controller/config_model.dart';
 import 'package:agenda/controller/chat_model.dart';

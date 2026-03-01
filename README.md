@@ -1,5 +1,7 @@
 # Agenda de Massoterapia
 
+![Coverage](https://img.shields.io/badge/Coverage-0%25-red)
+
 Este repositório contém o código-fonte do aplicativo de agendamento e gestão
 para uma clínica de massoterapia. O objetivo do projeto é criar um sistema
 móvel e web em Flutter que permita:

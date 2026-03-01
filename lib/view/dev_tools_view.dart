@@ -11,6 +11,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart';
+import 'dart:typed_data';
+import 'package:intl/intl.dart';
+import '../controller/log_model.dart';
 
 class DevToolsView extends StatefulWidget {
   const DevToolsView({super.key});
@@ -21,7 +24,7 @@ class DevToolsView extends StatefulWidget {
 
 class _DevToolsViewState extends State<DevToolsView> {
   final FirestoreService _firestoreService = FirestoreService();
-  final String _senhaBanco = "admin123"; // Senha simulada para o TCC
+  final String _senhaBanco = dotenv.env['DB_ADMIN_PASSWORD'] ?? "admin123"; // Senha simulada para o TCC
   bool _autenticado = false;
   final TextEditingController _senhaController = TextEditingController();
 
@@ -32,6 +35,7 @@ class _DevToolsViewState extends State<DevToolsView> {
     'agendamentos',
     'estoque',
     'configuracoes',
+    'cupons',
     'logs',
     'lgpd_logs',
     'changelogs'
@@ -112,6 +116,12 @@ class _DevToolsViewState extends State<DevToolsView> {
       case 'configuracoes':
         await DbSeeder.seedConfiguracoes();
         break;
+      case 'cupons':
+        await DbSeeder.seedCupons();
+        break;
+      case 'changelogs':
+        await _firestoreService.inicializarChangeLog();
+        break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Sem script de seed para $collection')),
@@ -166,14 +176,23 @@ class _DevToolsViewState extends State<DevToolsView> {
         return;
       }
 
-      String conteudo = '';
+      dynamic conteudo;
       String extensao = '';
+      bool isBinary = false;
 
       // 2. Serializa
       if (formato == 'json') {
         const encoder = JsonEncoder.withIndent('  ');
         conteudo = encoder.convert(data);
         extensao = 'json';
+      } else if (formato == 'excel') {
+        if (collection != 'agendamentos') {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Excel disponível apenas para Agendamentos.')));
+          return;
+        }
+        conteudo = await _firestoreService.gerarRelatorioAgendamentosExcel();
+        extensao = 'xlsx';
+        isBinary = true;
       } else {
         // Lógica CSV: Pega todas as chaves possíveis de todos os documentos
         final allKeys = data.expand((map) => map.keys).toSet().toList();
@@ -191,7 +210,11 @@ class _DevToolsViewState extends State<DevToolsView> {
       // 3. Salva em arquivo temporário
       final tempDir = await getTemporaryDirectory();
       final file = File('${tempDir.path}/${collection}_export.$extensao');
-      await file.writeAsString(conteudo);
+      if (isBinary && conteudo is Uint8List) {
+        await file.writeAsBytes(conteudo);
+      } else {
+        await file.writeAsString(conteudo.toString());
+      }
 
       // 4. Compartilha (Share Sheet do OS)
       if (!mounted) return;
@@ -426,6 +449,109 @@ class _DevToolsViewState extends State<DevToolsView> {
     );
   }
 
+  // --- Console de Logs em Tempo Real ---
+  void _abrirConsoleLogs() {
+    // Variável local para controlar o filtro dentro do Modal
+    String filtroSelecionado = 'todos';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.black,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) {
+          // StatefulBuilder permite atualizar apenas o conteúdo do modal ao mudar o filtro
+          return StatefulBuilder(
+            builder: (context, setStateModal) {
+              return Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: Colors.white24)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('System Logs (Real-time)', style: TextStyle(color: Colors.greenAccent, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                        Row(
+                          children: [
+                            // Filtro
+                            DropdownButton<String>(
+                              dropdownColor: Colors.grey[900],
+                              value: filtroSelecionado,
+                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                              underline: Container(), // Remove a linha padrão
+                              icon: const Icon(Icons.filter_list, color: Colors.greenAccent, size: 16),
+                              items: const [
+                                DropdownMenuItem(value: 'todos', child: Text('Todos')),
+                                DropdownMenuItem(value: 'erro', child: Text('Erros')),
+                                DropdownMenuItem(value: 'aviso', child: Text('Avisos')),
+                                DropdownMenuItem(value: 'info', child: Text('Info')),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setStateModal(() => filtroSelecionado = value);
+                                }
+                              },
+                            ),
+                            const SizedBox(width: 10),
+                            const Icon(Icons.terminal, color: Colors.greenAccent),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: StreamBuilder<List<LogModel>>(
+                  stream: _firestoreService.getLogs(),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) return Center(child: Text('Erro: ${snapshot.error}', style: const TextStyle(color: Colors.red)));
+                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.greenAccent));
+
+                    var logs = snapshot.data!;
+                    // Aplica o filtro localmente
+                    if (filtroSelecionado != 'todos') {
+                      logs = logs.where((l) => l.tipo == filtroSelecionado).toList();
+                    }
+
+                    if (logs.isEmpty) return const Center(child: Text('Sem logs registrados.', style: TextStyle(color: Colors.white54)));
+
+                    return ListView.separated(
+                      controller: scrollController,
+                      itemCount: logs.length,
+                      separatorBuilder: (c, i) => const Divider(color: Colors.white12, height: 1),
+                      itemBuilder: (context, index) {
+                        final log = logs[index];
+                        Color color = Colors.white;
+                        if (log.tipo == 'erro' || log.tipo == 'cancelamento') {
+                          color = Colors.redAccent;
+                        } else if (log.tipo == 'aviso') color = Colors.orangeAccent;
+                        
+                        return ListTile(
+                          dense: true,
+                          leading: Text(DateFormat('HH:mm:ss').format(log.dataHora), style: const TextStyle(color: Colors.grey, fontSize: 10, fontFamily: 'monospace')),
+                          title: Text('[${log.tipo.toUpperCase()}]', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11, fontFamily: 'monospace')),
+                          subtitle: Text(log.mensagem, style: const TextStyle(color: Colors.white70, fontFamily: 'monospace', fontSize: 12)),
+                        );
+                      },
+                    );
+                  },
+                ),
+                  ),
+                ],
+              );
+            }
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_autenticado) return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -436,6 +562,11 @@ class _DevToolsViewState extends State<DevToolsView> {
         backgroundColor: Colors.grey[900],
         foregroundColor: Colors.greenAccent,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.terminal),
+            tooltip: 'Console de Logs',
+            onPressed: _abrirConsoleLogs,
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => setState(() {}),
@@ -483,6 +614,10 @@ class _DevToolsViewState extends State<DevToolsView> {
                         const PopupMenuItem(
                           value: 'csv',
                           child: Row(children: [Icon(Icons.table_view, size: 18), SizedBox(width: 8), Text('CSV')]),
+                        ),
+                        const PopupMenuItem(
+                          value: 'excel',
+                          child: Row(children: [Icon(Icons.grid_on, size: 18), SizedBox(width: 8), Text('Excel (XLSX)')]),
                         ),
                         const PopupMenuItem(
                           value: 'web',

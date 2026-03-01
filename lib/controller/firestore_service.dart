@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:typed_data';
+import 'package:excel/excel.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:intl/intl.dart';
 import 'package:agenda/controller/cliente_model.dart';
@@ -261,7 +263,7 @@ class FirestoreService {
     try {
       // ATENÇÃO: Em produção, mova isso para uma Cloud Function para proteger sua Server Key.
       // Para o TCC, você pode usar a chave de servidor (Legacy) do console do Firebase.
-      const String serverKey = 'SUA_SERVER_KEY_AQUI'; 
+      final String serverKey = dotenv.env['FCM_SERVER_KEY'] ?? 'SUA_SERVER_KEY_AQUI';
       
       await http.post(
         Uri.parse('https://fcm.googleapis.com/fcm/send'),
@@ -563,6 +565,48 @@ class FirestoreService {
     if (dados.containsKey('agendamentos')) await importarColecao('agendamentos', List<Map<String, dynamic>>.from(dados['agendamentos']));
     if (dados.containsKey('estoque')) await importarColecao('estoque', List<Map<String, dynamic>>.from(dados['estoque']));
     if (dados.containsKey('configuracoes')) await importarColecao('configuracoes', List<Map<String, dynamic>>.from(dados['configuracoes']));
+  }
+
+  // --- Relatórios (Excel) ---
+  Future<Uint8List?> gerarRelatorioAgendamentosExcel() async {
+    final agendamentosData = await getFullCollection('agendamentos');
+    if (agendamentosData.isEmpty) return null;
+
+    var excel = Excel.createExcel();
+    Sheet sheetObject = excel['Agendamentos'];
+
+    // Estilo para o cabeçalho
+    var headerStyle = CellStyle(bold: true, backgroundColorHex: '#FFC0CB');
+
+    // Cabeçalho
+    List<String> header = [
+      'ID', 'Data', 'Cliente', 'Telefone', 'Tipo Serviço', 'Status', 'Preço', 'Avaliação', 'Comentário'
+    ];
+    sheetObject.appendRow(header.map((e) => TextCellValue(e)).toList());
+    // Aplica o estilo na primeira linha
+    for (var i = 0; i < header.length; i++) {
+      sheetObject.cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0)).cellStyle = headerStyle;
+    }
+
+    // Linhas de dados
+    for (var agendamentoMap in agendamentosData) {
+      final dataHora = (agendamentoMap['data_hora'] as Timestamp?)?.toDate();
+      
+      List<CellValue> row = [
+        TextCellValue(agendamentoMap['id'] ?? ''),
+        TextCellValue(dataHora != null ? DateFormat('dd/MM/yyyy HH:mm').format(dataHora) : ''),
+        TextCellValue(agendamentoMap['cliente_nome_snapshot'] ?? ''),
+        TextCellValue(agendamentoMap['cliente_telefone_snapshot'] ?? ''),
+        TextCellValue(agendamentoMap['tipo_massagem'] ?? ''),
+        TextCellValue(agendamentoMap['status'] ?? ''),
+        DoubleCellValue((agendamentoMap['preco'] as num?)?.toDouble() ?? 0.0),
+        IntCellValue((agendamentoMap['avaliacao'] as num?)?.toInt() ?? 0),
+        TextCellValue(agendamentoMap['comentario_avaliacao'] ?? ''),
+      ];
+      sheetObject.appendRow(row);
+    }
+
+    return excel.encode();
   }
 
   // --- Logs ---
