@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:excel/excel.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:agenda/controller/cliente_model.dart';
 import 'package:agenda/controller/agendamento_model.dart';
 import 'package:agenda/controller/transacao_model.dart';
@@ -226,6 +227,10 @@ class FirestoreService {
         final agendamentoRef = _db.collection('agendamentos').doc(id);
         transaction.update(agendamentoRef, {'status': novoStatus});
 
+        
+        // NOTA: O envio de notificação push foi movido para Cloud Functions (Backend)
+        // para evitar expor a FCM Server Key no aplicativo e garantir segurança.
+        // A função 'notificarAprovacaoAgendamento' no Firebase observará a mudança de status.
         // Envio de Notificação Push Real
         final usuarioDoc = await transaction.get(_db.collection('usuarios').doc(clienteId));
         final token = usuarioDoc.data()?['fcm_token'];
@@ -234,7 +239,7 @@ class FirestoreService {
           // Usamos Future.microtask para não bloquear a transação
           Future.microtask(() => enviarNotificacaoPush(token, AppStrings.notifAgendamentoAprovadoTitulo, AppStrings.notifAgendamentoAprovadoCorpo));
         }
-        
+
         // Registrar Log na transação (ou logo após)
         // Como registrarLog é Future<void> fora da transaction, faremos após o commit ou aqui se usarmos a transaction para escrever em 'logs'
       });
@@ -259,11 +264,17 @@ class FirestoreService {
   }
 
   // --- Notificações Push (FCM) ---
+  // DEPRECATED: Use Cloud Functions para enviar notificações em produção.
   Future<void> enviarNotificacaoPush(String token, String titulo, String corpo) async {
     try {
       // ATENÇÃO: Em produção, mova isso para uma Cloud Function para proteger sua Server Key.
       // Para o TCC, você pode usar a chave de servidor (Legacy) do console do Firebase.
-      final String serverKey = dotenv.env['FCM_SERVER_KEY'] ?? 'SUA_SERVER_KEY_AQUI';
+      final String? serverKey = dotenv.env['FCM_SERVER_KEY'];
+
+      if (serverKey == null || serverKey.isEmpty) {
+        debugPrint('ERRO: FCM_SERVER_KEY não configurada no arquivo .env');
+        return;
+      }
       
       await http.post(
         Uri.parse('https://fcm.googleapis.com/fcm/send'),

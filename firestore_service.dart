@@ -575,7 +575,7 @@ class FirestoreService {
     Sheet sheetObject = excel['Agendamentos'];
 
     // Estilo para o cabeçalho
-    var headerStyle = CellStyle(bold: true, backgroundColorHex: '#FFC0CB');
+    var headerStyle = CellStyle(bold: true, backgroundColorHex: ExcelColor.fromHexString('#FFC0CB'));
 
     // Cabeçalho
     List<String> header = [
@@ -605,7 +605,8 @@ class FirestoreService {
       sheetObject.appendRow(row);
     }
 
-    return excel.encode();
+    final bytes = excel.encode();
+    return bytes != null ? Uint8List.fromList(bytes) : null;
   }
 
   // --- Logs ---

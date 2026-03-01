@@ -3,6 +3,7 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -46,30 +47,30 @@ class DefaultFirebaseOptions {
     }
   }
 
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'SUA_API_KEY_WEB_AQUI',
-    appId: 'SEU_APP_ID_WEB_AQUI',
-    messagingSenderId: 'SEU_SENDER_ID_AQUI',
-    projectId: 'SEU_PROJECT_ID_AQUI',
-    authDomain: 'SEU_PROJECT_ID.firebaseapp.com',
-    storageBucket: 'SEU_PROJECT_ID.firebasestorage.app',
+  static FirebaseOptions web = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_WEB_API_KEY']!,
+    appId: dotenv.env['FIREBASE_WEB_APP_ID']!,
+    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID']!,
+    projectId: dotenv.env['FIREBASE_PROJECT_ID']!,
+    authDomain: dotenv.env['FIREBASE_WEB_AUTH_DOMAIN'],
+    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'],
   );
 
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'SUA_API_KEY_ANDROID_AQUI',
-    appId: 'SEU_APP_ID_ANDROID_AQUI',
-    messagingSenderId: 'SEU_SENDER_ID_AQUI',
-    projectId: 'SEU_PROJECT_ID_AQUI',
-    storageBucket: 'SEU_PROJECT_ID.firebasestorage.app',
+  static FirebaseOptions android = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_ANDROID_API_KEY']!,
+    appId: dotenv.env['FIREBASE_ANDROID_APP_ID']!,
+    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID']!,
+    projectId: dotenv.env['FIREBASE_PROJECT_ID']!,
+    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'],
   );
 
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'SUA_API_KEY_IOS_AQUI',
-    appId: 'SEU_APP_ID_IOS_AQUI',
-    messagingSenderId: 'SEU_SENDER_ID_AQUI',
-    projectId: 'SEU_PROJECT_ID_AQUI',
-    storageBucket: 'SEU_PROJECT_ID.firebasestorage.app',
-    iosClientId: 'SEU_IOS_CLIENT_ID_AQUI',
-    iosBundleId: 'com.example.agenda',
+  static FirebaseOptions ios = FirebaseOptions(
+    apiKey: dotenv.env['FIREBASE_IOS_API_KEY']!,
+    appId: dotenv.env['FIREBASE_IOS_APP_ID']!,
+    messagingSenderId: dotenv.env['FIREBASE_MESSAGING_SENDER_ID']!,
+    projectId: dotenv.env['FIREBASE_PROJECT_ID']!,
+    storageBucket: dotenv.env['FIREBASE_STORAGE_BUCKET'],
+    iosClientId: dotenv.env['FIREBASE_IOS_CLIENT_ID'],
+    iosBundleId: dotenv.env['FIREBASE_IOS_BUNDLE_ID'],
   );
 }

@@ -37,6 +37,8 @@ void main() async {
 
     try {
       await dotenv.load(fileName: envFile);
+      await dotenv.load(fileName: ".env");
+
 
       // Verificação de chaves críticas
       final missingKeys = [

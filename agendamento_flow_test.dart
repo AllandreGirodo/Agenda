@@ -31,9 +31,9 @@ void main() {
       final novoAgendamento = Agendamento(
         clienteId: clienteIdTeste,
         dataHora: dataFutura,
-        tipoMassagem: 'Massagem Teste Integration',
+        tipo: 'Massagem',
         status: 'pendente',
-        preco: 150.0,
+        valorFinal: 150.0,
         avaliacao: 0,
         comentarioAvaliacao: '',
       );
@@ -44,7 +44,7 @@ void main() {
       // Busca agendamentos do cliente para encontrar o ID gerado
       final listaAposCriacao = await service.getAgendamentosDoCliente(clienteIdTeste).first;
       final agendamentoSalvo = listaAposCriacao.firstWhere(
-        (a) => a.tipoMassagem == 'Massagem Teste Integration' && a.status == 'pendente'
+        (a) => a.tipo == 'Massagem' && a.status == 'pendente'
       );
       
       expect(agendamentoSalvo, isNotNull);
