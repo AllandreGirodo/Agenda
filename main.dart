@@ -18,6 +18,9 @@ import 'package:agenda/app_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:agenda/firebase_options.dart'; // Será gerado pelo flutterfire configure
 import 'package:agenda/view/config_error_view.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Manipular mensagens em segundo plano
@@ -71,6 +74,28 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // --- CONFIGURAÇÃO DO EMULADOR LOCAL ---
+    if (kDebugMode) {
+      try {
+        // '10.0.2.2' é o IP especial para o emulador Android acessar o host.
+        // Para iOS ou Web, usa-se 'localhost'.
+        final String host = defaultTargetPlatform == TargetPlatform.android ? '10.0.2.2' : 'localhost';
+
+        // Conecta Auth (Porta 9099)
+        await FirebaseAuth.instance.useAuthEmulator(host, 9099);
+        // Conecta Firestore (Porta 8080)
+        FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
+        // Conecta Storage (Porta 9199)
+        await FirebaseStorage.instance.useStorageEmulator(host, 9199);
+        // Conecta Functions (Porta 5001)
+        await FirebaseFunctions.instance.useFunctionsEmulator(host, 5001);
+
+        debugPrint('🟢 Conectado ao Firebase Emulator Suite em $host');
+      } catch (e) {
+        debugPrint('🔴 Erro ao conectar ao emulador: $e');
+      }
+    }
     
     // 3. App Check (Só ativa se tiver a chave, evita crash)
     final recaptchaKey = dotenv.env['RECAPTCHA_SITE_KEY'];

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:excel/excel.dart';
@@ -22,6 +23,7 @@ import 'package:agenda/controller/chat_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
 
   // --- Clientes ---
   Future<void> salvarCliente(Cliente cliente) async {
@@ -263,6 +265,21 @@ class FirestoreService {
     }
   }
 
+  // --- Lembretes Manuais (Cloud Functions) ---
+  // Permite ao Admin disparar lembretes definindo as horas de antecedência
+  Future<Map<String, dynamic>> dispararLembretes({int horas = 24}) async {
+    try {
+      final HttpsCallable callable = _functions.httpsCallable('enviarLembretesManual');
+      final result = await callable.call(<String, dynamic>{
+        'horas': horas,
+      });
+      return Map<String, dynamic>.from(result.data);
+    } catch (e) {
+      debugPrint('Erro ao chamar Cloud Function: $e');
+      rethrow;
+    }
+  }
+
   // --- Notificações Push (FCM) ---
   // DEPRECATED: Use Cloud Functions para enviar notificações em produção.
   Future<void> enviarNotificacaoPush(String token, String titulo, String corpo) async {
@@ -394,6 +411,10 @@ class FirestoreService {
       debugPrint('Erro ao tentar enviar notificação de chat: $e');
     }
   }
+    // NOTA: A notificação push agora é tratada pela Cloud Function 'notificarNovaMensagemChat'
+    // que observa a criação de documentos nesta subcoleção.
+
+  // Retorna um Stream para atualização em tempo real 
 
   Stream<List<ChatMensagem>> getMensagens(String agendamentoId) {
     return _db.collection('agendamentos').doc(agendamentoId).collection('mensagens')
