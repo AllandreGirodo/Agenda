@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:agenda/controller/firestore_service.dart';
@@ -8,23 +9,30 @@ import 'package:agenda/controller/estoque_model.dart';
 import 'package:agenda/controller/transacao_model.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-// Import para salvar arquivos na Web
-import 'dart:html' as html;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:universal_html/html.dart' as html;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:flutter/services.dart' show rootBundle;
 
 class DashboardView extends StatefulWidget {
-  const DashboardView({super.key});
+  final FirestoreService? firestoreService;
+  
+  const DashboardView({super.key, this.firestoreService});
 
   @override
   State<DashboardView> createState() => _DashboardViewState();
 }
 
 class _DashboardViewState extends State<DashboardView> {
-  final FirestoreService firestoreService = FirestoreService();
+  late final FirestoreService firestoreService;
   int _diasFiltro = 7;
 
   @override
   void initState() {
     super.initState();
+    firestoreService = widget.firestoreService ?? FirestoreService();
     _verificarAcessoAdmin();
   }
 
@@ -37,7 +45,7 @@ class _DashboardViewState extends State<DashboardView> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Acesso negado.'), backgroundColor: Colors.red),
           );
-          Navigator.of(context).pop();
+          Navigator.pop(context);
         }
       });
     }
@@ -48,6 +56,11 @@ class _DashboardViewState extends State<DashboardView> {
     return Scaffold(
       appBar: AppBar(
         actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            tooltip: 'Exportar Relatório Financeiro (PDF)',
+            onPressed: () => _exportarRelatorioFinanceiroPDF(context, firestoreService),
+          ),
           IconButton(
             icon: const Icon(Icons.download_for_offline),
             tooltip: 'Exportar Agendamentos (Excel)',
@@ -80,12 +93,28 @@ class _DashboardViewState extends State<DashboardView> {
                 final pendentes = agendamentos.where((a) => a.status == 'pendente').length;
                 final confirmados = agendamentos.where((a) => a.status == 'aprovado').length;
 
-                return Row(
-                  children: [
-                    _buildMetricCard('Hoje', '${agendamentosHoje.length}', Colors.blue),
-                    _buildMetricCard('Pendentes', '$pendentes', Colors.orange),
-                    _buildMetricCard('Confirmados', '$confirmados', Colors.green),
-                  ],
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Se a largura for menor que 600px, usa layout vertical (Mobile)
+                    if (constraints.maxWidth < 600) {
+                      return Column(
+                        children: [
+                          _buildMetricCard('Hoje', '${agendamentosHoje.length}', Colors.blue),
+                          _buildMetricCard('Pendentes', '$pendentes', Colors.orange),
+                          _buildMetricCard('Confirmados', '$confirmados', Colors.green),
+                        ],
+                      );
+                    } else {
+                      // Layout horizontal (Tablet/Desktop)
+                      return Row(
+                        children: [
+                          Expanded(child: _buildMetricCard('Hoje', '${agendamentosHoje.length}', Colors.blue)),
+                          Expanded(child: _buildMetricCard('Pendentes', '$pendentes', Colors.orange)),
+                          Expanded(child: _buildMetricCard('Confirmados', '$confirmados', Colors.green)),
+                        ],
+                      );
+                    }
+                  },
                 );
               },
             ),
@@ -145,21 +174,132 @@ class _DashboardViewState extends State<DashboardView> {
     
     if (context.mounted) Navigator.pop(context);
 
-    if (bytes != null && kIsWeb) {
-      final blob = html.Blob([bytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.document.createElement('a') as html.AnchorElement
-        ..href = url
-        ..style.display = 'none'
-        ..download = 'agendamentos_${DateFormat('yyyy-MM-dd').format(DateTime.now())}.xlsx';
-      html.document.body?.children.add(anchor);
-      anchor.click();
-      html.document.body?.children.remove(anchor);
-      html.Url.revokeObjectUrl(url);
+    if (bytes != null) {
+      if (kIsWeb) {
+        // Exportação Web usando universal_html
+        final blob = html.Blob([bytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        html.AnchorElement(href: url)
+          ..setAttribute('download', 'agendamentos_${DateFormat('dd-MM-yyyy').format(DateTime.now())}.xlsx')
+          ..click();
+        html.Url.revokeObjectUrl(url);
+      } else {
+        // Exportação Mobile (Android/iOS)
+        final directory = await getTemporaryDirectory();
+        final fileName = 'agendamentos_${DateFormat('dd-MM-yyyy').format(DateTime.now())}.xlsx';
+        final file = File('${directory.path}/$fileName');
+        await file.writeAsBytes(bytes, flush: true);
+        
+        await Share.shareXFiles([XFile(file.path)], text: 'Relatório de Agendamentos');
+      }
     } else if (bytes == null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Nenhum dado para exportar.')),
       );
+    }
+  }
+
+  Future<void> _exportarRelatorioFinanceiroPDF(BuildContext context, FirestoreService service) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // 1. Obter dados
+      final transacoes = await service.getTransacoes().first;
+      
+      // Filtra pelo período selecionado no Dashboard
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final startDate = today.subtract(Duration(days: _diasFiltro - 1));
+      
+      final transacoesFiltradas = transacoes.where((t) {
+        return !t.dataPagamento.isBefore(startDate);
+      }).toList();
+
+      // 2. Gerar PDF
+      final pdf = pw.Document();
+      final font = pw.Font.helvetica();
+      
+      // Carrega o logo (assumindo que existe em assets/images/logo.png)
+      // Se não tiver logo, pode remover esta parte ou usar um placeholder
+      pw.MemoryImage? logoImage;
+      try {
+        final logoBytes = await rootBundle.load('lib/images/logo.png');
+        logoImage = pw.MemoryImage(logoBytes.buffer.asUint8List());
+      } catch (_) { /* Ignora se não encontrar o logo */ }
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return [
+              pw.Header(
+                level: 0,
+                child: pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (logoImage != null) 
+                      pw.Image(logoImage, width: 50, height: 50),
+                    pw.SizedBox(width: 10),
+                    pw.Expanded(child: pw.Text('Relatório Financeiro', style: pw.TextStyle(font: font, fontSize: 24, fontWeight: pw.FontWeight.bold))),
+                    pw.Text('Período: $_diasFiltro dias', style: pw.TextStyle(font: font, fontSize: 14)),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              pw.TableHelper.fromTextArray(
+                context: context,
+                headerStyle: pw.TextStyle(font: font, fontWeight: pw.FontWeight.bold),
+                cellStyle: pw.TextStyle(font: font, fontSize: 10),
+                headers: ['Data', 'Cliente', 'Método', 'Valor Líquido'],
+                data: transacoesFiltradas.map((t) => [
+                  DateFormat('dd/MM/yyyy HH:mm').format(t.dataPagamento),
+                  t.clienteUid, // Idealmente buscaria o nome, mas usaremos o UID/Snapshot se disponível
+                  t.metodoPagamento.toUpperCase(),
+                  'R\$ ${t.valorLiquido.toStringAsFixed(2)}',
+                ]).toList(),
+              ),
+              pw.Divider(),
+              pw.Align(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Text(
+                  'Total: R\$ ${transacoesFiltradas.fold(0.0, (sum, t) => sum + t.valorLiquido).toStringAsFixed(2)}',
+                  style: pw.TextStyle(font: font, fontSize: 18, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+            ];
+          },
+        ),
+      );
+
+      final bytes = await pdf.save();
+
+      if (context.mounted) Navigator.pop(context); // Fecha loading
+
+      // 3. Salvar/Compartilhar (Reutilizando lógica similar ao Excel)
+      if (kIsWeb) {
+        final blob = html.Blob([bytes], 'application/pdf');
+        final url = html.Url.createObjectUrlFromBlob(blob);
+        html.AnchorElement(href: url)
+          ..setAttribute('download', 'financeiro_${DateFormat('dd-MM-yyyy').format(now)}.pdf')
+          ..click();
+        html.Url.revokeObjectUrl(url);
+      } else {
+        final directory = await getTemporaryDirectory();
+        final fileName = 'financeiro_${DateFormat('dd-MM-yyyy').format(now)}.pdf';
+        final file = File('${directory.path}/$fileName');
+        await file.writeAsBytes(bytes, flush: true);
+        await Share.shareXFiles([XFile(file.path)], text: 'Relatório Financeiro PDF');
+      }
+
+    } catch (e) {
+      if (context.mounted && Navigator.canPop(context)) Navigator.pop(context);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao gerar PDF: $e')));
+      }
     }
   }
 
@@ -191,20 +331,18 @@ class _DashboardViewState extends State<DashboardView> {
   }
 
   Widget _buildMetricCard(String title, String value, Color color) {
-    return Expanded(
-      child: Card(
-        elevation: 4,
-        color: color.withOpacity(0.1),
-        margin: const EdgeInsets.all(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-          child: Column(
-            children: [
-              Text(value, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: color)),
-              const SizedBox(height: 8),
-              Text(title, style: TextStyle(fontSize: 16, color: Colors.black87)),
-            ],
-          ),
+    return Card(
+      elevation: 4,
+      color: color.withAlpha((0.1 * 255).round()),
+      margin: const EdgeInsets.all(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        child: Column(
+          children: [
+            Text(value, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: color)),
+            const SizedBox(height: 8),
+            Text(title, style: TextStyle(fontSize: 16, color: Colors.black87)),
+          ],
         ),
       ),
     );
@@ -254,7 +392,7 @@ class _DashboardViewState extends State<DashboardView> {
                       if (!transacao.dataPagamento.isBefore(startDate)) {
                         final dayIndex = (_diasFiltro - 1) - today.difference(DateTime(transacao.dataPagamento.year, transacao.dataPagamento.month, transacao.dataPagamento.day)).inDays;
                         if (dayIndex >= 0 && dayIndex < _diasFiltro) {
-                          dailyTotals[dayIndex] = (dailyTotals[dayIndex] ?? 0) + transacao.valor;
+                          dailyTotals[dayIndex] = (dailyTotals[dayIndex] ?? 0) + transacao.valorLiquido;
                         }
                       }
                     }

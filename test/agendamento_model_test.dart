@@ -10,9 +10,9 @@ void main() {
         id: '123',
         clienteId: 'user_001',
         dataHora: dataHora,
-        tipoMassagem: 'Massagem Relaxante',
+        tipo: 'Massagem Relaxante',
         status: 'pendente',
-        preco: 120.0,
+        valorFinal: 120.0,
         avaliacao: 0,
         comentarioAvaliacao: '',
         clienteNomeSnapshot: 'Maria',
@@ -47,7 +47,7 @@ void main() {
 
       expect(agendamento.id, '999');
       expect(agendamento.dataHora, dataHora); // Verifica se converteu Timestamp -> DateTime
-      expect(agendamento.tipoMassagem, 'Drenagem');
+      expect(agendamento.tipo, 'Drenagem');
     });
   });
 }

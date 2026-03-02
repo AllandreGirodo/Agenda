@@ -89,7 +89,7 @@ void main() async {
         // Conecta Storage (Porta 9199)
         await FirebaseStorage.instance.useStorageEmulator(host, 9199);
         // Conecta Functions (Porta 5001)
-        await FirebaseFunctions.instance.useFunctionsEmulator(host, 5001);
+        FirebaseFunctions.instance.useFunctionsEmulator(host, 5001);
 
         debugPrint('🟢 Conectado ao Firebase Emulator Suite em $host');
       } catch (e) {

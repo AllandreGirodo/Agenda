@@ -11,9 +11,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart';
-import 'dart:typed_data';
 import 'package:intl/intl.dart';
 import '../controller/log_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DevToolsView extends StatefulWidget {
   const DevToolsView({super.key});
@@ -27,6 +27,7 @@ class _DevToolsViewState extends State<DevToolsView> {
   final String _senhaBanco = dotenv.env['DB_ADMIN_PASSWORD'] ?? "admin123"; // Senha simulada para o TCC
   bool _autenticado = false;
   final TextEditingController _senhaController = TextEditingController();
+  bool _devicePreviewEnabled = false;
 
   // Lista de Collections do sistema
   final List<String> _collections = [
@@ -46,6 +47,22 @@ class _DevToolsViewState extends State<DevToolsView> {
     super.initState();
     // Força o pedido de senha ao abrir
     WidgetsBinding.instance.addPostFrameCallback((_) => _pedirSenha());
+    _carregarPrefs();
+  }
+
+  Future<void> _carregarPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _devicePreviewEnabled = prefs.getBool('enable_device_preview') ?? false;
+    });
+  }
+
+  Future<void> _toggleDevicePreview(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('enable_device_preview', value);
+    setState(() => _devicePreviewEnabled = value);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reinicie o app para aplicar a alteração.')));
   }
 
   Future<void> _pedirSenha() async {
@@ -128,10 +145,10 @@ class _DevToolsViewState extends State<DevToolsView> {
         );
         return;
     }
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Tabela $collection populada (Merge/Ignore se existe).')),
     );
-    if (!mounted) return;
     setState(() {}); // Atualiza contadores
   }
 
@@ -171,6 +188,7 @@ class _DevToolsViewState extends State<DevToolsView> {
       
       // 1. Busca dados
       final data = await _firestoreService.getFullCollection(collection);
+      if (!mounted) return;
       if (data.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coleção vazia.')));
         return;
@@ -221,7 +239,9 @@ class _DevToolsViewState extends State<DevToolsView> {
       await Share.shareXFiles([XFile(file.path)], text: 'Exportação da tabela $collection');
 
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao exportar: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao exportar: $e')));
+      }
     }
   }
 
@@ -233,6 +253,7 @@ class _DevToolsViewState extends State<DevToolsView> {
       if (!mounted) return;
       // 1. Busca dados
       final data = await _firestoreService.getFullCollection(collection);
+      if (!mounted) return;
       if (data.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Coleção vazia.')));
         return;
@@ -312,6 +333,8 @@ class _DevToolsViewState extends State<DevToolsView> {
         allowedExtensions: ['json'],
       );
 
+      if (!mounted) return;
+
       if (result != null) {
         File file = File(result.files.single.path!);
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lendo arquivo...')));
@@ -324,7 +347,9 @@ class _DevToolsViewState extends State<DevToolsView> {
         List<Map<String, dynamic>> dados = jsonList.map((e) => Map<String, dynamic>.from(e)).toList();
 
         // 3. Enviar para Firestore
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Importando ${dados.length} registros...')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Importando ${dados.length} registros...')));
+        }
         await _firestoreService.importarColecao(collection, dados);
 
         if (!mounted) return;
@@ -530,7 +555,9 @@ class _DevToolsViewState extends State<DevToolsView> {
                         Color color = Colors.white;
                         if (log.tipo == 'erro' || log.tipo == 'cancelamento') {
                           color = Colors.redAccent;
-                        } else if (log.tipo == 'aviso') color = Colors.orangeAccent;
+                        } else if (log.tipo == 'aviso') {
+                          color = Colors.orangeAccent;
+                        }
                         
                         return ListTile(
                           dense: true,
@@ -573,10 +600,19 @@ class _DevToolsViewState extends State<DevToolsView> {
           )
         ],
       ),
-      body: ListView.separated(
-        itemCount: _collections.length,
-        separatorBuilder: (c, i) => const Divider(),
-        itemBuilder: (context, index) {
+      body: ListView(
+        children: [
+          SwitchListTile(
+            title: const Text('Ativar Device Preview (Simulador de Telas)'),
+            subtitle: const Text('Requer reinício do app. Útil para testar responsividade.'),
+            value: _devicePreviewEnabled,
+            onChanged: _toggleDevicePreview,
+            secondary: const Icon(Icons.devices_other, color: Colors.purpleAccent),
+          ),
+          const Divider(thickness: 2),
+          ...List.generate(_collections.length * 2 - 1, (i) {
+            if (i.isOdd) return const Divider();
+            final index = i ~/ 2;
           final collection = _collections[index];
           return FutureBuilder<int>(
             future: _contarDocumentos(collection),
@@ -639,7 +675,8 @@ class _DevToolsViewState extends State<DevToolsView> {
               );
             },
           );
-        },
+        }),
+        ],
       ),
     );
   }

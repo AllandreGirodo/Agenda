@@ -11,7 +11,7 @@ import 'package:agenda/controller/chat_model.dart';
 import 'package:agenda/view/app_strings.dart';
 import 'package:agenda/view/app_styles.dart';
 import 'package:intl/intl.dart';
-import 'package:agenda/widgets/full_screen_image_view.dart';
+import 'package:agenda/view/full_screen_image_view.dart';
 
 class ChatAgendamentoView extends StatefulWidget {
   final String agendamentoId;
@@ -62,7 +62,9 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
       final url = await _service.uploadArquivoChat(widget.agendamentoId, arquivo);
       await _service.enviarMensagem(widget.agendamentoId, url, _uid, tipo: tipo);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro no envio: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro no envio: $e')));
+      }
     } finally {
       if (mounted) setState(() => _isUploading = false);
     }

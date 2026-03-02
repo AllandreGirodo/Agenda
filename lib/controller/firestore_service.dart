@@ -4,7 +4,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_functions/cloud_functions.dart';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:excel/excel.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:intl/intl.dart';
@@ -122,6 +121,19 @@ class FirestoreService {
       return List<String>.from(doc.data()!['tipos'] ?? []);
     }
     return ['Massagem Relaxante', 'Drenagem Linfática', 'Massagem Terapêutica']; // Fallback padrão
+  }
+
+  // --- Manutenção ---
+  Stream<bool> getManutencaoStream() {
+    return _db.collection('configuracoes').doc('geral').snapshots().map((doc) {
+      return doc.data()?['em_manutencao'] ?? false;
+    });
+  }
+
+  Future<void> atualizarStatusManutencao(bool status) async {
+    await _db.collection('configuracoes').doc('geral').set({
+      'em_manutencao': status
+    }, SetOptions(merge: true));
   }
 
   // --- Usuarios (Login) ---
@@ -477,6 +489,20 @@ class FirestoreService {
             .toList());
   }
 
+  // Calcula o faturamento total (soma do valor líquido) em um período específico
+  Future<double> calcularFaturamentoTotal(DateTime inicio, DateTime fim) async {
+    final snapshot = await _db.collection('transacoes_financeiras')
+        .where('data_pagamento', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
+        .where('data_pagamento', isLessThanOrEqualTo: Timestamp.fromDate(fim))
+        .get();
+
+    double total = 0.0;
+    for (var doc in snapshot.docs) {
+      final transacao = TransacaoFinanceira.fromMap(doc.data());
+      total += transacao.valorLiquido;
+    }
+    return total;
+  }
 
   // --- LGPD / Anonimização de Conta ---
   // Não excluímos fisicamente para manter integridade financeira (agendamentos realizados),
@@ -545,11 +571,17 @@ class FirestoreService {
 
   // --- Métricas / Analytics (Histórico) ---
   Future<void> salvarMetricasDiarias(Map<String, dynamic> metricas) async {
-    // Usa a data atual como ID (ex: 2023-10-25) para facilitar busca histórica
-    final id = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final now = DateTime.now();
+    // Usa a data atual como ID no formato brasileiro (dd-MM-yyyy)
+    final id = DateFormat('dd-MM-yyyy').format(now);
     
+    // Adiciona campo de ordenação (Timestamp) para permitir queries cronológicas,
+    // já que o ID 'dd-MM-yyyy' não ordena corretamente por string.
+    final dadosComOrdenacao = Map<String, dynamic>.from(metricas);
+    dadosComOrdenacao['data_ordenacao'] = Timestamp.fromDate(DateTime(now.year, now.month, now.day));
+
     // Salva ou atualiza (merge) as métricas do dia
-    await _db.collection('metricas_diarias').doc(id).set(metricas, SetOptions(merge: true));
+    await _db.collection('metricas_diarias').doc(id).set(dadosComOrdenacao, SetOptions(merge: true));
   }
 
   // Retorna todos os dados de uma coleção como Lista de Mapas (para Exportação JSON/CSV)
@@ -608,7 +640,7 @@ class FirestoreService {
     Sheet sheetObject = excel['Agendamentos'];
 
     // Estilo para o cabeçalho
-    var headerStyle = CellStyle(bold: true, backgroundColorHex: '#FFC0CB');
+    var headerStyle = CellStyle(bold: true, backgroundColorHex: ExcelColor.fromHexString('#FFC0CB'));
 
     // Cabeçalho
     List<String> header = [
@@ -638,7 +670,8 @@ class FirestoreService {
       sheetObject.appendRow(row);
     }
 
-    return excel.encode();
+    final bytes = excel.encode();
+    return bytes != null ? Uint8List.fromList(bytes) : null;
   }
 
   // --- Logs ---

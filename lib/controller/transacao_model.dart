@@ -63,4 +63,38 @@ class TransacaoFinanceira {
       criadoPorUid: map['criado_por_uid'] ?? '',
     );
   }
+
+  /// Calcula o valor líquido subtraindo o desconto do bruto.
+  /// Garante que o resultado nunca seja negativo.
+  static double calcularValorLiquido(double bruto, double desconto) {
+    return (bruto - desconto).clamp(0.0, double.infinity);
+  }
+
+  TransacaoFinanceira copyWith({
+    String? id,
+    String? agendamentoId,
+    String? clienteUid,
+    double? valorBruto,
+    double? valorDesconto,
+    double? valorLiquido,
+    String? metodoPagamento,
+    String? statusPagamento,
+    DateTime? dataPagamento,
+    DateTime? dataCriacao,
+    String? criadoPorUid,
+  }) {
+    return TransacaoFinanceira(
+      id: id ?? this.id,
+      agendamentoId: agendamentoId ?? this.agendamentoId,
+      clienteUid: clienteUid ?? this.clienteUid,
+      valorBruto: valorBruto ?? this.valorBruto,
+      valorDesconto: valorDesconto ?? this.valorDesconto,
+      valorLiquido: valorLiquido ?? this.valorLiquido,
+      metodoPagamento: metodoPagamento ?? this.metodoPagamento,
+      statusPagamento: statusPagamento ?? this.statusPagamento,
+      dataPagamento: dataPagamento ?? this.dataPagamento,
+      dataCriacao: dataCriacao ?? this.dataCriacao,
+      criadoPorUid: criadoPorUid ?? this.criadoPorUid,
+    );
+  }
 }

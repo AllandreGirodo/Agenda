@@ -41,7 +41,7 @@ class ConfigErrorView extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.black54,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+                      border: Border.all(color: Colors.redAccent.withAlpha((0.3 * 255).round())),
                     ),
                     child: Text(
                       details!,

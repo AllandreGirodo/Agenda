@@ -33,6 +33,8 @@ class _LoginViewState extends State<LoginView> {
 
   Future<void> _login() async {
     setState(() => _isLoading = true);
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -46,13 +48,13 @@ class _LoginViewState extends State<LoginView> {
       if (user != null) {
         final adminEmail = dotenv.env['ADMIN_EMAIL'];
         if (user.email == adminEmail) { 
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminAgendamentosView()));
+          navigator.pushReplacement(MaterialPageRoute(builder: (_) => const AdminAgendamentosView()));
         } else {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AgendamentoView()));
+          navigator.pushReplacement(MaterialPageRoute(builder: (_) => const AgendamentoView()));
         }
       }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      messenger.showSnackBar(SnackBar(
         content: Text(e.message ?? 'Erro ao fazer login'),
         backgroundColor: AppColors.error,
       ));
@@ -64,6 +66,8 @@ class _LoginViewState extends State<LoginView> {
   Future<void> _cadastro() async {
     // Lógica simplificada de cadastro direto ou navegação para tela de registro
     setState(() => _isLoading = true);
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -71,9 +75,9 @@ class _LoginViewState extends State<LoginView> {
       );
       if (!mounted) return;
       // Após cadastro, vai para perfil para completar dados
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const PerfilView()));
+      navigator.pushReplacement(MaterialPageRoute(builder: (_) => const PerfilView()));
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      messenger.showSnackBar(SnackBar(
         content: Text(e.message ?? 'Erro ao cadastrar'),
         backgroundColor: AppColors.error,
       ));
@@ -84,11 +88,14 @@ class _LoginViewState extends State<LoginView> {
 
   Future<void> _recuperarSenha() async {
     String email = _emailController.text.trim();
+    final localContext = context;
     
     // Se o campo estiver vazio, abre um diálogo para digitar o email
     if (email.isEmpty) {
+      if (!mounted) return;
+      // ignore: use_build_context_synchronously
       final emailDigitado = await showDialog<String>(
-        context: context,
+        context: localContext,
         builder: (context) {
           final controllerTemp = TextEditingController();
           return AlertDialog(
@@ -110,16 +117,17 @@ class _LoginViewState extends State<LoginView> {
     }
 
     setState(() => _isLoading = true);
+    final messenger = ScaffoldMessenger.of(localContext);
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      messenger.showSnackBar(SnackBar(
         content: Text(AppStrings.emailRecuperacaoEnviado),
         backgroundColor: Colors.green,
       ));
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      messenger.showSnackBar(SnackBar(
         content: Text(e.message ?? 'Erro ao enviar email'),
         backgroundColor: AppColors.error,
       ));
@@ -130,6 +138,8 @@ class _LoginViewState extends State<LoginView> {
 
   Future<void> _googleLogin() async {
     setState(() => _isLoading = true);
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) {
@@ -146,10 +156,10 @@ class _LoginViewState extends State<LoginView> {
       await FirebaseAuth.instance.signInWithCredential(credential);
       if (!mounted) return;
       // Redirecionamento é tratado pelo StreamBuilder no AgendamentoView ou aqui manualmente
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AgendamentoView()));
+      navigator.pushReplacement(MaterialPageRoute(builder: (_) => const AgendamentoView()));
       
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro no Google Login: $e')));
+      if (mounted) messenger.showSnackBar(SnackBar(content: Text('Erro no Google Login: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -171,6 +181,8 @@ class _LoginViewState extends State<LoginView> {
   }
 
   Future<void> _loginBiometrico() async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
     try {
       final bool didAuthenticate = await auth.authenticate(
         localizedReason: AppStrings.biometriaBtn,
@@ -185,13 +197,15 @@ class _LoginViewState extends State<LoginView> {
         // Para o TCC, simularemos que a biometria valida o usuário atual se ele já estiver logado no cache.
         final user = FirebaseAuth.instance.currentUser;
         if (user != null && mounted) {
-           Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AgendamentoView()));
+           navigator.pushReplacement(MaterialPageRoute(builder: (_) => const AgendamentoView()));
         } else if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Faça login com senha uma vez para habilitar o acesso rápido.')));
+           messenger.showSnackBar(const SnackBar(content: Text('Faça login com senha uma vez para habilitar o acesso rápido.')));
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${AppStrings.biometriaErro}: $e')));
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text('${AppStrings.biometriaErro}: $e')));
+      }
     }
   }
 

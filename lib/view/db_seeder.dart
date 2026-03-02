@@ -1,144 +1,77 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
-import 'package:agenda/controller/firestore_service.dart';
 
 class DbSeeder {
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Método mestre que chama todos
-  static Future<void> popularBancoDados() async {
-    await seedClientes();
-    await seedAgendamentos();
-    await seedEstoque();
-    await seedConfiguracoes();
-    await seedCupons();
-    await FirestoreService().inicializarChangeLog();
+  static Future<void> seedCupons() async {
+    await _db.collection('cupons').doc('BEMVINDO').set({
+      'codigo': 'BEMVINDO',
+      'tipo': 'porcentagem',
+      'valor': 10.0,
+      'ativo': true,
+      'validade': Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
+    });
   }
 
   static Future<void> seedClientes() async {
-    try {
-      debugPrint('Seeding Clientes e Usuários...');
+    // Cria um cliente de teste
+    await _db.collection('clientes').doc('cliente_teste').set({
+      'uid': 'cliente_teste',
+      'nome': 'Cliente Teste',
+      'email': 'cliente@teste.com',
+      'whatsapp': '11999999999',
+      'saldo_sessoes': 0,
+      'data_nascimento': '01/01/1990',
+      'endereco': 'Rua Exemplo, 123',
+      'historico_medico': '',
+      'anamnese_ok': true,
+      'favoritos': [],
+    });
 
-      // Usamos IDs fixos para garantir que se rodar 2 vezes, ele apenas atualiza (Merge)
-      // em vez de criar duplicatas.
-      final clientes = [
-        {
-          'uid': 'teste_cliente_1',
-          'nome': 'Maria Silva',
-          'whatsapp': '5511999999999',
-          'endereco': 'Rua das Flores, 123',
-          'saldo_sessoes': 5,
-          'historico_medico': 'Nenhum',
-          'anamnese_ok': true,
-        },
-        {
-          'uid': 'teste_cliente_2',
-          'nome': 'João Souza',
-          'whatsapp': '5511888888888',
-          'endereco': 'Av. Paulista, 1000',
-          'saldo_sessoes': 0,
-          'historico_medico': 'Dor nas costas',
-          'anamnese_ok': true,
-        },
-      ];
-
-      for (var c in clientes) {
-        // SetOptions(merge: true) garante que se o dado já existe, não sobrescreve tudo, apenas atualiza
-        await _db.collection('clientes').doc(c['uid'] as String).set(c, SetOptions(merge: true));
-        
-        await _db.collection('usuarios').doc(c['uid'] as String).set({
-          'id': c['uid'],
-          'nome': c['nome'],
-          'email': '${c['uid']}@teste.com',
-          'tipo': 'cliente',
-          'aprovado': true,
-          // Não sobrescreve data de cadastro se já existir
-        }, SetOptions(merge: true));
-      }
-    } catch (e) {
-      debugPrint('Erro ao popular Clientes: $e');
-    }
+    // Cria o usuário de login correspondente
+    await _db.collection('usuarios').doc('cliente_teste').set({
+      'id': 'cliente_teste',
+      'nome': 'Cliente Teste',
+      'email': 'cliente@teste.com',
+      'tipo': 'cliente',
+      'aprovado': true,
+      'data_cadastro': FieldValue.serverTimestamp(),
+    });
   }
 
   static Future<void> seedAgendamentos() async {
-    try {
-      debugPrint('Seeding Agendamentos...');
-      final agora = DateTime.now();
-      
-      // Verifica se já existem agendamentos para não duplicar infinitamente
-      final snapshot = await _db.collection('agendamentos').limit(1).get();
-      if (snapshot.docs.isNotEmpty) {
-        debugPrint('Agendamentos já existem. Pulando seed.');
-        return;
-      }
-
-      // Cria apenas se a coleção estiver vazia
-      await _db.collection('agendamentos').add({
-        'cliente_id': 'teste_cliente_1',
-        'data_hora': agora.add(const Duration(days: 1, hours: 2)),
-        'status': 'aprovado',
-        'tipo': 'Massagem Relaxante',
-        'lista_espera': [],
-      });
-      
-      await _db.collection('agendamentos').add({
-        'cliente_id': 'teste_cliente_2',
-        'data_hora': agora.add(const Duration(days: 2, hours: 4)),
-        'status': 'pendente',
-        'tipo': 'Drenagem Linfática',
-        'lista_espera': [],
-      });
-    } catch (e) {
-      debugPrint('Erro ao popular Agendamentos: $e');
-    }
+    await _db.collection('agendamentos').add({
+      'cliente_id': 'cliente_teste',
+      'cliente_nome_snapshot': 'Cliente Teste',
+      'cliente_telefone_snapshot': '11999999999',
+      'data_hora': Timestamp.fromDate(DateTime.now().add(const Duration(days: 1, hours: 10))),
+      'tipo': 'Massagem Relaxante',
+      'status': 'pendente',
+      'preco': 120.0,
+      'avaliacao': 0,
+      'comentario_avaliacao': '',
+      'data_criacao': FieldValue.serverTimestamp(),
+      'lista_espera': [],
+    });
   }
 
   static Future<void> seedEstoque() async {
-    try {
-      debugPrint('Seeding Estoque...');
-      // Verifica duplicidade pelo nome
-      final query = await _db.collection('estoque').where('nome', isEqualTo: 'Creme de Massagem Neutro').get();
-      
-      if (query.docs.isEmpty) {
-        await _db.collection('estoque').add({
-          'nome': 'Creme de Massagem Neutro',
-          'quantidade': 10,
-          'consumo_automatico': true,
-          'unidade': 'potes'
-        });
-      }
-    } catch (e) {
-      debugPrint('Erro ao popular Estoque: $e');
-    }
+    await _db.collection('estoque').add({
+      'nome': 'Óleo de Massagem',
+      'quantidade': 10,
+      'unidade': 'frascos',
+      'consumo_automatico': true,
+      'minimo': 3,
+    });
   }
 
   static Future<void> seedConfiguracoes() async {
-    try {
-      await _db.collection('configuracoes').doc('geral').set({
-        'preco_sessao': 120.0,
-        'horas_antecedencia_cancelamento': 24,
-      }, SetOptions(merge: true));
-      
-      await _db.collection('configuracoes').doc('servicos').set({
-        'tipos': ['Massagem Relaxante', 'Drenagem Linfática', 'Shiatsu', 'Reflexologia']
-      }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('Erro ao popular Configurações: $e');
-    }
-  }
-
-  static Future<void> seedCupons() async {
-    try {
-      // Cria um cupom de teste: BEMVINDO (10% de desconto)
-      await _db.collection('cupons').doc('BEMVINDO').set({
-        'codigo': 'BEMVINDO',
-        'tipo': 'porcentagem',
-        'valor': 10.0,
-        'validade': Timestamp.fromDate(DateTime.now().add(const Duration(days: 365))),
-        'ativo': true,
-      }, SetOptions(merge: true));
-    } catch (e) {
-      debugPrint('Erro ao popular Cupons: $e');
-    }
+    await _db.collection('configuracoes').doc('geral').set({
+      'preco_sessao': 120.0,
+      'antecedencia_minima_horas': 24,
+      'whatsapp_admin': '5511999999999',
+      'chat_ativo': true,
+      'em_manutencao': false,
+    }, SetOptions(merge: true));
   }
 }

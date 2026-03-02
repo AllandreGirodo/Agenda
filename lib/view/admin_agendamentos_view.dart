@@ -120,9 +120,10 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
             IconButton(
               icon: const Icon(Icons.exit_to_app),
               onPressed: () async {
+                final navigator = Navigator.of(context);
                 await FirebaseAuth.instance.signOut();
-                if (context.mounted) {
-                  Navigator.of(context).pushReplacement(
+                if (mounted) {
+                  navigator.pushReplacement(
                     MaterialPageRoute(builder: (context) => const LoginView()),
                   );
                 }
@@ -555,7 +556,7 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
   Future<void> _alterarTemaUsuarioDialog(Cliente cliente) async {
     await showDialog(
       context: context,
-      builder: (context) {
+      builder: (BuildContext dialogContext) {
         return SimpleDialog(
           title: Text('Tema de ${cliente.nome}'),
           children: AppThemeType.values.map((theme) {
@@ -570,8 +571,14 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
               ),
               onPressed: () async {
                 await _firestoreService.atualizarTemaUsuario(cliente.uid, theme.toString());
+                
+                // Fecha o diálogo usando o contexto do diálogo
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
+
+                // Exibe o SnackBar usando o contexto da Tela (State), verificado pelo 'mounted' do State
                 if (mounted) {
-                  Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Tema alterado para ${data.label}')));
                 }
               },

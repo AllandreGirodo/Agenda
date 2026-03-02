@@ -431,15 +431,16 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                       TextButton(
                         onPressed: () async {
                           if (cupomController.text.isEmpty) return;
+                          final messenger = ScaffoldMessenger.of(context);
                           final cupom = await _firestoreService.validarCupom(cupomController.text);
                           if (!context.mounted) return;
                           setStateDialog(() {
                             if (cupom != null) {
                               _cupomAplicado = cupom;
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cupom aplicado!')));
+                              messenger.showSnackBar(const SnackBar(content: Text('Cupom aplicado!')));
                             } else {
                               _cupomAplicado = null;
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cupom inválido ou expirado.')));
+                              messenger.showSnackBar(const SnackBar(content: Text('Cupom inválido ou expirado.')));
                             }
                           });
                         },
@@ -471,8 +472,9 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                 ElevatedButton(
                   onPressed: () async {
                     if (_horarioSelecionado != null && _tipoSelecionado != null) {
+                      final nav = Navigator.of(context);
                       await _salvarAgendamento();
-                      if (context.mounted) Navigator.pop(context);
+                      if (context.mounted) nav.pop();
                     }
                   },
                   child: Text(AppLocalizations.of(context)!.scheduleButton),
@@ -544,10 +546,12 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                 TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
                 ElevatedButton(
                   onPressed: () async {
+                    final nav = Navigator.of(context);
+                    final messenger = ScaffoldMessenger.of(context);
                     await _firestoreService.avaliarAgendamento(agendamento.id!, notaSelecionada, comentarioController.text);
                     if (mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Obrigado pela avaliação!')));
+                      nav.pop();
+                      messenger.showSnackBar(const SnackBar(content: Text('Obrigado pela avaliação!')));
                     }
                   },
                   child: const Text('Enviar'),
@@ -573,8 +577,11 @@ class _AgendamentoViewState extends State<AgendamentoView> {
     );
 
     final user = FirebaseAuth.instance.currentUser;
+    final messenger = ScaffoldMessenger.of(context);
+    final appointmentSuccessMessage = AppLocalizations.of(context)!.appointmentSuccess;
+
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text('Erro: Usuário não autenticado.')),
       );
       return;
@@ -595,16 +602,17 @@ class _AgendamentoViewState extends State<AgendamentoView> {
     await _firestoreService.salvarAgendamento(novoAgendamento);
     
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.appointmentSuccess)),
+      messenger.showSnackBar(
+        SnackBar(content: Text(appointmentSuccessMessage)),
       );
     }
   }
 
   Future<void> _toggleListaEspera(Agendamento agendamento, String uid, bool entrar) async {
+    final messenger = ScaffoldMessenger.of(context);
     await _firestoreService.toggleListaEspera(agendamento.id!, uid, entrar);
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         SnackBar(content: Text(entrar 
           ? 'Você será notificado se este horário vagar.' 
           : 'Você saiu da lista de espera.')),
@@ -614,6 +622,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
 
   // Lógica de Cancelamento
   Future<void> _iniciarCancelamento(Agendamento agendamento) async {
+    final messenger = ScaffoldMessenger.of(context);
     if (_config == null) await _carregarConfig();
     
     final agora = DateTime.now();
@@ -621,7 +630,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
 
     if (dataAgendamento.isBefore(agora)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(content: Text('Não é possível cancelar agendamentos passados.')),
         );
       }
@@ -692,13 +701,14 @@ class _AgendamentoViewState extends State<AgendamentoView> {
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Voltar')),
             ElevatedButton(
               onPressed: () async {
+                final nav = Navigator.of(context);
                 if (motivoController.text.isEmpty) return;
                 
                 final status = foraDoPrazo ? 'cancelado_tardio' : 'cancelado';
                 final motivoFinal = foraDoPrazo ? '[FORA DO PRAZO] ${motivoController.text}' : motivoController.text;
 
                 await _firestoreService.cancelarAgendamento(agendamento.id!, motivoFinal, status);
-                if (context.mounted) Navigator.pop(context);
+                if (context.mounted) nav.pop();
               },
               child: const Text('Confirmar Cancelamento'),
             ),

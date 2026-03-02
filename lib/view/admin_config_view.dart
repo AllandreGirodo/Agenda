@@ -197,22 +197,28 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                 Text(AppStrings.configCupons, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
                 const SizedBox(height: 10),
                 Card(
-                  child: Column(
-                    children: [
-                      RadioListTile<int>(
-                        title: Text(AppStrings.configCupomAtivo),
-                        value: 1, groupValue: _statusCampoCupom, onChanged: (v) => setState(() => _statusCampoCupom = v!),
-                      ),
-                      RadioListTile<int>(
-                        title: Text(AppStrings.configCupomOculto),
-                        value: 2, groupValue: _statusCampoCupom, onChanged: (v) => setState(() => _statusCampoCupom = v!),
-                      ),
-                      RadioListTile<int>(
-                        title: Text(AppStrings.configCupomOpaco),
-                        subtitle: Text(AppStrings.configCupomOpacoDesc),
-                        value: 3, groupValue: _statusCampoCupom, onChanged: (v) => setState(() => _statusCampoCupom = v!),
-                      ),
-                    ],
+                  child: RadioGroup<int>(
+                    groupValue: _statusCampoCupom,
+                    onChanged: (v) {
+                      if (v != null) setState(() => _statusCampoCupom = v);
+                    },
+                    child: Column(
+                      children: [
+                        RadioListTile<int>(
+                          title: Text(AppStrings.configCupomAtivo),
+                          value: 1,
+                        ),
+                        RadioListTile<int>(
+                          title: Text(AppStrings.configCupomOculto),
+                          value: 2,
+                        ),
+                        RadioListTile<int>(
+                          title: Text(AppStrings.configCupomOpaco),
+                          subtitle: Text(AppStrings.configCupomOpacoDesc),
+                          value: 3,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),

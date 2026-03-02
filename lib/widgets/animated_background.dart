@@ -58,7 +58,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
 
   void _initSensors() {
     // Escuta o acelerômetro para criar o efeito de profundidade
-    _sensorSubscription = accelerometerEvents.listen((event) {
+    _sensorSubscription = accelerometerEventStream().listen((event) {
       if (mounted) {
         setState(() {
           // Filtro simples (Low-pass) para suavizar o movimento e evitar tremedeira
@@ -432,7 +432,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
         key: const ValueKey('natal'),
         animation: _controller,
         builder: (context, child) => RepaintBoundary(
-          child: CustomPaint(painter: SnowPainter(_snowflakes), size: Size.infinite),
+          child: CustomPaint(painter: _SnowPainter(_snowflakes), size: Size.infinite),
         ),
       );
     } else if (widget.themeType == AppThemeType.cyberpunk) {
@@ -440,7 +440,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
         key: const ValueKey('cyberpunk'),
         animation: _controller,
         builder: (context, child) => RepaintBoundary(
-          child: CustomPaint(painter: GlitchPainter(_glitchBars), size: Size.infinite),
+          child: CustomPaint(painter: _GlitchPainter(_glitchBars), size: Size.infinite),
         ),
       );
     } else if (widget.themeType == AppThemeType.tempestade) {
@@ -448,7 +448,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
         key: const ValueKey('tempestade'),
         animation: _controller,
         builder: (context, child) => RepaintBoundary(
-          child: CustomPaint(painter: RainPainter(_rainDrops), size: Size.infinite),
+          child: CustomPaint(painter: _RainPainter(_rainDrops), size: Size.infinite),
         ),
       );
     } else if (widget.themeType == AppThemeType.carnaval) {
@@ -456,7 +456,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
         key: const ValueKey('carnaval'),
         animation: _controller,
         builder: (context, child) => RepaintBoundary(
-          child: CustomPaint(painter: ConfettiPainter(_confetti), size: Size.infinite),
+          child: CustomPaint(painter: _ConfettiPainter(_confetti), size: Size.infinite),
         ),
       );
     } else if (widget.themeType.toString() == 'AppThemeType.diaDaMulher') {
@@ -464,7 +464,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
         key: const ValueKey('diaDaMulher'),
         animation: _controller,
         builder: (context, child) => RepaintBoundary(
-          child: CustomPaint(painter: HeartPainter(_hearts), size: Size.infinite),
+          child: CustomPaint(painter: _HeartPainter(_hearts), size: Size.infinite),
         ),
       );
     } else if (widget.themeType.toString() == 'AppThemeType.outubroRosa') {
@@ -472,7 +472,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
         key: const ValueKey('outubroRosa'),
         animation: _controller,
         builder: (context, child) => RepaintBoundary(
-          child: CustomPaint(painter: SparklePainter(_sparkles), size: Size.infinite),
+          child: CustomPaint(painter: _SparklePainter(_sparkles), size: Size.infinite),
         ),
       );
     } else if (widget.themeType.toString() == 'AppThemeType.ferias') {
@@ -483,11 +483,11 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
           children: [
             // Areia no fundo
             RepaintBoundary(
-              child: CustomPaint(painter: SandPainter(), size: Size.infinite),
+              child: CustomPaint(painter: _SandPainter(), size: Size.infinite),
             ),
             // Ondas no fundo
             RepaintBoundary(
-              child: CustomPaint(painter: WavePainter(_wavePhase), size: Size.infinite),
+              child: CustomPaint(painter: _WavePainter(_wavePhase), size: Size.infinite),
             ),
             // Ciclo de Elementos (Sol, Bola, Máscara, Peixes)
             AnimatedSwitcher(
@@ -523,14 +523,14 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
 
   Widget _buildVacationItem() {
     switch (_vacationIndex) {
-      case 0: return RepaintBoundary(key: const ValueKey(0), child: CustomPaint(painter: SunPainter(), size: Size.infinite));
-      case 1: return RepaintBoundary(key: const ValueKey(1), child: CustomPaint(painter: BeachBallPainter(), size: Size.infinite));
-      case 2: return RepaintBoundary(key: const ValueKey(2), child: CustomPaint(painter: MaskPainter(), size: Size.infinite));
+      case 0: return RepaintBoundary(key: const ValueKey(0), child: CustomPaint(painter: _SunPainter(), size: Size.infinite));
+      case 1: return RepaintBoundary(key: const ValueKey(1), child: CustomPaint(painter: _BeachBallPainter(), size: Size.infinite));
+      case 2: return RepaintBoundary(key: const ValueKey(2), child: CustomPaint(painter: _MaskPainter(), size: Size.infinite));
       case 3: return Stack(
         key: const ValueKey(3),
         children: [
-          RepaintBoundary(child: CustomPaint(painter: BubblePainter(_bubbles), size: Size.infinite)),
-          RepaintBoundary(child: CustomPaint(painter: FishPainter(_fishes), size: Size.infinite)),
+          RepaintBoundary(child: CustomPaint(painter: _BubblePainter(_bubbles), size: Size.infinite)),
+          RepaintBoundary(child: CustomPaint(painter: _FishPainter(_fishes), size: Size.infinite)),
         ],
       );
       default: return const SizedBox.shrink();
@@ -555,9 +555,9 @@ class _Snowflake {
   _Snowflake({required this.x, required this.y, required this.radius, required this.speed});
 }
 
-class SnowPainter extends CustomPainter {
+class _SnowPainter extends CustomPainter {
   final List<_Snowflake> snowflakes;
-  SnowPainter(this.snowflakes);
+  _SnowPainter(this.snowflakes);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -601,9 +601,9 @@ class _Bubble {
   _Bubble({required this.x, required this.y, required this.size, required this.speed});
 }
 
-class BubblePainter extends CustomPainter {
+class _BubblePainter extends CustomPainter {
   final List<_Bubble> bubbles;
-  BubblePainter(this.bubbles);
+  _BubblePainter(this.bubbles);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -618,7 +618,7 @@ class BubblePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-class SandPainter extends CustomPainter {
+class _SandPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = const Color(0xFFE6C288); // Cor de areia
@@ -634,9 +634,9 @@ class SandPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class WavePainter extends CustomPainter {
+class _WavePainter extends CustomPainter {
   final double phase;
-  WavePainter(this.phase);
+  _WavePainter(this.phase);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -666,10 +666,10 @@ class WavePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant WavePainter oldDelegate) => oldDelegate.phase != phase;
+  bool shouldRepaint(covariant _WavePainter oldDelegate) => oldDelegate.phase != phase;
 }
 
-class SunPainter extends CustomPainter {
+class _SunPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.yellowAccent;
@@ -688,7 +688,7 @@ class SunPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class BeachBallPainter extends CustomPainter {
+class _BeachBallPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width * 0.2, size.height * 0.75);
@@ -706,7 +706,7 @@ class BeachBallPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class MaskPainter extends CustomPainter {
+class _MaskPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.cyanAccent..style = PaintingStyle.stroke..strokeWidth = 3;
@@ -728,9 +728,9 @@ class _Fish {
   _Fish({required this.x, required this.y, required this.size, required this.speed, required this.color});
 }
 
-class FishPainter extends CustomPainter {
+class _FishPainter extends CustomPainter {
   final List<_Fish> fishes;
-  FishPainter(this.fishes);
+  _FishPainter(this.fishes);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -759,9 +759,9 @@ class _Heart {
   _Heart({required this.x, required this.y, required this.size, required this.speed, required this.color});
 }
 
-class HeartPainter extends CustomPainter {
+class _HeartPainter extends CustomPainter {
   final List<_Heart> hearts;
-  HeartPainter(this.hearts);
+  _HeartPainter(this.hearts);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -792,9 +792,9 @@ class _Sparkle {
   _Sparkle({required this.x, required this.y, required this.size, required this.speed, required this.opacity, required this.pulseSpeed});
 }
 
-class SparklePainter extends CustomPainter {
+class _SparklePainter extends CustomPainter {
   final List<_Sparkle> sparkles;
-  SparklePainter(this.sparkles);
+  _SparklePainter(this.sparkles);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -825,9 +825,9 @@ class _Confetti {
   _Confetti({required this.x, required this.y, required this.size, required this.speed, required this.rotation, required this.rotationSpeed, required this.color});
 }
 
-class ConfettiPainter extends CustomPainter {
+class _ConfettiPainter extends CustomPainter {
   final List<_Confetti> confetti;
-  ConfettiPainter(this.confetti);
+  _ConfettiPainter(this.confetti);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -853,9 +853,9 @@ class _RainDrop {
   _RainDrop({required this.x, required this.y, required this.length, required this.speed});
 }
 
-class RainPainter extends CustomPainter {
+class _RainPainter extends CustomPainter {
   final List<_RainDrop> drops;
-  RainPainter(this.drops);
+  _RainPainter(this.drops);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -876,9 +876,9 @@ class _GlitchBar {
   _GlitchBar({required this.y, required this.height, required this.color});
 }
 
-class GlitchPainter extends CustomPainter {
+class _GlitchPainter extends CustomPainter {
   final List<_GlitchBar> bars;
-  GlitchPainter(this.bars);
+  _GlitchPainter(this.bars);
 
   @override
   void paint(Canvas canvas, Size size) {

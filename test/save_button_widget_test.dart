@@ -6,7 +6,7 @@ void main() {
     // 1. Construir o Widget de teste (um formulário simples)
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
-        body: TestFormWidget(),
+        body: _TestFormWidget(),
       ),
     ));
 
@@ -27,14 +27,14 @@ void main() {
 }
 
 // Widget auxiliar para o teste
-class TestFormWidget extends StatefulWidget {
-  const TestFormWidget({super.key});
+class _TestFormWidget extends StatefulWidget {
+  const _TestFormWidget();
 
   @override
   _TestFormWidgetState createState() => _TestFormWidgetState();
 }
 
-class _TestFormWidgetState extends State<TestFormWidget> {
+class _TestFormWidgetState extends State<_TestFormWidget> {
   final _formKey = GlobalKey<FormState>();
   final _controller = TextEditingController();
 

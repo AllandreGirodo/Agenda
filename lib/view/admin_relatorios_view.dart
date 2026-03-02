@@ -172,7 +172,7 @@ class AdminRelatoriosView extends StatelessWidget {
                 // Tabela de Agendamentos
                 pw.Text('Detalhamento', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
                 pw.SizedBox(height: 10),
-                pw.Table.fromTextArray(
+                pw.TableHelper.fromTextArray(
                   context: context,
                   headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                   headers: ['Data', 'Cliente', 'Tipo', 'Status', 'Valor'],

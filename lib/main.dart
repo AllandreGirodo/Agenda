@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // Para kReleaseMode
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:device_preview/device_preview.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -47,11 +49,14 @@ void main() async {
   final String? customTheme = prefs.getString('custom_theme_type');
   final bool onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
 
-  runApp(MyApp(
-    initialLocale: languageCode != null ? Locale(languageCode, countryCode) : null,
-    initialThemeMode: themeMode,
-    initialCustomTheme: customTheme,
-    onboardingComplete: onboardingComplete,
+  runApp(DevicePreview(
+    enabled: !kReleaseMode, // Ativa o DevicePreview em modo debug
+    builder: (context) => MyApp(
+      initialLocale: languageCode != null ? Locale(languageCode, countryCode) : null,
+      initialThemeMode: themeMode,
+      initialCustomTheme: customTheme,
+      onboardingComplete: onboardingComplete,
+    ),
   ));
 }
 
@@ -219,7 +224,8 @@ class _MyAppState extends State<MyApp> {
           themeAnimationDuration: const Duration(milliseconds: 800), // Transição suave (Fade)
           themeAnimationCurve: Curves.easeInOut,
           themeMode: _themeMode,
-          locale: _locale,
+          // Usa o locale do DevicePreview se _locale for nulo, ou para testes de UI
+          locale: _locale ?? DevicePreview.locale(context),
           localizationsDelegates: [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,
@@ -235,6 +241,9 @@ class _MyAppState extends State<MyApp> {
           home: widget.onboardingComplete ? const LoginView() : const OnboardingView(),
           // Envolve todo o app no fundo animado
           builder: (context, child) {
+            // Aplica o builder do DevicePreview corretamente
+            final childWithPreview = DevicePreview.appBuilder(context, child);
+
             return BackgroundSoundManager(
               themeType: _customThemeType,
               child: AnimatedBackground(
@@ -242,7 +251,7 @@ class _MyAppState extends State<MyApp> {
                 // Garante que o fundo do Scaffold seja transparente para ver a animação
                 child: Theme(
                   data: Theme.of(context).copyWith(scaffoldBackgroundColor: _customThemeType != AppThemeType.sistema && _customThemeType != AppThemeType.claro && _customThemeType != AppThemeType.escuro ? Colors.transparent : null),
-                  child: child!,
+                    child: childWithPreview,
                 ),
               ),
             );
