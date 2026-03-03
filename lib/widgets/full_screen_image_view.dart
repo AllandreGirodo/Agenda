@@ -2,10 +2,33 @@ import 'package:flutter/material.dart';
 
 class FullScreenImageView extends StatelessWidget {
   final String url;
-  const FullScreenImageView({super.key, required this.url});
+  final String? heroTag;
+
+  const FullScreenImageView({super.key, required this.url, this.heroTag});
 
   @override
   Widget build(BuildContext context) {
+    final Widget imageWidget = InteractiveViewer(
+      panEnabled: true,
+      minScale: 0.5,
+      maxScale: 4.0,
+      child: Image.network(
+        url,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                      loadingProgress.expectedTotalBytes!
+                  : null,
+              color: Colors.white,
+            ),
+          );
+        },
+      ),
+    );
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -14,12 +37,12 @@ class FullScreenImageView extends StatelessWidget {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Center(
-        child: InteractiveViewer(
-          panEnabled: true, // Permite arrastar a imagem quando estiver com zoom
-          minScale: 0.5,    // Permite diminuir um pouco
-          maxScale: 4.0,    // Permite aumentar até 4x
-          child: Image.network(url),
-        ),
+        child: heroTag != null
+            ? Hero(
+                tag: heroTag!,
+                child: imageWidget,
+              )
+            : imageWidget,
       ),
     );
   }

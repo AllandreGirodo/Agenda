@@ -104,9 +104,9 @@ class FirestoreService {
   Future<String> getTelefoneAdmin() async {
     final doc = await _db.collection('configuracoes').doc('geral').get();
     if (doc.exists && doc.data() != null) {
-      return doc.data()!['whatsapp_admin'] as String? ?? '5516999999999';
+      return doc.data()!['whatsapp_admin'] as String? ?? '5511999999999';
     }
-    return '5516999999999';
+    return '5511999999999';
   }
 
   // Salva o telefone do admin (Conectar este método a um TextField na tela de Admin)

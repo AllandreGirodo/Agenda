@@ -17,8 +17,8 @@ firebase login --no-localhost
 flutter pub add firebase_core
 dart pub global activate flutterfire_cli
 flutter upgrade --force
-cd /workspaces/Agenda/agenda_horario && flutter devices
-cd /workspaces/Agenda/agenda_horario && flutter devicescd /workspaces/Agenda/agenda_horario
+cd /workspaces/Agenda/ && flutter devices
+cd /workspaces/Agenda/ && flutter devicescd /workspaces/Agenda/
 flutter config --enable-web
 flutter config --enable-web
 flutter run
@@ -63,7 +63,7 @@ cd /workspaces/Agenda/agenda_horario/
 ls -l pubspec.yaml
 flutter pub add firebase_core
 flutter run
-cd /workspaces/Agenda/agenda_horario
+cd /workspaces/Agenda/
 flutter clean
 flutter run
 flutter clean

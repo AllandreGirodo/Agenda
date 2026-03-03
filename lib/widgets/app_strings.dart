@@ -1,1 +1,0 @@
-// Arquivo removido para evitar conflito com lib/view/app_strings.dart
