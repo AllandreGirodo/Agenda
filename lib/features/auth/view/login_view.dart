@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:agenda/view/app_styles.dart';
-import 'package:agenda/view/app_strings.dart';
+import 'package:agenda/core/utils/app_styles.dart';
+import 'package:agenda/core/utils/app_strings.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:agenda/view/agendamento_view.dart';
+import 'package:agenda/features/agendamento/view/agendamento_view.dart';
 import 'package:agenda/view/admin_agendamentos_view.dart';
-import 'package:agenda/view/perfil_view.dart'; // Para cadastro, se necessário redirecionar
-import 'package:agenda/widgets/language_selector.dart';
-import 'package:agenda/controller/firestore_service.dart';
+import 'package:agenda/features/perfil/view/perfil_view.dart'; // Para cadastro, se necessário redirecionar
+import 'package:agenda/core/widgets/language_selector.dart';
+import 'package:agenda/core/services/firestore_service.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});

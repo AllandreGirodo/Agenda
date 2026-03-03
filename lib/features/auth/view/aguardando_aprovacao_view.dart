@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:url_launcher/url_launcher.dart'; // Requer adicionar ao pubspec.yaml
-import 'package:agenda/controller/firestore_service.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:agenda/core/services/firestore_service.dart';
 import 'package:agenda/app_localizations.dart';
-import 'package:agenda/widgets/language_selector.dart';
-import 'package:agenda/widgets/confetti_animation.dart';
+import 'package:agenda/core/widgets/language_selector.dart';
+import 'package:agenda/core/widgets/confetti_animation.dart';
 
 class AguardandoAprovacaoView extends StatelessWidget {
   final DateTime dataCadastro;

@@ -1,60 +1,86 @@
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // --- Funções Auxiliares ---
     
-    // Verifica se o usuário está autenticado
     function estaLogado() {
       return request.auth != null;
     }
 
-    // Verifica se o usuário é o dono do documento (pelo ID do doc ou campo uid)
     function eDono(userId) {
       return estaLogado() && request.auth.uid == userId;
     }
 
-    // Verifica se o usuário é Admin (lendo o documento do usuário no banco)
-    // Nota: Isso custa uma leitura extra no banco.
-    // ALTERAÇÃO: Adicionado verificação por email hardcoded para segurança máxima
     function eAdmin() {
-      return estaLogado() && 
-        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.tipo == 'admin';
+      // Checa o tipo de usuário no documento dele. Custa 1 leitura.
+      return estaLogado() && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.tipo == 'admin';
     }
 
     // --- Regras das Coleções ---
 
-    // Usuários (Login)
+    // Usuários (Dados de login e tipo)
     match /usuarios/{userId} {
-      allow read: if eDono(userId) || eAdmin();
-      allow write: if eDono(userId) || eAdmin(); // Usuário atualiza seu token, Admin aprova
+      // Apenas o próprio usuário ou um admin podem ler e escrever seus dados.
+      allow read, write: if eDono(userId) || eAdmin();
     }
 
-    // Clientes (Dados Pessoais - LGPD Crítico)
+    // Clientes (Dados pessoais e sensíveis)
     match /clientes/{clienteId} {
-      allow read: if eDono(clienteId) || eAdmin();
-      allow write: if eDono(clienteId) || eAdmin();
+      // Apenas o próprio dono do perfil ou um admin podem acessar.
+      allow read, write: if eDono(clienteId) || eAdmin();
     }
 
-    // Agendamentos
+    // Agendamentos (Regra mais complexa e importante)
     match /agendamentos/{agendamentoId} {
-      // Admin vê tudo. Cliente vê apenas os seus (query deve filtrar por cliente_id)
-      allow read: if eAdmin() || (estaLogado() && resource.data.cliente_id == request.auth.uid);
+      // LEITURA:
+      // - 'get': Admin pode ler qualquer agendamento. Cliente só pode ler o seu.
+      allow get: if eAdmin() || (estaLogado() && resource.data.cliente_id == request.auth.uid);
+      // - 'list': Permite queries. Admin pode listar tudo. Cliente SÓ pode listar SE a query filtrar por seu próprio ID.
+      //   Isso impede um cliente de listar todos os agendamentos do sistema.
+      allow list: if eAdmin() || (estaLogado() && request.query.get('cliente_id') == request.auth.uid);
       
-      // Criar: Deve estar logado e o cliente_id deve ser o seu próprio UID
-      allow create: if estaLogado() && request.resource.data.cliente_id == request.auth.uid;
-      
-      // Atualizar: Admin aprova/recusa. Cliente pode cancelar ou avaliar.
-      allow update: if eAdmin() || (estaLogado() && resource.data.cliente_id == request.auth.uid);
+      // CRIAÇÃO:
+      // - Cliente deve estar logado e criando um agendamento para si mesmo.
+      // - Valida os campos para garantir a integridade dos dados na criação.
+      allow create: if estaLogado() 
+                    && request.resource.data.cliente_id == request.auth.uid
+                    && request.resource.data.dataHora is timestamp
+                    && request.resource.data.tipo is string
+                    && request.resource.data.status == 'pendente'; // Sempre começa como pendente
+
+      // ATUALIZAÇÃO:
+      // - Regra para o Cliente: Permite que o cliente atualize apenas campos específicos e seguros.
+      //   (Ex: cancelar, avaliar, mas não mudar o preço ou status para 'aprovado').
+      // - Regra para o Admin: Permite que o admin mude qualquer campo (Ex: aprovar/recusar status).
+      allow update: if (
+        eAdmin() || 
+        (
+          estaLogado() && resource.data.cliente_id == request.auth.uid && (
+            // Permite ao cliente cancelar (apenas o campo motivo e status)
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['motivoCancelamento', 'status'])) &&
+            (request.resource.data.status == 'cancelado' || request.resource.data.status == 'cancelado_tardio')
+          ) || (
+            // Permite ao cliente avaliar (apenas os campos de avaliação)
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avaliacao', 'comentarioAvaliacao'])
+          )
+        )
+      );
+
+      // Ninguém pode apagar agendamentos, apenas cancelar.
+      allow delete: if false;
     }
 
     // Configurações e Estoque
-    match /configuracoes/{document=**} {
-      allow read: if true; // Aberto para o app ler configurações
+    match /configuracoes/{docId} {
+      // APENAS usuários logados podem ler. Apenas Admins podem escrever.
+      allow read: if estaLogado();
       allow write: if eAdmin();
     }
     
     match /estoque/{itemId} {
+      // APENAS usuários logados podem ler. Apenas Admins podem escrever.
       allow read: if estaLogado();
       allow write: if eAdmin();
     }
@@ -62,7 +88,10 @@ service cloud.firestore {
     // Logs (Apenas Admin lê, sistema grava)
     match /logs/{logId} {
       allow read: if eAdmin();
-      allow create: if estaLogado(); // Qualquer um pode gerar log de ação
+      // RISCO: Permitir que o cliente escreva diretamente pode ser abusado (spam/custos).
+      // IDEAL: Logs devem ser escritos por Cloud Functions (ambiente seguro).
+      // Por enquanto, mantemos, mas com essa observação de segurança.
+      allow create: if estaLogado(); 
     }
     
     match /lgpd_logs/{logId} {

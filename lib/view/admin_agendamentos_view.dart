@@ -4,11 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'package:agenda/controller/firestore_service.dart';
+import 'package:agenda/core/services/firestore_service.dart';
 import 'package:agenda/controller/agendamento_model.dart';
-import 'package:agenda/usuario_model.dart';
+import 'package:agenda/core/models/usuario_model.dart';
 import 'package:agenda/controller/cliente_model.dart';
-import 'package:agenda/view/login_view.dart';
+import 'package:agenda/features/auth/view/login_view.dart';
 import 'package:agenda/view/admin_config_view.dart';
 import 'package:agenda/view/admin_estoque_view.dart';
 import 'package:agenda/view/admin_relatorios_view.dart';
@@ -16,9 +16,9 @@ import 'package:agenda/view/admin_logs_view.dart';
 import 'package:agenda/view/admin_lgpd_logs_view.dart';
 import 'package:agenda/view/dev_tools_view.dart';
 import 'package:agenda/view/admin_financeiro_view.dart';
-import 'package:agenda/widgets/language_selector.dart';
-import 'package:agenda/widgets/theme_selector.dart';
-import 'package:agenda/custom_theme_data.dart';
+import 'package:agenda/core/widgets/language_selector.dart';
+import 'package:agenda/core/widgets/theme_selector.dart';
+import 'package:agenda/core/utils/custom_theme_data.dart';
 
 class AdminAgendamentosView extends StatefulWidget {
   const AdminAgendamentosView({super.key});

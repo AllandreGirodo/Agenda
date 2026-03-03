@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../controller/login_controller.dart';
-import '../app_localizations.dart';
-import '../widgets/language_selector.dart';
+import 'package:agenda/features/auth/controller/login_controller.dart';
+import 'package:agenda/app_localizations.dart';
+import 'package:agenda/widgets/language_selector.dart';
 
 class SignUpView extends StatefulWidget {
   const SignUpView({super.key});

@@ -4,15 +4,15 @@ import 'dart:math'; // Para Random
 import 'package:flutter/services.dart'; // Import necessário para HapticFeedback
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import 'package:agenda/controller/firestore_service.dart';
+import 'package:agenda/core/services/firestore_service.dart';
 import 'package:agenda/controller/agendamento_model.dart';
-import 'package:agenda/controller/scheduling_service.dart';
-import 'package:agenda/view/login_view.dart';
-import 'package:agenda/view/perfil_view.dart';
+import 'package:agenda/core/services/scheduling_service.dart';
+import 'package:agenda/features/auth/view/login_view.dart';
+import 'package:agenda/features/perfil/view/perfil_view.dart';
 import 'package:agenda/controller/config_model.dart';
-import 'package:agenda/usuario_model.dart';
+import 'package:agenda/core/models/usuario_model.dart';
 import 'package:agenda/app_localizations.dart';
-import 'package:agenda/widgets/language_selector.dart';
+import 'package:agenda/core/widgets/language_selector.dart';
 import 'package:agenda/controller/cupom_model.dart';
 
 class AgendamentoView extends StatefulWidget {

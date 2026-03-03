@@ -55,11 +55,11 @@ flutter pub outdated
 flutter run
 cd /workspaces/Agenda/minha_app_flutter
 ls -l pubspec.yaml
-cd /workspaces/Agenda/agenda_horario/lib
+cd /workspaces/Agenda/lib
 ls -l pubspec.yaml
 cd..
 cd
-cd /workspaces/Agenda/agenda_horario/
+cd /workspaces/Agenda/
 ls -l pubspec.yaml
 flutter pub add firebase_core
 flutter run

@@ -160,6 +160,14 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
         title: Text(widget.titulo),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        actions: [
+          if (widget.telefoneWhatsapp != null && widget.telefoneWhatsapp!.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.whatsapp),
+              tooltip: AppStrings.chatIrWhatsapp,
+              onPressed: _abrirWhatsapp,
+            ),
+        ],
       ),
       body: Column(
         children: [

@@ -3,17 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:image_picker/image_picker.dart'; // Adicionar ao pubspec.yaml
-import 'package:firebase_storage/firebase_storage.dart'; // Adicionar ao pubspec.yaml
+import 'package:image_picker/image_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:intl/intl.dart';
-import '../controller/firestore_service.dart';
-import '../controller/cliente_model.dart';
-import '../controller/config_model.dart';
-import '../controller/agendamento_model.dart';
-import 'package:agenda/utils/validadores.dart';
-import 'login_view.dart';
-import 'app_strings.dart';
-import '../widgets/language_selector.dart';
+import 'package:agenda/core/services/firestore_service.dart';
+import 'package:agenda/controller/cliente_model.dart';
+import 'package:agenda/controller/config_model.dart';
+import 'package:agenda/features/agendamento/model/agendamento_model.dart';
+import 'package:agenda/core/utils/validadores.dart';
+import 'package:agenda/features/auth/view/login_view.dart';
+import 'package:agenda/core/utils/app_strings.dart';
+import 'package:agenda/core/widgets/language_selector.dart';
 
 class PerfilView extends StatefulWidget {
   const PerfilView({super.key});
@@ -54,23 +54,19 @@ class _PerfilViewState extends State<PerfilView> {
   Future<void> _carregarDados() async {
     if (_user == null) return;
 
-    // Carregar Configuração e Dados do Cliente em paralelo
     final results = await Future.wait([
       _firestoreService.getConfiguracao(),
-      _firestoreService.getCliente(_user.uid),
-      _firestoreService.getUsuario(_user.uid), // Fallback para nome/email
+      _firestoreService.getCliente(_user!.uid),
+      _firestoreService.getUsuario(_user!.uid),
     ]);
 
     _config = results[0] as ConfigModel;
     final cliente = results[1] as Cliente?;
-    final usuario = results[2]; // UsuarioModel
+    final usuario = results[2];
 
     if (cliente != null) {
       _nomeController.text = cliente.nome;
       _whatsappController.text = cliente.whatsapp;
-      // Assumindo que você adicionará 'cpf' e 'fotoUrl' ao seu ClienteModel
-      // _cpfController.text = cliente.cpf ?? '';
-      // _urlImagemRemota = cliente.fotoUrl;
       _enderecoController.text = cliente.endereco;
       _historicoController.text = cliente.historicoMedico;
       _alergiasController.text = cliente.alergias;
@@ -78,8 +74,6 @@ class _PerfilViewState extends State<PerfilView> {
       _cirurgiasController.text = cliente.cirurgias;
       _dataNascimento = cliente.dataNascimento;
     } else if (usuario != null) {
-      // Preencher dados básicos se o cliente ainda não existir na coleção 'clientes'
-      // (mas existir em 'usuarios')
       _nomeController.text = (usuario as dynamic).nome;
     }
 
@@ -99,13 +93,12 @@ class _PerfilViewState extends State<PerfilView> {
     return null;
   }
 
-  // Algoritmo de validação de CPF
   String? _validarCpf(String? value) {
     return Validadores.validarCpf(value, obrigatorio: _isObrigatorio('cpf'));
   }
 
   String? _validarCep(String? value) {
-    if (value == null || value.isEmpty) return null; // Opcional se não for obrigatório
+    if (value == null || value.isEmpty) return null;
     final cep = value.replaceAll(RegExp(r'[^0-9]'), '');
     if (cep.length != 8) return 'CEP inválido';
     return null;
@@ -113,7 +106,6 @@ class _PerfilViewState extends State<PerfilView> {
 
   Future<void> _buscarCep() async {
     final cep = _cepController.text.replaceAll(RegExp(r'[^0-9]'), '');
-    
     if (cep.length != 8) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Por favor, digite um CEP válido com 8 números.')),
@@ -133,8 +125,7 @@ class _PerfilViewState extends State<PerfilView> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('CEP não encontrado. Por favor, digite o endereço manualmente.')),
             );
-            // Não limpamos o campo de endereço para permitir que o usuário digite
-            _enderecoController.clear(); 
+            _enderecoController.clear();
           }
         } else {
           _enderecoController.text = '${data['logradouro']}, ${data['bairro']}, ${data['localidade']} - ${data['uf']}';
@@ -174,7 +165,6 @@ class _PerfilViewState extends State<PerfilView> {
 
     setState(() => _isLoading = true);
 
-    // Upload da imagem se houver nova seleção
     String? urlFinal = _urlImagemRemota;
     if (_imagemLocal != null) {
       try {
@@ -190,7 +180,6 @@ class _PerfilViewState extends State<PerfilView> {
       uid: _user!.uid,
       nome: _nomeController.text,
       whatsapp: _whatsappController.text,
-      // cpf: _cpfController.text, // Adicione este campo ao ClienteModel
       fotoUrl: urlFinal,
       endereco: _enderecoController.text,
       dataNascimento: _dataNascimento,
@@ -198,7 +187,7 @@ class _PerfilViewState extends State<PerfilView> {
       alergias: _alergiasController.text,
       medicamentos: _medicamentosController.text,
       cirurgias: _cirurgiasController.text,
-      anamneseOk: true, // Marca como preenchido
+      anamneseOk: true,
     );
 
     await _firestoreService.salvarCliente(cliente);
@@ -206,7 +195,7 @@ class _PerfilViewState extends State<PerfilView> {
     if (mounted) setState(() => _isLoading = false);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.profileUpdatedSuccess)),
+        const SnackBar(content: Text(AppStrings.profileUpdatedSuccess)),
       );
       Navigator.pop(context);
     }
@@ -216,17 +205,17 @@ class _PerfilViewState extends State<PerfilView> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(AppStrings.deleteAccountDialogTitle),
-        content: Text(AppStrings.deleteAccountDialogContent),
+        title: const Text(AppStrings.deleteAccountDialogTitle),
+        content: const Text(AppStrings.deleteAccountDialogContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(AppStrings.cancelButton),
+            child: const Text(AppStrings.cancelButton),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(context, true),
-            child: Text(AppStrings.deleteEverythingButton),
+            child: const Text(AppStrings.deleteEverythingButton),
           ),
         ],
       ),
@@ -235,11 +224,11 @@ class _PerfilViewState extends State<PerfilView> {
     if (confirm == true && mounted && _user != null) {
       setState(() => _isLoading = true);
       try {
-        await _firestoreService.anonimizarConta(_user.uid); // Anonimiza no Firestore
-        await _user.delete(); // Apaga do Authentication
+        await _firestoreService.anonimizarConta(_user!.uid);
+        await _user!.delete();
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.accountDeletedSuccess)));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(AppStrings.accountDeletedSuccess)));
           Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginView()), (route) => false);
         }
       } on FirebaseAuthException catch (e) {
@@ -264,20 +253,20 @@ class _PerfilViewState extends State<PerfilView> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(AppStrings.profileTitle),
+          title: const Text(AppStrings.profileTitle),
           backgroundColor: Colors.teal,
           foregroundColor: Colors.white,
           actions: [
             const LanguageSelector(),
             IconButton(icon: const Icon(Icons.save), onPressed: _salvar, tooltip: AppStrings.saveButton),
           ],
-          bottom: TabBar(
+          bottom: const TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.orange,
             tabs: [
-              Tab(icon: const Icon(Icons.person), text: AppStrings.dataTab),
-              Tab(icon: const Icon(Icons.history), text: AppStrings.historyTab),
+              Tab(icon: Icon(Icons.person), text: AppStrings.dataTab),
+              Tab(icon: Icon(Icons.history), text: AppStrings.historyTab),
             ],
           ),
         ),
@@ -297,21 +286,20 @@ class _PerfilViewState extends State<PerfilView> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text(AppStrings.personalDataTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
+            const Text(AppStrings.personalDataTitle, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
             const SizedBox(height: 10),
             
-            // Área da Foto de Perfil
             Center(
               child: Stack(
                 children: [
                   CircleAvatar(
                     radius: 50,
                     backgroundColor: Colors.grey.shade200,
-                    backgroundImage: _imagemBytes != null 
-                        ? MemoryImage(_imagemBytes!) 
+                    backgroundImage: _imagemBytes != null
+                        ? MemoryImage(_imagemBytes!)
                         : (_urlImagemRemota != null ? NetworkImage(_urlImagemRemota!) : null) as ImageProvider?,
-                    child: (_imagemBytes == null && _urlImagemRemota == null) 
-                        ? const Icon(Icons.person, size: 50, color: Colors.grey) 
+                    child: (_imagemBytes == null && _urlImagemRemota == null)
+                        ? const Icon(Icons.person, size: 50, color: Colors.grey)
                         : null,
                   ),
                   Positioned(
@@ -333,7 +321,7 @@ class _PerfilViewState extends State<PerfilView> {
 
             TextFormField(
               controller: _nomeController,
-              decoration: InputDecoration(labelText: AppStrings.fullNameLabel, border: const OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: AppStrings.fullNameLabel, border: OutlineInputBorder()),
               validator: (v) => v!.isEmpty ? AppStrings.requiredField : null,
             ),
             const SizedBox(height: 10),
@@ -371,7 +359,7 @@ class _PerfilViewState extends State<PerfilView> {
                 Expanded(
                   child: TextFormField(
                     controller: _cepController,
-                    decoration: InputDecoration(labelText: AppStrings.cepLabel, border: const OutlineInputBorder(), hintText: '00000-000'),
+                    decoration: const InputDecoration(labelText: AppStrings.cepLabel, border: OutlineInputBorder(), hintText: '00000-000'),
                     keyboardType: TextInputType.number,
                     validator: _validarCep,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(8)],
@@ -391,8 +379,8 @@ class _PerfilViewState extends State<PerfilView> {
             ),
             const SizedBox(height: 10),
             ListTile(
-              title: Text(_dataNascimento == null 
-                  ? '${AppStrings.birthDateLabel} ${_isObrigatorio('data_nascimento') ? '*' : ''}' 
+              title: Text(_dataNascimento == null
+                  ? '${AppStrings.birthDateLabel} ${_isObrigatorio('data_nascimento') ? '*' : ''}'
                   : '${AppStrings.birthDateLabel}: ${DateFormat('dd/MM/yyyy').format(_dataNascimento!)}'),
               trailing: const Icon(Icons.calendar_today),
               shape: RoundedRectangleBorder(side: const BorderSide(color: Colors.grey), borderRadius: BorderRadius.circular(4)),
@@ -407,7 +395,7 @@ class _PerfilViewState extends State<PerfilView> {
               },
             ),
             const SizedBox(height: 20),
-            Text(AppStrings.anamnesisTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
+            const Text(AppStrings.anamnesisTitle, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
             const SizedBox(height: 10),
             _buildAnamneseField(AppStrings.medicalHistoryLabel, 'historico_medico', _historicoController),
             _buildAnamneseField(AppStrings.allergiesLabel, 'alergias', _alergiasController),
@@ -420,7 +408,7 @@ class _PerfilViewState extends State<PerfilView> {
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: TextButton.icon(
                 icon: const Icon(Icons.delete_forever, color: Colors.red),
-                label: Text(AppStrings.deleteAccountButton, style: const TextStyle(color: Colors.red)),
+                label: const Text(AppStrings.deleteAccountButton, style: TextStyle(color: Colors.red)),
                 onPressed: _excluirConta,
               ),
             ),
@@ -433,13 +421,13 @@ class _PerfilViewState extends State<PerfilView> {
     if (_user == null) return const Center(child: Text('Usuário não identificado'));
 
     return StreamBuilder<List<Agendamento>>(
-      stream: _firestoreService.getAgendamentosDoCliente(_user.uid),
+      stream: _firestoreService.getAgendamentosDoCliente(_user!.uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
         if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(child: Text(AppStrings.noAppointmentsFound));
+          return const Center(child: Text(AppStrings.noAppointmentsFound));
         }
 
         final agendamentos = snapshot.data!;
@@ -450,9 +438,8 @@ class _PerfilViewState extends State<PerfilView> {
             final agendamento = agendamentos[index];
             final dataFormatada = DateFormat('dd/MM/yyyy HH:mm').format(agendamento.dataHora);
             
-            // Verifica se pode cancelar (não recusado/cancelado e data futura)
-            final bool podeCancelar = agendamento.status != 'recusado' && 
-                                      agendamento.status != 'cancelado' && 
+            final bool podeCancelar = agendamento.status != 'recusado' &&
+                                      agendamento.status != 'cancelado' &&
                                       agendamento.status != 'cancelado_tardio' &&
                                       agendamento.dataHora.isAfter(DateTime.now());
             
@@ -463,7 +450,7 @@ class _PerfilViewState extends State<PerfilView> {
                 title: Text(dataFormatada),
                 subtitle: Text('Status: ${agendamento.status.toUpperCase()}${agendamento.motivoCancelamento != null ? '\nMotivo: ${agendamento.motivoCancelamento}' : ''}'),
                 isThreeLine: agendamento.motivoCancelamento != null,
-                trailing: podeCancelar 
+                trailing: podeCancelar
                     ? IconButton(
                         icon: const Icon(Icons.delete_forever, color: Colors.red),
                         tooltip: 'Cancelar Agendamento',
@@ -478,14 +465,12 @@ class _PerfilViewState extends State<PerfilView> {
     );
   }
 
-  // Lógica de Cancelamento (Similar à AgendamentoView)
   Future<void> _iniciarCancelamento(Agendamento agendamento) async {
     _config ??= await _firestoreService.getConfiguracao();
     
     final agora = DateTime.now();
     final dataAgendamento = agendamento.dataHora;
 
-    // Cálculo de horas válidas (descontando sono configurado)
     int minutosValidos = 0;
     DateTime cursor = agora;
     
@@ -512,7 +497,6 @@ class _PerfilViewState extends State<PerfilView> {
 
     if (!mounted) return;
 
-    // Exibir diálogo
     final motivoController = TextEditingController();
     
     showDialog(
@@ -534,7 +518,7 @@ class _PerfilViewState extends State<PerfilView> {
                   ),
                 ),
               const SizedBox(height: 10),
-              Text(AppStrings.cancellationReasonLabel),
+              const Text(AppStrings.cancellationReasonLabel),
               TextField(
                 controller: motivoController,
                 decoration: const InputDecoration(hintText: 'Ex: Imprevisto de saúde'),
@@ -543,7 +527,7 @@ class _PerfilViewState extends State<PerfilView> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(AppStrings.cancelButton)),
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text(AppStrings.cancelButton)),
             ElevatedButton(
               onPressed: () async {
                 if (motivoController.text.isEmpty) return;
@@ -554,7 +538,7 @@ class _PerfilViewState extends State<PerfilView> {
                 await _firestoreService.cancelarAgendamento(agendamento.id!, motivoFinal, status);
                 if (dialogContext.mounted) Navigator.pop(dialogContext);
               },
-              child: Text(AppStrings.confirmCancellationButton),
+              child: const Text(AppStrings.confirmCancellationButton),
             ),
           ],
         );

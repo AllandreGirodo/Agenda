@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:agenda/view/app_strings.dart';
-import 'package:agenda/view/app_styles.dart';
-import 'package:agenda/view/login_view.dart';
+import 'package:agenda/core/utils/app_strings.dart';
+import 'package:agenda/core/utils/app_styles.dart';
+import 'package:agenda/features/auth/view/login_view.dart';
 import 'package:lottie/lottie.dart';
 
 class OnboardingView extends StatefulWidget {
