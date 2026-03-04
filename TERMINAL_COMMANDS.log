@@ -1,97 +1,218 @@
-npm install -g firebase-tools
-npm get prefix
-echo 'export PATH="$(npm get prefix)/bin:$PATH"' >> ~/.bashrc
-source ~/.bashrc
-firebase --version
-npm get prefix
-echo $PATH | grep -o '[^:]*firebase[^:]*'
-export PATH="$(npm get prefix)/bin:$PATH"
-printenv PATH
-printenv HOME
-printenv USER
-fire base login
-firebase login
-firebase login --no-localhost
-firebase login
-firebase login --no-localhost
-flutter pub add firebase_core
-dart pub global activate flutterfire_cli
-flutter upgrade --force
-cd /workspaces/Agenda/ && flutter devices
-cd /workspaces/Agenda/ && flutter devicescd /workspaces/Agenda/
-flutter config --enable-web
-flutter config --enable-web
-flutter run
-sudo apt update && sudo apt install -y chromium-browser
-history | sed 's/\s*[0-9]*\s*//' > /workspaces/Agenda/TERMINAL_COMMANDS.log
-dart pub global activate flutterfire_cli
+# ==============================================================================
+# Chronological sequence of commands used in the project
+# ==============================================================================
+# --- Comandos Principais para Configuração e Build do Projeto ---
+ 
+# ------------------------------------------------------------------------------
+# 1. Install Firebase and FlutterFire CLIs
+# ------------------------------------------------------------------------------
+# 1. Instalação e configuração de ferramentas
+ npm install -g firebase-tools
+ dart pub global activate flutterfire_cli
+ 
+# ------------------------------------------------------------------------------
+# 2. Set up PATH environment variables (example for bash)
+# Note: You might need to add these to your shell profile file (e.g., ~/.bashrc)
+# and then reload your shell (e.g., source ~/.bashrc).
+# ------------------------------------------------------------------------------
+# For firebase-tools:
+export PATH="$PATH":"$(npm get prefix)/bin"
+# For flutterfire_cli:
 export PATH="$PATH":"$HOME/.pub-cache/bin"
-echo 'export PATH="$(npm get prefix)/bin:$PATH"' >> ~/.bashrc
-export PATH="$PATH":"$HOME/.pub-cache/bin"
-# Windows (PowerShell/CMD) ou em WSL/bash:
-export AGENDA_ROOT="C:\Users\Allandre Girodo\Documents\TCC\Agenda"
-# ou no Linux/WSL:
-export AGENDA_ROOT="/mnt/c/Users/Allandre Girodo/Documents/TCC/Agenda"
-echo 'export PATH="$(npm get prefix)/bin:$PATH"' >> ~/.bashrc
-dart pub global activate flutterfire_cli
-echo 'export PATH="$(npm get prefix)/bin:$PATH"' >> ~/.bashrc
-dart pub global activate flutterfire_cli
-export AGENDA_ROOT="/mnt/c/Users/Allandre Girodo/Documents/TCC/Agenda"
-export PATH="$(npm get prefix)/bin:$PATH"
-dart pub global activate flutterfire_cli
+# Adicionar o cache de pacotes do Dart ao PATH (necessário em alguns shells)
+# Execute este comando se o flutterfire não for encontrado:
+# export PATH="$PATH":"$HOME/.pub-cache/bin"
+ 
+# ------------------------------------------------------------------------------
+# 3. Login to Firebase
+# The --no-localhost flag is useful in cloud environments like this one.
+# ------------------------------------------------------------------------------
+# 2. Login no Firebase
+# O login pode exigir autenticação em um navegador. A flag --no-localhost é útil em ambientes remotos.
+ firebase login --no-localhost
+ 
+# ------------------------------------------------------------------------------
+# 4. Configure the Flutter project
+# Run these commands from the project root directory (/workspaces/Agenda)
+# ------------------------------------------------------------------------------
+# Enable web support
+# 3. Configuração do projeto Flutter
+# Ativa o suporte para a plataforma Web
+ flutter config --enable-web
+ 
+# Generate platform-specific files (if missing) for web, linux, etc.
+# Adiciona as plataformas faltantes (Linux, Web, etc.) ao projeto existente no diretório atual
+ flutter create .
+ 
+# ------------------------------------------------------------------------------
+# 5. Install system dependencies for building
+# (for Debian/Ubuntu-based systems)
+# ------------------------------------------------------------------------------
+sudo apt update && sudo apt install -y chromium-browser ninja-build
+
+# ------------------------------------------------------------------------------
+# 6. Add Firebase dependencies to your Flutter project
+# ------------------------------------------------------------------------------
+# 4. Adicionar dependências do Firebase ao projeto Flutter
+ flutter pub add firebase_core
+ flutter pub add cloud_firestore
+ flutter pub add firebase_messaging
+ 
+# ------------------------------------------------------------------------------
+# 7. Manage project dependencies
+# ------------------------------------------------------------------------------
+# 5. Sincronizar/Atualizar dependências do projeto
+ flutter pub get
+flutter pub outdated
+ flutter pub upgrade
+# To force upgrade to latest versions:
+# flutter pub upgrade --major-versions
+ 
+# To force framework upgrade:
 flutter upgrade --force
-dart pub global activate flutterfire_cli
-history | sed 's/\s*[0-9]*\s*//' > /workspaces/Agenda/TERMINAL_COMMANDS.log
-flutter pub add firebase_core
-cd /workspaces/Agenda
-flutter create .
-cd /workspaces/Agenda
-flutter create .
-flutter create agenda
-flutter config --jdk-dir=<JDK_DIRECTORY>
-cd agenda
+# 6. Executar o projeto (ex: no navegador Chrome)
+# Pode ser necessário instalar um navegador antes: sudo apt update && sudo apt install -y chromium-browser
+flutter run -d chrome
+ 
+# ------------------------------------------------------------------------------
+# 8. Run and Build the application
+# ------------------------------------------------------------------------------
 flutter run
-flutter pub outdated
-flutter run
-cd /workspaces/Agenda/minha_app_flutter
-ls -l pubspec.yaml
-cd /workspaces/Agenda/lib
-ls -l pubspec.yaml
-cd..
-cd
-cd /workspaces/Agenda/
-ls -l pubspec.yaml
-flutter pub add firebase_core
-flutter run
-cd /workspaces/Agenda/
+# 7. Build do projeto para diferentes plataformas
+ flutter build web
+ flutter build apk --release
+ 
+# ------------------------------------------------------------------------------
+# 9. Other commands used
+# ------------------------------------------------------------------------------
+# Clean the project
 flutter clean
-flutter run
-flutter clean
-history | sed 's/\s*[0-9]*\s*//' > /workspaces/Agenda/TERMINAL_COMMANDS.log
-flutter pub get
-flutter pub add firebase_core
-flutter pub add cloud_firestore
-flutter pub outdated
-flutter pub add firebase_core
-flutter pub add cloud_firestore
-flutter run
-flutter pub add cloud_firestore
-flutter pub outdated
-flutter pub upgrade --dry-run
-flutter pub upgrade
-flutter pub upgrade --major-versions
-flutter run
-sudo apt install ninja-build
-flutter build web
-flutter pub add firebase_messaging
-flutter build web
-flutter pub add firebase_messaging
-flutter build apk --release
-firebase init hosting
-firebase login
-firebase init
-flutter run
-cd adenda_horario
-cd agenda_horario
-flutter run
-history | sed 's/\s*[0-9]*\s*//' > /workspaces/Agenda/TERMINAL_COMMANDS.log
+
+# Initialize Firebase features in the project (e.g., Hosting)
+# 8. Inicializar o Firebase no projeto (para features como Hosting)
+ firebase init
+ 
+ 
+# ==============================================================================
+# Unused context and notes from chat history
+# ==============================================================================
+# --- Comandos Adicionais e de Diagnóstico (Comandos úteis para manutenção) ---
+ 
+# ------------------------------------------------------------------------------
+# Manual Firebase Setup for Android (from Firebase documentation)
+# File: android/build.gradle.kts (project level)
+# ------------------------------------------------------------------------------
+# plugins {
+#   // ...
+#
+#   // Add the dependency for the Google services Gradle plugin
+#   id("com.google.gms.google-services") version "4.4.4" apply false
+#
+# }
+# Limpar arquivos de build do projeto
+# flutter clean
+ 
+# ------------------------------------------------------------------------------
+# File: android/app/build.gradle.kts (app level)
+# ------------------------------------------------------------------------------
+# plugins {
+#   id("com.android.application")
+#
+#   // Add the Google services Gradle plugin
+#   id("com.google.gms.google-services")
+#
+#   ...
+# }
+#
+# dependencies {
+#   // Import the Firebase BoM
+#   implementation(platform("com.google.firebase:firebase-bom:34.9.0"))
+#
+#
+#   // TODO: Add the dependencies for Firebase products you want to use
+#   // When using the BoM, don't specify versions in Firebase dependencies
+#   implementation("com.google.firebase:firebase-analytics")
+#
+#
+#   // Add the dependencies for any other desired Firebase products
+#   // https://firebase.google.com/docs/android/setup#available-libraries
+# }
+# Checar por dependências desatualizadas
+# flutter pub outdated
+ 
+# Forçar uma atualização do SDK do Flutter
+# flutter upgrade --force
+ 
+# ------------------------------------------------------------------------------
+# Manual Firebase Setup for iOS (from Firebase documentation)
+# Using Swift Package Manager
+# ------------------------------------------------------------------------------
+# 1. In Xcode, with your project open, navigate to File > Add Packages.
+# 2. When prompted, add the Firebase SDK repository:
+#    https://github.com/firebase/firebase-ios-sdk
+# 3. Select the SDK version.
+# 4. Choose the Firebase libraries to use (e.g., FirebaseAnalytics).
+# Listar dispositivos conectados
+# flutter devices
+ 
+# Instalar dependências de build para Linux (se necessário)
+# sudo apt install ninja-build
+ 
+# ------------------------------------------------------------------------------
+# Firebase Initialization code for iOS (from Firebase documentation)
+# Add this to your main app entry point.
+# File: ios/Runner/AppDelegate.swift (or similar)
+# ------------------------------------------------------------------------------
+# import SwiftUI
+# import FirebaseCore
+#
+#
+# class AppDelegate: NSObject, UIApplicationDelegate {
+#   func application(_ application: UIApplication,
+#                    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+#     FirebaseApp.configure()
+#
+#     return true
+#   }
+# }
+#
+# @main
+# struct YourApp: App {
+#   // register app delegate for Firebase setup
+#   @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+#
+#
+#   var body: some Scene {
+#     WindowGroup {
+#       NavigationView {
+#         ContentView()
+#       }
+#     }
+#   }
+# }
+
+# --- Histórico de Comandos Descartados, com Erros ou Redundantes ---
+
+# Tentativa de login com erro de digitação
+# fire base login
+
+# Tentativas repetidas de login
+# firebase login
+
+# Duplicação de comandos de configuração e ativação
+# flutter config --enable-web
+# dart pub global activate flutterfire_cli
+
+# Definição de variáveis de ambiente (específicas da sessão)
+# export PATH="$(npm get prefix)/bin:$PATH"
+# export AGENDA_ROOT="/mnt/c/Users/Allandre Girodo/Documents/TCC/Agenda"
+
+# Comandos de navegação e listagem de arquivos
+# cd /workspaces/Agenda
+# ls -l pubspec.yaml
+
+# Criação de um novo projeto (não aplicado, pois o projeto já existia)
+# flutter create agenda
+
+# Geração do próprio log de comandos
+# history | sed 's/\s*[0-9]*\s*//' > /workspaces/Agenda/TERMINAL_COMMANDS.log

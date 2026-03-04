@@ -46,3 +46,5 @@ app.*.map.json
 
 # Credenciais e variáveis de ambiente
 .env
+google-services.json
+GoogleService-Info.plist
