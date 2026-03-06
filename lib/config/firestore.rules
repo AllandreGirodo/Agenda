@@ -1,0 +1,102 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Funções Auxiliares ---
+    
+    function estaLogado() {
+      return request.auth != null;
+    }
+
+    function eDono(userId) {
+      return estaLogado() && request.auth.uid == userId;
+    }
+
+    function eAdmin() {
+      // Checa o tipo de usuário no documento dele. Custa 1 leitura.
+      return estaLogado() && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.tipo == 'admin';
+    }
+
+    // --- Regras das Coleções ---
+
+    // Usuários (Dados de login e tipo)
+    match /usuarios/{userId} {
+      // Apenas o próprio usuário ou um admin podem ler e escrever seus dados.
+      allow read, write: if eDono(userId) || eAdmin();
+    }
+
+    // Clientes (Dados pessoais e sensíveis)
+    match /clientes/{clienteId} {
+      // Apenas o próprio dono do perfil ou um admin podem acessar.
+      allow read, write: if eDono(clienteId) || eAdmin();
+    }
+
+    // Agendamentos (Regra mais complexa e importante)
+    match /agendamentos/{agendamentoId} {
+      // LEITURA:
+      // - 'get': Admin pode ler qualquer agendamento. Cliente só pode ler o seu.
+      allow get: if eAdmin() || (estaLogado() && resource.data.cliente_id == request.auth.uid);
+      // - 'list': Permite queries. Admin pode listar tudo. Cliente SÓ pode listar SE a query filtrar por seu próprio ID.
+      //   Isso impede um cliente de listar todos os agendamentos do sistema.
+      allow list: if eAdmin() || (estaLogado() && request.query.get('cliente_id') == request.auth.uid);
+      
+      // CRIAÇÃO:
+      // - Cliente deve estar logado e criando um agendamento para si mesmo.
+      // - Valida os campos para garantir a integridade dos dados na criação.
+      allow create: if estaLogado() 
+                    && request.resource.data.cliente_id == request.auth.uid
+                    && request.resource.data.dataHora is timestamp
+                    && request.resource.data.tipo is string
+                    && request.resource.data.status == 'pendente'; // Sempre começa como pendente
+
+      // ATUALIZAÇÃO:
+      // - Regra para o Cliente: Permite que o cliente atualize apenas campos específicos e seguros.
+      //   (Ex: cancelar, avaliar, mas não mudar o preço ou status para 'aprovado').
+      // - Regra para o Admin: Permite que o admin mude qualquer campo (Ex: aprovar/recusar status).
+      allow update: if (
+        eAdmin() || 
+        (
+          estaLogado() && resource.data.cliente_id == request.auth.uid && (
+            // Permite ao cliente cancelar (apenas o campo motivo e status)
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['motivoCancelamento', 'status'])) &&
+            (request.resource.data.status == 'cancelado' || request.resource.data.status == 'cancelado_tardio')
+          ) || (
+            // Permite ao cliente avaliar (apenas os campos de avaliação)
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avaliacao', 'comentarioAvaliacao'])
+          )
+        )
+      );
+
+      // Ninguém pode apagar agendamentos, apenas cancelar.
+      allow delete: if false;
+    }
+
+    // Configurações e Estoque
+    match /configuracoes/{docId} {
+      // APENAS usuários logados podem ler. Apenas Admins podem escrever.
+      allow read: if estaLogado();
+      allow write: if eAdmin();
+    }
+    
+    match /estoque/{itemId} {
+      // APENAS usuários logados podem ler. Apenas Admins podem escrever.
+      allow read: if estaLogado();
+      allow write: if eAdmin();
+    }
+    
+    // Logs (Apenas Admin lê, sistema grava)
+    match /logs/{logId} {
+      allow read: if eAdmin();
+      // RISCO: Permitir que o cliente escreva diretamente pode ser abusado (spam/custos).
+      // IDEAL: Logs devem ser escritos por Cloud Functions (ambiente seguro).
+      // Por enquanto, mantemos, mas com essa observação de segurança.
+      allow create: if estaLogado(); 
+    }
+    
+    match /lgpd_logs/{logId} {
+      allow read: if eAdmin();
+      allow create: if estaLogado();
+    }
+  }
+}

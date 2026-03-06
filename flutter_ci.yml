@@ -1,0 +1,108 @@
+name: Flutter CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test_and_build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📚 Checkout do código
+        uses: actions/checkout@v4
+
+      - name: ☕ Configurar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 🐦 Configurar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+          channel: 'stable'
+          cache: true
+
+      - name: 📦 Instalar dependências
+        run: flutter pub get
+
+      - name: 📝 Criar .env.dev (Mock para Testes)
+        run: |
+          echo "ENV=dev" > .env.dev
+          echo "DB_ADMIN_PASSWORD=mock" >> .env.dev
+          echo "ADMIN_EMAIL=mock@test.com" >> .env.dev
+          echo "FCM_SERVER_KEY=mock" >> .env.dev
+
+      - name: 🧪 Executar Testes com Verificação de Cobertura
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lcov
+          flutter test --coverage
+          
+          # Gera resumo e extrai a porcentagem
+          lcov --summary coverage/lcov.info
+          COVERAGE=$(lcov --summary coverage/lcov.info | grep "lines......" | cut -d ':' -f 2 | cut -d '%' -f 1 | xargs)
+          echo "Cobertura Atual: $COVERAGE%"
+          
+          # Verifica se é menor que 80%
+          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            echo "❌ Erro: Cobertura de testes abaixo de 80%!"
+            exit 1
+          fi 
+
+      - name: 🏷️ Atualizar Badge no README
+        if: github.ref == 'refs/heads/main'
+        run: |
+          # Define a cor baseada na cobertura
+          COLOR="red"
+          if (( $(echo "$COVERAGE >= 90" | bc -l) )); then
+            COLOR="brightgreen"
+          elif (( $(echo "$COVERAGE >= 80" | bc -l) )); then
+            COLOR="green"
+          elif (( $(echo "$COVERAGE >= 60" | bc -l) )); then
+            COLOR="yellow"
+          fi
+          
+          # Substitui a linha do badge no README usando sed
+          sed -i "s/Coverage-.*-.*)/Coverage-${COVERAGE}%25-${COLOR})/" README.md
+          
+          # Configura git e commita se houver mudanças
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add README.md
+          git commit -m "docs: update coverage badge to $COVERAGE%" || echo "No changes to commit"
+          git push
+
+      - name: 📝 Criar .env.prod (Secrets)
+        # Apenas roda o build se for na branch main (evita gastar recursos em PRs simples ou expor secrets desnecessariamente)
+        if: github.ref == 'refs/heads/main'
+        env:
+          ENV_PROD_CONTENT: ${{ secrets.ENV_PROD_FILE }}
+        run: |
+          echo "$ENV_PROD_CONTENT" > .env.prod
+
+      - name: 🚀 Build APK (Produção)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          chmod +x build_prod.sh
+          ./build_prod.sh
+
+      - name: 📤 Upload do APK como Artefato
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+      
+      - name: 🔥 Upload para Firebase App Distribution
+        if: github.ref == 'refs/heads/main'
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID_ANDROID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          groups: testers # Crie este grupo no painel do Firebase App Distribution
+          file: build/app/outputs/flutter-apk/app-release.apk
