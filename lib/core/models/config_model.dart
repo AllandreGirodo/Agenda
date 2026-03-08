@@ -1,6 +1,6 @@
 class ConfigModel {
   final Map<String, bool> camposObrigatorios;
-  final int horasAntecedenciaCancelamento;
+  final double horasAntecedenciaCancelamento;
   final int inicioSono; // Hora inteira (0-23)
   final int fimSono; // Hora inteira (0-23)
   final double precoSessao;
@@ -11,7 +11,7 @@ class ConfigModel {
 
   ConfigModel({
     required this.camposObrigatorios,
-    this.horasAntecedenciaCancelamento = 24,
+    this.horasAntecedenciaCancelamento = 24.0,
     this.inicioSono = 22, // 22:00
     this.fimSono = 6, // 06:00
     this.precoSessao = 100.0,
@@ -52,7 +52,7 @@ class ConfigModel {
       camposObrigatorios: map['campos_obrigatorios'] != null
           ? Map<String, bool>.from(map['campos_obrigatorios'])
           : padrao,
-      horasAntecedenciaCancelamento: map['horas_antecedencia_cancelamento'] ?? 24,
+      horasAntecedenciaCancelamento: (map['horas_antecedencia_cancelamento'] ?? 24).toDouble(),
       inicioSono: map['inicio_sono'] ?? 22,
       fimSono: map['fim_sono'] ?? 6,
       precoSessao: (map['preco_sessao'] ?? 100).toDouble(),
@@ -61,5 +61,10 @@ class ConfigModel {
       statusCampoCupom: map['status_campo_cupom'] ?? 1,
       reciboLeitura: map['recibo_leitura'] ?? true,
     );
+  }
+
+  // Factory para criar uma instância vazia/padrão (útil para evitar null safety issues)
+  factory ConfigModel.empty() {
+    return ConfigModel(camposObrigatorios: padrao);
   }
 }

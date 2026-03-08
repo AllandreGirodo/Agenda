@@ -1,108 +1,190 @@
 openapi: 3.0.0
 info:
-  title: Agenda Massoterapia - Firestore API
-  description: Documentação da estrutura de dados do Firestore acessível via REST API.
+  title: API Agenda Massoterapia
+  description: Documentação da API de Agendamento de Clientes para Massoterapia (Firestore)
   version: 1.0.0
 servers:
   - url: https://firestore.googleapis.com/v1/projects/{projectId}/databases/(default)/documents
-    description: Google Firestore REST API
+    description: Firebase Firestore REST API
     variables:
       projectId:
         default: agenda-massoterapia-tcc
-        description: ID do projeto no Firebase
 
 paths:
-  /agendamentos:
+  /clientes:
     get:
-      summary: Listar Agendamentos
-      description: Retorna a lista de agendamentos.
+      summary: Lista todos os clientes
+      tags: [Clientes]
       responses:
         '200':
           description: Sucesso
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  documents:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Agendamento'
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cliente'
     post:
-      summary: Criar Agendamento
+      summary: Cria um novo cliente
+      tags: [Clientes]
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AgendamentoInput'
+              $ref: '#/components/schemas/Cliente'
+      responses:
+        '201':
+          description: Cliente criado
+
+  /agendamentos:
+    get:
+      summary: Lista agendamentos
+      tags: [Agendamentos]
       responses:
         '200':
-          description: Agendamento criado
+          description: Lista de agendamentos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Agendamento'
+    post:
+      summary: Cria um novo agendamento
+      tags: [Agendamentos]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Agendamento'
+      responses:
+        '201':
+          description: Agendamento criado com sucesso
 
   /transacoes_financeiras:
     get:
-      summary: Listar Transações
+      summary: Lista transações financeiras
+      tags: [Financeiro]
       responses:
         '200':
-          description: Lista de transações financeiras
+          description: Histórico financeiro
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TransacaoFinanceira'
 
 components:
   schemas:
+    Cliente:
+      type: object
+      properties:
+        idCliente:
+          type: string
+          description: UID do usuário no Firebase Auth
+        nomeCliente:
+          type: string
+        whatsappCliente:
+          type: string
+        saldoSessoesCliente:
+          type: integer
+          default: 0
+        dataNascimentoCliente:
+          type: string
+          format: date-time
+        favoritosCliente:
+          type: array
+          items:
+            type: string
+        enderecoCliente:
+          type: string
+        historicoMedicoCliente:
+          type: string
+        alergiasCliente:
+          type: string
+        medicamentosCliente:
+          type: string
+        cirurgiasCliente:
+          type: string
+        anamneseOkCliente:
+          type: boolean
+
     Agendamento:
       type: object
       properties:
-        name:
+        idAgendamento:
           type: string
-          description: Caminho do documento (projects/.../documents/agendamentos/{id})
-        fields:
-          type: object
-          properties:
-            cliente_id:
-              type: object
-              properties:
-                stringValue: { type: string }
-            data_hora:
-              type: object
-              properties:
-                timestampValue: { type: string, format: date-time }
-            status:
-              type: object
-              properties:
-                stringValue: { type: string, enum: [pendente, aprovado, recusado, cancelado] }
-            cliente_nome_snapshot:
-              type: object
-              properties:
-                stringValue: { type: string, description: "Snapshot do nome para integridade histórica" }
+          readOnly: true
+        idCliente:
+          type: string
+        dataHoraAgendamento:
+          type: string
+          format: date-time
+        tipoAgendamento:
+          type: string
+          description: Tipo de serviço (ex: Massagem Relaxante)
+        statusAgendamento:
+          type: string
+          enum: [pendente, aprovado, recusado, cancelado]
+        motivoCancelamentoAgendamento:
+          type: string
+        listaEsperaAgendamento:
+          type: array
+          items:
+            type: string
+            description: UIDs de clientes na fila
+        dataCriacaoAgendamento:
+          type: string
+          format: date-time
+        nomeClienteSnapshot:
+          type: string
+          description: Nome do cliente no momento do agendamento (Histórico)
+        telefoneClienteSnapshot:
+          type: string
+        avaliacaoAgendamento:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comentarioAvaliacaoAgendamento:
+          type: string
+        cupomAplicadoAgendamento:
+          type: string
+        valorOriginalAgendamento:
+          type: number
+          format: double
+        valorFinalAgendamento:
+          type: number
+          format: double
 
-    AgendamentoInput:
+    TransacaoFinanceira:
       type: object
       properties:
-        fields:
-          type: object
-          properties:
-            cliente_id:
-              type: object
-              properties:
-                stringValue: { type: string }
-            data_hora:
-              type: object
-              properties:
-                timestampValue: { type: string, format: date-time }
-            status:
-              type: object
-              properties:
-                stringValue: { type: string, default: "pendente" }
-            cliente_nome_snapshot:
-              type: object
-              properties:
-                stringValue: { type: string }
-
-  securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-
-security:
-  - BearerAuth: []
+        idTransacao:
+          type: string
+        idAgendamento:
+          type: string
+        idCliente:
+          type: string
+        valorBrutoTransacao:
+          type: number
+          format: double
+        valorDescontoTransacao:
+          type: number
+          format: double
+        valorLiquidoTransacao:
+          type: number
+          format: double
+        metodoPagamentoTransacao:
+          type: string
+          enum: [pix, dinheiro, cartao, pacote]
+        statusPagamentoTransacao:
+          type: string
+          enum: [pendente, pago, estornado]
+        dataPagamentoTransacao:
+          type: string
+          format: date-time
+        idUsuarioCriador:
+          type: string

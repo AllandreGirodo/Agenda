@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui'; // Necessário para PointMode
 import 'package:flutter/material.dart';
+import 'package:agenda/core/utils/custom_theme_data.dart';
 import 'package:sensors_plus/sensors_plus.dart';
-import 'package:agenda/custom_theme_data.dart';
 
 class AnimatedBackground extends StatefulWidget {
   final AppThemeType themeType;
@@ -301,7 +301,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
       for (int i = 0; i < 40; i++) {
         _hearts.add(_Heart(
           x: _random.nextDouble(),
-          y: _random.nextDouble(),
+          y: 1.1 + _random.nextDouble() * 0.2,
           size: 10 + _random.nextDouble() * 15,
           speed: 0.002 + _random.nextDouble() * 0.003,
           color: Colors.pinkAccent.withValues(alpha: 0.6 + _random.nextDouble() * 0.4),

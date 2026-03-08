@@ -18,6 +18,10 @@ class Agendamento {
   final double? valorOriginal;
   final double? valorFinal;
 
+  // Getters de compatibilidade para evitar erros no FirestoreService
+  String get idCliente => clienteId;
+  String? get nomeClienteSnapshot => clienteNomeSnapshot;
+
   Agendamento({
     this.id,
     required this.clienteId,

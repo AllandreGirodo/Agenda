@@ -4,7 +4,7 @@
 
 // import 'package:flutter_test/flutter_test.dart';
 
-import 'package:agenda/utils/app_strings.dart';
+import 'package:agenda/view/app_strings.dart';
 
 // --- TAG DE AMBIENTE ---
 const bool kModoTeste = true;

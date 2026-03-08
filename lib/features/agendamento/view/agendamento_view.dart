@@ -5,15 +5,16 @@ import 'package:flutter/services.dart'; // Import necessário para HapticFeedbac
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:agenda/core/services/firestore_service.dart';
-import 'package:agenda/controller/agendamento_model.dart';
+import 'package:agenda/core/models/agendamento_model.dart';
 import 'package:agenda/core/services/scheduling_service.dart';
 import 'package:agenda/features/auth/view/login_view.dart';
 import 'package:agenda/features/perfil/view/perfil_view.dart';
-import 'package:agenda/controller/config_model.dart';
+import 'package:agenda/core/models/config_model.dart';
+import 'package:agenda/core/models/cupom_model.dart';
 import 'package:agenda/core/models/usuario_model.dart';
-import 'package:agenda/app_localizations.dart';
 import 'package:agenda/core/widgets/language_selector.dart';
-import 'package:agenda/controller/cupom_model.dart';
+import 'package:agenda/app_localizations.dart';
+import 'package:agenda/features/perfil/models/cliente_model.dart';
 
 class AgendamentoView extends StatefulWidget {
   const AgendamentoView({super.key});
@@ -247,7 +248,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
   Widget _buildFilters(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(8.0),
-      color: Theme.of(context).cardColor.withValues(alpha: 0.5),
+      color: Theme.of(context).cardColor.withOpacity(0.5),
       child: Row(
         children: [
           Expanded(
@@ -259,7 +260,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                 contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.7),
+                fillColor: Colors.white.withOpacity(0.7),
               ),
               onChanged: (val) => setState(() => _filtroTexto = val),
             ),
@@ -284,7 +285,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: _filtroData != null ? Colors.teal : Colors.white.withValues(alpha: 0.7),
+                color: _filtroData != null ? Colors.teal : Colors.white.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
@@ -344,8 +345,8 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) return const LinearProgressIndicator();
                       final tipos = snapshot.data![0] as List<String>;
-                      final cliente = snapshot.data![1] as dynamic; 
-                      final favoritos = cliente != null ? (cliente.favoritos as List<String>) : <String>[];
+                      final cliente = snapshot.data![1] as Cliente?;
+                      final favoritos = cliente?.favoritos ?? <String>[];
 
                       // Verifica se o tipo selecionado é favorito
                       final isFavorite = _tipoSelecionado != null && favoritos.contains(_tipoSelecionado);
@@ -751,10 +752,10 @@ class AgendamentoDetalhesView extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(32),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor.withValues(alpha: 0.85),
+                    color: Theme.of(context).cardColor.withOpacity(0.85),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, spreadRadius: 5)],
+                    border: Border.all(color: Colors.white.withOpacity(0.3)),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, spreadRadius: 5)],
                   ),
                   child: Material(
                     color: Colors.transparent,
@@ -777,7 +778,7 @@ class AgendamentoDetalhesView extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: _getStatusColor(agendamento.status).withValues(alpha: 0.2),
+                            color: _getStatusColor(agendamento.status).withOpacity(0.2),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(color: _getStatusColor(agendamento.status)),
                           ),
@@ -931,12 +932,12 @@ class _AgendamentoCardState extends State<_AgendamentoCard> with SingleTickerPro
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor.withValues(alpha: 0.6),
+                    decoration: BoxDecoration( 
+                      color: Theme.of(context).cardColor.withOpacity(0.6),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, spreadRadius: 0)
+                        BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, spreadRadius: 0)
                       ],
                     ),
                     child: Material(
@@ -1000,11 +1001,11 @@ class _AgendamentoCardState extends State<_AgendamentoCard> with SingleTickerPro
                 child: Transform.scale(
                   scale: _scaleAnimation.value,
                   child: Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(20), 
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.95),
+                      color: Colors.white.withOpacity(0.95),
                       shape: BoxShape.circle,
-                      boxShadow: [const BoxShadow(color: Colors.black26, blurRadius: 15)],
+                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 15)],
                     ),
                     child: const Icon(Icons.check_circle, color: Colors.green, size: 60),
                   ),
@@ -1052,14 +1053,14 @@ class _ShimmerLoadingCardState extends State<_ShimmerLoadingCard> with SingleTic
             height: 100,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                colors: [Colors.white.withValues(alpha: 0.1), Colors.white.withValues(alpha: 0.4), Colors.white.withValues(alpha: 0.1)],
+              gradient: LinearGradient( 
+                colors: [Colors.white.withOpacity(0.1), Colors.white.withOpacity(0.4), Colors.white.withOpacity(0.1)],
                 stops: const [0.1, 0.5, 0.9],
                 begin: Alignment(-1.0 + (_controller.value * 2.5), -0.3),
                 end: Alignment(1.0 + (_controller.value * 2.5), 0.3),
                 tileMode: TileMode.clamp,
               ),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
             ),
           );
         },

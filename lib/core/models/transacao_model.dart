@@ -19,6 +19,9 @@ class TransacaoFinanceira {
   final DateTime? dataCriacao;
   final String criadoPorUid;
 
+  // Getter de compatibilidade
+  double get valorLiquidoTransacao => valorLiquido;
+
   TransacaoFinanceira({
     this.id,
     this.agendamentoId,

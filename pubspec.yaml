@@ -92,10 +92,10 @@ flutter:
   uses-material-design: true
   assets: 
   # To add assets to your application, add an assets section, like this:
-    - lib/images/
-    - lib/videos/
-    - lib/audios/
-    - lib/fonts/
+    # - lib/images/
+    # - lib/videos/
+    # - lib/audios/
+    # - lib/fonts/
     - .env
 
   # An image asset can refer to one or more resolution-specific "variants", see

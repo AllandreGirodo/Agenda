@@ -8,11 +8,11 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:agenda/core/services/firestore_service.dart';
 import 'package:agenda/features/perfil/models/cliente_model.dart';
-import 'package:agenda/controller/config_model.dart';
-import 'package:agenda/features/agendamento/model/agendamento_model.dart';
+import 'package:agenda/core/models/config_model.dart';
+import 'package:agenda/core/models/agendamento_model.dart';
 import 'package:agenda/core/utils/validadores.dart';
 import 'package:agenda/features/auth/view/login_view.dart';
-import 'package:agenda/core/utils/app_strings.dart';
+import 'package:agenda/view/app_strings.dart';
 import 'package:agenda/core/widgets/language_selector.dart';
 
 class PerfilView extends StatefulWidget {
@@ -65,13 +65,13 @@ class _PerfilViewState extends State<PerfilView> {
     final usuario = results[2];
 
     if (cliente != null) {
-      _nomeController.text = cliente.nome;
-      _whatsappController.text = cliente.whatsapp;
-      _enderecoController.text = cliente.endereco;
-      _historicoController.text = cliente.historicoMedico;
-      _alergiasController.text = cliente.alergias;
-      _medicamentosController.text = cliente.medicamentos;
-      _cirurgiasController.text = cliente.cirurgias;
+      _nomeController.text = cliente.nome ?? '';
+      _whatsappController.text = cliente.whatsapp ?? '';
+      _enderecoController.text = cliente.endereco ?? '';
+      _historicoController.text = cliente.historicoMedico ?? '';
+      _alergiasController.text = cliente.alergias ?? '';
+      _medicamentosController.text = cliente.medicamentos ?? '';
+      _cirurgiasController.text = cliente.cirurgias ?? '';
       _dataNascimento = cliente.dataNascimento;
     } else if (usuario != null) {
       _nomeController.text = (usuario as dynamic).nome;
@@ -177,17 +177,17 @@ class _PerfilViewState extends State<PerfilView> {
     }
 
     final cliente = Cliente(
-      uid: _user!.uid,
-      nome: _nomeController.text,
-      whatsapp: _whatsappController.text,
-      fotoUrl: urlFinal,
-      endereco: _enderecoController.text,
-      dataNascimento: _dataNascimento,
-      historicoMedico: _historicoController.text,
-      alergias: _alergiasController.text,
-      medicamentos: _medicamentosController.text,
-      cirurgias: _cirurgiasController.text,
-      anamneseOk: true,
+      idCliente: _user!.uid,
+      nomeCliente: _nomeController.text,
+      whatsappCliente: _whatsappController.text,
+      // fotoUrl: urlFinal, // Campo removido ou inexistente no modelo Cliente atual
+      enderecoCliente: _enderecoController.text,
+      dataNascimentoCliente: _dataNascimento,
+      historicoMedicoCliente: _historicoController.text,
+      alergiasCliente: _alergiasController.text,
+      medicamentosCliente: _medicamentosController.text,
+      cirurgiasCliente: _cirurgiasController.text,
+      anamneseOkCliente: true,
     );
 
     await _firestoreService.salvarCliente(cliente);

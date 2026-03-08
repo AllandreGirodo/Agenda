@@ -8,17 +8,17 @@ import 'package:excel/excel.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:agenda/core/models/agendamento_model.dart';
+import 'package:agenda/core/models/changelog_model.dart';
+import 'package:agenda/core/models/chat_model.dart';
+import 'package:agenda/core/models/config_model.dart';
+import 'package:agenda/core/models/cupom_model.dart';
+import 'package:agenda/core/models/estoque_model.dart';
+import 'package:agenda/core/models/log_model.dart';
+import 'package:agenda/core/models/transacao_model.dart';
+import 'package:agenda/core/models/usuario_model.dart';
+import 'package:agenda/core/utils/app_strings.dart';
 import 'package:agenda/features/perfil/models/cliente_model.dart';
-import 'package:agenda/controller/agendamento_model.dart';
-import 'package:agenda/controller/transacao_model.dart';
-import 'package:agenda/usuario_model.dart';
-import 'package:agenda/controller/config_model.dart';
-import 'package:agenda/controller/estoque_model.dart';
-import 'package:agenda/controller/log_model.dart';
-import 'package:agenda/controller/changelog_model.dart';
-import 'package:agenda/controller/cupom_model.dart';
-import 'package:agenda/view/app_strings.dart';
-import 'package:agenda/controller/chat_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -27,7 +27,7 @@ class FirestoreService {
   // --- Clientes ---
   Future<void> salvarCliente(Cliente cliente) async {
     // Usa o UID como ID do documento para facilitar a busca
-    await _db.collection('clientes').doc(cliente.uid).set(cliente.toMap());
+    await _db.collection('clientes').doc(cliente.idCliente).set(cliente.toMap());
   }
 
   Future<Cliente?> getCliente(String uid) async {
@@ -188,14 +188,14 @@ class FirestoreService {
   Future<void> salvarAgendamento(Agendamento agendamento) async {
     // RF009: Snapshotting para Integridade Histórica
     // Antes de salvar, buscamos os dados atuais do cliente para "congelar" no agendamento
-    final clienteDoc = await _db.collection('clientes').doc(agendamento.clienteId).get();
+    final clienteDoc = await _db.collection('clientes').doc(agendamento.idCliente).get();
     final clienteData = clienteDoc.data();
 
     final dadosParaSalvar = agendamento.toMap();
     
     if (clienteData != null) {
-      dadosParaSalvar['cliente_nome_snapshot'] = clienteData['nome'];
-      dadosParaSalvar['cliente_telefone_snapshot'] = clienteData['whatsapp'];
+      dadosParaSalvar['cliente_nome_snapshot'] = clienteData['nome'] ?? 'Cliente Sem Nome';
+      dadosParaSalvar['cliente_telefone_snapshot'] = clienteData['whatsapp'] ?? '';
     } else {
       dadosParaSalvar['cliente_nome_snapshot'] = 'Cliente Desconhecido';
     }
@@ -239,7 +239,7 @@ class FirestoreService {
         }
 
         final agendamentoRef = _db.collection('agendamentos').doc(id);
-        transaction.update(agendamentoRef, {'status': novoStatus});
+        transaction.update(agendamentoRef, {'status': novoStatus}); // statusAgendamento no map
 
         
         // NOTA: O envio de notificação push foi movido para Cloud Functions (Backend)
@@ -397,16 +397,16 @@ class FirestoreService {
       String? nomeRemetente;
 
       // Se o autor da mensagem é o cliente do agendamento
-      if (autorId == agendamento.clienteId) {
+      if (autorId == agendamento.idCliente) {
         // O destinatário é o admin. Vamos buscar o primeiro admin.
         final adminSnapshot = await _db.collection('usuarios').where('tipo', isEqualTo: 'admin').limit(1).get();
         if (adminSnapshot.docs.isNotEmpty) {
           destinatarioUid = adminSnapshot.docs.first.id;
         }
-        nomeRemetente = agendamento.clienteNomeSnapshot ?? 'Um cliente';
+        nomeRemetente = agendamento.nomeClienteSnapshot ?? 'Um cliente';
       } else { // Se o autor é o admin
         // O destinatário é o cliente
-        destinatarioUid = agendamento.clienteId;
+        destinatarioUid = agendamento.idCliente;
         nomeRemetente = 'Administradora';
       }
 
@@ -499,7 +499,7 @@ class FirestoreService {
     double total = 0.0;
     for (var doc in snapshot.docs) {
       final transacao = TransacaoFinanceira.fromMap(doc.data());
-      total += transacao.valorLiquido;
+      total += transacao.valorLiquidoTransacao;
     }
     return total;
   }
@@ -659,8 +659,8 @@ class FirestoreService {
       List<CellValue> row = [
         TextCellValue(agendamentoMap['id'] ?? ''),
         TextCellValue(dataHora != null ? DateFormat('dd/MM/yyyy HH:mm').format(dataHora) : ''),
-        TextCellValue(agendamentoMap['cliente_nome_snapshot'] ?? ''),
-        TextCellValue(agendamentoMap['cliente_telefone_snapshot'] ?? ''),
+        TextCellValue(agendamentoMap['cliente_nome_snapshot'] ?? ''), // nomeClienteSnapshot
+        TextCellValue(agendamentoMap['cliente_telefone_snapshot'] ?? ''), // telefoneClienteSnapshot
         TextCellValue(agendamentoMap['tipo_massagem'] ?? ''),
         TextCellValue(agendamentoMap['status'] ?? ''),
         DoubleCellValue((agendamentoMap['preco'] as num?)?.toDouble() ?? 0.0),
