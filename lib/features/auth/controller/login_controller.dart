@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:agenda/features/agendamento/view/agendamento_view.dart';
-import 'package:agenda/view/admin_agendamentos_view.dart';
+import 'package:agenda/features/agendamento/view/admin_agendamentos_view.dart';
 import 'package:agenda/features/auth/view/aguardando_aprovacao_view.dart';
 import 'package:agenda/core/services/firestore_service.dart';
 import 'package:agenda/core/models/usuario_model.dart';

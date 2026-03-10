@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:agenda/controller/transacao_model.dart';
+import 'package:agenda/core/models/transacao_model.dart';
 
 void main() {
   group('TransacaoFinanceira', () {

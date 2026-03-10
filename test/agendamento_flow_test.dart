@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:agenda/controller/firestore_service.dart';
-import 'package:agenda/controller/agendamento_model.dart';
+import 'package:agenda/core/services/firestore_service.dart';
+import 'package:agenda/core/models/agendamento_model.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

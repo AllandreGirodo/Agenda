@@ -44,6 +44,7 @@ class Agendamento {
     'cliente_id': clienteId,
     'data_hora': Timestamp.fromDate(dataHora),
     'tipo': tipo,
+    'tipo_massagem': tipo,
     'status': status,
     'motivo_cancelamento': motivoCancelamento,
     'lista_espera': listaEspera,
@@ -55,6 +56,7 @@ class Agendamento {
     'cupom_aplicado': cupomAplicado,
     'valor_original': valorOriginal,
     'valor_final': valorFinal,
+    'preco': valorFinal ?? valorOriginal,
   };
 
   factory Agendamento.fromMap(Map<String, dynamic> map, {String? id}) {
@@ -62,7 +64,7 @@ class Agendamento {
       id: id,
       clienteId: map['cliente_id'] ?? '',
       dataHora: (map['data_hora'] as Timestamp).toDate(),
-      tipo: map['tipo'] ?? '',
+        tipo: map['tipo'] ?? map['tipo_massagem'] ?? '',
       status: map['status'] ?? 'pendente',
       motivoCancelamento: map['motivo_cancelamento'],
       listaEspera: map['lista_espera'] != null 
@@ -76,8 +78,8 @@ class Agendamento {
       avaliacao: map['avaliacao'],
       comentarioAvaliacao: map['comentario_avaliacao'],
       cupomAplicado: map['cupom_aplicado'],
-      valorOriginal: (map['valor_original'] ?? 0.0).toDouble(),
-      valorFinal: (map['valor_final'] ?? 0.0).toDouble(),
+      valorOriginal: (map['valor_original'] ?? map['preco'] ?? 0.0).toDouble(),
+      valorFinal: (map['valor_final'] ?? map['preco'] ?? 0.0).toDouble(),
     );
   }
 }

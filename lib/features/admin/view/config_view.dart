@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import '../controller/firestore_service.dart';
-import '../controller/config_model.dart';
-import 'package:agenda/view/app_strings.dart';
+import 'package:agenda/core/services/firestore_service.dart';
+import 'package:agenda/core/models/config_model.dart';
+import 'package:agenda/core/utils/app_strings.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:cross_file/cross_file.dart';
 
 class AdminConfigView extends StatefulWidget {
   const AdminConfigView({super.key});
@@ -49,7 +50,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
         _campos[critico] = true;
       }
 
-      _horasAntecedencia = config.horasAntecedenciaCancelamento;
+      _horasAntecedencia = config.horasAntecedenciaCancelamento.toInt();
       _inicioSono = config.inicioSono;
       _fimSono = config.fimSono;
       _precoSessao = config.precoSessao;
@@ -64,7 +65,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
   Future<void> _salvar() async {
     await _firestoreService.salvarConfiguracao(ConfigModel(
       camposObrigatorios: _campos,
-      horasAntecedenciaCancelamento: _horasAntecedencia,
+      horasAntecedenciaCancelamento: _horasAntecedencia.toDouble(),
       inicioSono: _inicioSono,
       fimSono: _fimSono,
       precoSessao: _precoSessao,
@@ -197,28 +198,28 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                 Text(AppStrings.configCupons, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
                 const SizedBox(height: 10),
                 Card(
-                  child: RadioGroup<int>(
-                    groupValue: _statusCampoCupom,
-                    onChanged: (v) {
-                      if (v != null) setState(() => _statusCampoCupom = v);
-                    },
-                    child: Column(
-                      children: [
-                        RadioListTile<int>(
-                          title: Text(AppStrings.configCupomAtivo),
-                          value: 1,
-                        ),
-                        RadioListTile<int>(
-                          title: Text(AppStrings.configCupomOculto),
-                          value: 2,
-                        ),
-                        RadioListTile<int>(
-                          title: Text(AppStrings.configCupomOpaco),
-                          subtitle: Text(AppStrings.configCupomOpacoDesc),
-                          value: 3,
-                        ),
-                      ],
-                    ),
+                  child: Column(
+                    children: [
+                      RadioListTile<int>(
+                        title: Text(AppStrings.configCupomAtivo),
+                        value: 1,
+                        groupValue: _statusCampoCupom,
+                        onChanged: (v) => setState(() => _statusCampoCupom = v!),
+                      ),
+                      RadioListTile<int>(
+                        title: Text(AppStrings.configCupomOculto),
+                        value: 2,
+                        groupValue: _statusCampoCupom,
+                        onChanged: (v) => setState(() => _statusCampoCupom = v!),
+                      ),
+                      RadioListTile<int>(
+                        title: Text(AppStrings.configCupomOpaco),
+                        subtitle: Text(AppStrings.configCupomOpacoDesc),
+                        value: 3,
+                        groupValue: _statusCampoCupom,
+                        onChanged: (v) => setState(() => _statusCampoCupom = v!),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 20),

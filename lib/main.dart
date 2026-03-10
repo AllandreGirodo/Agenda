@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'; // Para kReleaseMode
+import 'package:flutter/foundation.dart'; // Para kReleaseMode e kDebugMode
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:device_preview/device_preview.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -78,8 +78,11 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // --- CONFIGURAÇÃO DO EMULADOR LOCAL ---
-    if (kDebugMode) {
+    // --- CONFIGURACAO DE AMBIENTE FIREBASE ---
+    // Por padrao, usa Firebase online (projeto gratuito).
+    // Para usar emuladores locais, rode com: --dart-define=USE_FIREBASE_EMULATORS=true
+    const bool useFirebaseEmulators = bool.fromEnvironment('USE_FIREBASE_EMULATORS', defaultValue: false);
+    if (kDebugMode && useFirebaseEmulators) {
       try {
         // '10.0.2.2' é o IP especial para o emulador Android acessar o host.
         // Para iOS ou Web, usa-se 'localhost'.
@@ -94,10 +97,12 @@ void main() async {
         // Conecta Functions (Porta 5001)
         FirebaseFunctions.instance.useFunctionsEmulator(host, 5001);
 
-        debugPrint('🟢 Conectado ao Firebase Emulator Suite em $host');
+        debugPrint('Conectado ao Firebase Emulator Suite em $host');
       } catch (e) {
-        debugPrint('🔴 Erro ao conectar ao emulador: $e');
+        debugPrint('Erro ao conectar ao emulador: $e');
       }
+    } else {
+      debugPrint('Usando Firebase online (sem emuladores locais).');
     }
 
     // 3. App Check (Só ativa se tiver a chave, evita crash)
@@ -299,8 +304,8 @@ class _MyAppState extends State<MyApp> {
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
         return MaterialApp(
           scaffoldMessengerKey: _scaffoldMessengerKey, // Chave para exibir SnackBars globais
-          onGenerateTitle: (context) => AppLocalizations.of(context)?.appTitle ?? 'Agenda Massoterapia',
-          debugShowCheckedModeBanner: false,
+          onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+          debugShowCheckedModeBanner: false, // Havia sido retirado, mas é importante para o DevicePreview
           theme: ThemeData(
             colorScheme: lightDynamic ?? AppColors.lightScheme,
             useMaterial3: true,

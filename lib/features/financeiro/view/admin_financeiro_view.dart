@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
-import '../controller/firestore_service.dart';
-import '../controller/agendamento_model.dart';
-import 'package:agenda/view/app_strings.dart';
-import 'package:agenda/view/app_styles.dart';
+import 'package:agenda/core/services/firestore_service.dart';
+import 'package:agenda/core/models/agendamento_model.dart';
+import 'package:agenda/core/utils/app_strings.dart';
+import 'package:agenda/core/utils/app_styles.dart';
 
 class AdminFinanceiroView extends StatefulWidget {
   const AdminFinanceiroView({super.key});
@@ -105,7 +105,6 @@ class _AdminFinanceiroViewState extends State<AdminFinanceiroView> {
                       maxY: maxValor * 1.2, // Margem superior
                       barTouchData: BarTouchData(
                         touchTooltipData: BarTouchTooltipData(
-                          tooltipBgColor: Colors.blueGrey,
                           getTooltipItem: (group, groupIndex, rod, rodIndex) {
                             return BarTooltipItem(
                               '${_getNomeMes(group.x)}\nR\$ ${rod.toY.toStringAsFixed(2)}',

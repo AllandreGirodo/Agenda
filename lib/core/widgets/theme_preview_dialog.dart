@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:agenda/main.dart';
-import 'package:agenda/custom_theme_data.dart';
-import 'package:agenda/widgets/animated_background.dart';
+import 'package:agenda/core/utils/custom_theme_data.dart';
+import 'package:agenda/core/widgets/animated_background.dart';
 
 class ThemePreviewDialog extends StatefulWidget {
   const ThemePreviewDialog({super.key});

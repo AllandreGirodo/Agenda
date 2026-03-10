@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import '../controller/firestore_service.dart';
+import 'package:agenda/core/services/firestore_service.dart';
 
 class AdminLgpdLogsView extends StatelessWidget {
   const AdminLgpdLogsView({super.key});

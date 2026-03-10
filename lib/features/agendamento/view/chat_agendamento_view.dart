@@ -5,13 +5,13 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:agenda/controller/firestore_service.dart';
-import 'package:agenda/controller/config_model.dart';
-import 'package:agenda/controller/chat_model.dart';
-import 'package:agenda/view/app_strings.dart';
-import 'package:agenda/view/app_styles.dart';
+import 'package:agenda/core/services/firestore_service.dart';
+import 'package:agenda/core/models/config_model.dart';
+import 'package:agenda/core/models/chat_model.dart';
+import 'package:agenda/core/utils/app_strings.dart';
+import 'package:agenda/core/utils/app_styles.dart';
 import 'package:intl/intl.dart';
-import 'package:agenda/view/full_screen_image_view.dart';
+import 'package:agenda/core/widgets/full_screen_image_view.dart';
 
 class ChatAgendamentoView extends StatefulWidget {
   final String agendamentoId;
@@ -163,7 +163,7 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
         actions: [
           if (widget.telefoneWhatsapp != null && widget.telefoneWhatsapp!.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.whatsapp),
+              icon: const Icon(Icons.chat),
               tooltip: AppStrings.chatIrWhatsapp,
               onPressed: _abrirWhatsapp,
             ),

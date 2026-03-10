@@ -39,6 +39,7 @@ class _BackgroundSoundManagerState extends State<BackgroundSoundManager> {
         'sounds/ocean_waves.mp3',
         'sounds/space_ambient.mp3',
         'sounds/celebration.mp3',
+        'sounds/wind_howling.mp3',
         // Adicione outros sons do seu projeto aqui
       ]);
     } catch (e) {
@@ -69,6 +70,9 @@ class _BackgroundSoundManagerState extends State<BackgroundSoundManager> {
     // Garante o som de ondas para o tema Férias (caso não esteja no CustomThemeData)
     if (widget.themeType.toString() == 'AppThemeType.ferias') {
       assetToPlay = 'sounds/ocean_waves.mp3';
+    }
+    if (widget.themeType.toString() == 'AppThemeType.halloween') {
+      assetToPlay = 'sounds/wind_howling.mp3';
     }
     
     // Se o tema não tem som ou mudou para um tema sem som

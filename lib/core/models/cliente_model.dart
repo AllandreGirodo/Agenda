@@ -1,68 +1,81 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Cliente {
-  final String uid;
-  final String nome;
-  final String whatsapp;
-  final String endereco;
-  final DateTime? dataNascimento;
-  // Anamnese
-  final String historicoMedico;
-  final String alergias;
-  final String medicamentos;
-  final String cirurgias;
-  final bool anamneseOk;
-  final int saldoSessoes;
-  final List<String> favoritos;
-  final String? fotoUrl;
+  final String idCliente;
+  final String? nomeCliente;
+  final String? whatsappCliente;
+  final int? saldoSessoesCliente;
+  final DateTime? dataNascimentoCliente;
+  final List<String>? favoritosCliente;
+  final String? enderecoCliente;
+  final String? historicoMedicoCliente;
+  final String? alergiasCliente;
+  final String? medicamentosCliente;
+  final String? cirurgiasCliente;
+  final bool? anamneseOkCliente;
+
+  // Getters de compatibilidade para telas legadas
+  String get uid => idCliente;
+  String get nome => nomeCliente ?? '';
+  String get whatsapp => whatsappCliente ?? '';
+  String get endereco => enderecoCliente ?? '';
+  String get historicoMedico => historicoMedicoCliente ?? '';
+  String get alergias => alergiasCliente ?? '';
+  String get medicamentos => medicamentosCliente ?? '';
+  String get cirurgias => cirurgiasCliente ?? '';
+  DateTime? get dataNascimento => dataNascimentoCliente;
+  List<String> get favoritos => favoritosCliente ?? const [];
+  int get saldoSessoes => saldoSessoesCliente ?? 0;
 
   Cliente({
-    required this.uid,
-    required this.nome,
-    required this.whatsapp,
-    this.endereco = '',
-    this.dataNascimento,
-    this.historicoMedico = '',
-    this.alergias = '',
-    this.medicamentos = '',
-    this.cirurgias = '',
-    this.anamneseOk = false,
-    this.saldoSessoes = 0,
-    this.favoritos = const [],
-    this.fotoUrl,
+    required this.idCliente,
+    this.nomeCliente,
+    this.whatsappCliente,
+    this.dataNascimentoCliente,
+    this.saldoSessoesCliente,
+    this.favoritosCliente,
+    this.enderecoCliente,
+    this.historicoMedicoCliente,
+    this.alergiasCliente,
+    this.medicamentosCliente,
+    this.cirurgiasCliente,
+    this.anamneseOkCliente,
   });
 
-  Map<String, dynamic> toMap() => {
-    'uid': uid,
-    'nome': nome,
-    'whatsapp': whatsapp,
-    'endereco': endereco,
-    'data_nascimento': dataNascimento != null ? Timestamp.fromDate(dataNascimento!) : null,
-    'historico_medico': historicoMedico,
-    'alergias': alergias,
-    'medicamentos': medicamentos,
-    'cirurgias': cirurgias,
-    'anamnese_ok': anamneseOk,
-    'saldo_sessoes': saldoSessoes,
-    'favoritos': favoritos,
-    'foto_url': fotoUrl,
-  };
+  Map<String, dynamic> toMap() {
+    return {
+      'uid': idCliente,
+      'nome': nomeCliente,
+      'whatsapp': whatsappCliente,
+      'data_nascimento':
+          dataNascimentoCliente != null ? Timestamp.fromDate(dataNascimentoCliente!) : null,
+      'saldo_sessoes': saldoSessoesCliente,
+      'favoritos': favoritosCliente,
+      'endereco': enderecoCliente,
+      'historico_medico': historicoMedicoCliente,
+      'alergias': alergiasCliente,
+      'medicamentos': medicamentosCliente,
+      'cirurgias': cirurgiasCliente,
+      'anamnese_ok': anamneseOkCliente,
+    };
+  }
 
   factory Cliente.fromMap(Map<String, dynamic> map) {
     return Cliente(
-      uid: map['uid'] ?? '',
-      nome: map['nome'] ?? '',
-      whatsapp: map['whatsapp'] ?? '',
-      endereco: map['endereco'] ?? '',
-      dataNascimento: map['data_nascimento'] != null ? (map['data_nascimento'] as Timestamp).toDate() : null,
-      historicoMedico: map['historico_medico'] ?? '',
-      alergias: map['alergias'] ?? '',
-      medicamentos: map['medicamentos'] ?? '',
-      cirurgias: map['cirurgias'] ?? '',
-      anamneseOk: map['anamnese_ok'] ?? false,
-      saldoSessoes: map['saldo_sessoes'] ?? 0,
-      favoritos: List<String>.from(map['favoritos'] ?? []),
-      fotoUrl: map['foto_url'] as String?,
+      idCliente: map['uid'] ?? '',
+      nomeCliente: map['nome'],
+      whatsappCliente: map['whatsapp'],
+      dataNascimentoCliente: map['data_nascimento'] != null
+          ? (map['data_nascimento'] as Timestamp).toDate()
+          : null,
+      saldoSessoesCliente: map['saldo_sessoes'],
+      favoritosCliente: map['favoritos'] != null ? List<String>.from(map['favoritos']) : null,
+      enderecoCliente: map['endereco'],
+      historicoMedicoCliente: map['historico_medico'],
+      alergiasCliente: map['alergias'],
+      medicamentosCliente: map['medicamentos'],
+      cirurgiasCliente: map['cirurgias'],
+      anamneseOkCliente: map['anamnese_ok'],
     );
   }
 }

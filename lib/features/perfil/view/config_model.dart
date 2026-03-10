@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 
 class ConfigModel {
   final Map<String, bool> camposObrigatorios;

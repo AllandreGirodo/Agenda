@@ -14,7 +14,7 @@ import 'package:agenda/core/models/cupom_model.dart';
 import 'package:agenda/core/models/usuario_model.dart';
 import 'package:agenda/core/widgets/language_selector.dart';
 import 'package:agenda/app_localizations.dart';
-import 'package:agenda/features/perfil/models/cliente_model.dart';
+import 'package:agenda/core/models/cliente_model.dart';
 
 class AgendamentoView extends StatefulWidget {
   const AgendamentoView({super.key});

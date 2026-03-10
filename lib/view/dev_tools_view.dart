@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../controller/firestore_service.dart';
+import 'package:agenda/core/services/firestore_service.dart';
+import 'package:agenda/features/admin/view/admin_ferramentas_senha_setup_view.dart';
 import 'db_seeder.dart';
 import 'dart:convert';
 import 'dart:io';
@@ -12,7 +13,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import '../controller/log_model.dart';
+import '../core/models/log_model.dart'; 
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DevToolsView extends StatefulWidget {
@@ -24,10 +25,10 @@ class DevToolsView extends StatefulWidget {
 
 class _DevToolsViewState extends State<DevToolsView> {
   final FirestoreService _firestoreService = FirestoreService();
-  final String _senhaBanco = dotenv.env['DB_ADMIN_PASSWORD'] ?? "admin123"; // Senha simulada para o TCC
+  final String _senhaDev = dotenv.env['DB_ADMIN_PASSWORD'] ?? 'admin123';
   bool _autenticado = false;
-  final TextEditingController _senhaController = TextEditingController();
   bool _devicePreviewEnabled = false;
+  bool _senhaConfigurada = true; // Assume configurada até verificar
 
   // Lista de Collections do sistema
   final List<String> _collections = [
@@ -45,13 +46,23 @@ class _DevToolsViewState extends State<DevToolsView> {
   @override
   void initState() {
     super.initState();
-    // Força o pedido de senha ao abrir
-    WidgetsBinding.instance.addPostFrameCallback((_) => _pedirSenha());
+    // Verifica se a senha está configurada
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final existe = await _firestoreService.verificaSenhaAdminFerramentasConfigurada();
+      if (!mounted) return;
+      setState(() => _senhaConfigurada = existe);
+      
+      // Se configurada, pede a senha para autenticar
+      if (existe && !_autenticado) {
+        _pedirSenha();
+      }
+    });
     _carregarPrefs();
   }
 
   Future<void> _carregarPrefs() async {
     final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
     setState(() {
       _devicePreviewEnabled = prefs.getBool('enable_device_preview') ?? false;
     });
@@ -65,51 +76,124 @@ class _DevToolsViewState extends State<DevToolsView> {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reinicie o app para aplicar a alteração.')));
   }
 
-  Future<void> _pedirSenha() async {
-    await showDialog(
+  Future<String?> _solicitarSenha({
+    required String titulo,
+    required String descricao,
+    required String labelCampo,
+  }) async {
+    final controller = TextEditingController();
+    final senha = await showDialog<String>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Acesso ao Banco de Dados'),
+      builder: (dialogContext) => AlertDialog(
+        title: Text(titulo),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Esta área permite manipulação direta dos dados (SQL-like).'),
+            Text(descricao),
             const SizedBox(height: 10),
             TextField(
-              controller: _senhaController,
+              controller: controller,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Senha do Banco (DB Admin)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: labelCampo,
+                border: const OutlineInputBorder(),
               ),
             ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(context); // Fecha dialog
-              Navigator.pop(context); // Fecha tela (volta pro admin)
-            },
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () {
-              if (_senhaController.text == _senhaBanco) {
-                setState(() => _autenticado = true);
-                Navigator.pop(context);
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Senha incorreta!')),
-                );
-              }
-            },
-            child: const Text('Acessar'),
+            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('Confirmar'),
           ),
         ],
       ),
     );
+    controller.dispose();
+    return senha;
+  }
+
+  Future<void> _fecharTelaSemAutenticacao() async {
+    if (!mounted) return;
+    Navigator.pop(context);
+  }
+
+  Future<void> _operacaoAposConfigure() async {
+    if (!mounted) return;
+    setState(() => _senhaConfigurada = true);
+    // Pede a senha para autenticar após configurar
+    _pedirSenha();
+  }
+
+  Future<void> _pedirSenha() async {
+    final senhaColecao = await _solicitarSenha(
+      titulo: 'Acesso ao Banco de Dados',
+      descricao: 'Etapa 1/2: informe a senha de administrador salva no Firestore.',
+      labelCampo: 'Senha da Collection (Admin)',
+    );
+
+    if (senhaColecao == null || senhaColecao.isEmpty) {
+      await _fecharTelaSemAutenticacao();
+      return;
+    }
+
+    bool senhaColecaoValida = false;
+    try {
+      senhaColecaoValida = await _firestoreService.validarSenhaAdminFerramentas(senhaColecao);
+    } on StateError catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+      await _fecharTelaSemAutenticacao();
+      return;
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nao foi possivel validar a senha da collection.')),
+        );
+      }
+      await _fecharTelaSemAutenticacao();
+      return;
+    }
+
+    if (!senhaColecaoValida) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Senha da collection incorreta.')),
+        );
+      }
+      await _fecharTelaSemAutenticacao();
+      return;
+    }
+
+    final senhaDev = await _solicitarSenha(
+      titulo: 'Confirmacao de Desenvolvedor',
+      descricao: 'Etapa 2/2: confirme com a senha de desenvolvimento (.env).',
+      labelCampo: 'Senha Dev (.env)',
+    );
+
+    if (senhaDev == null || senhaDev.isEmpty) {
+      await _fecharTelaSemAutenticacao();
+      return;
+    }
+
+    if (senhaDev != _senhaDev) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Senha dev incorreta.')),
+        );
+      }
+      await _fecharTelaSemAutenticacao();
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _autenticado = true);
   }
 
   Future<int> _contarDocumentos(String collection) async {
@@ -581,6 +665,14 @@ class _DevToolsViewState extends State<DevToolsView> {
 
   @override
   Widget build(BuildContext context) {
+    // Se a senha não está configurada, mostra a tela de setup
+    if (!_senhaConfigurada) {
+      return AdminFerramentasSenhaSetupView(
+        onConfirmed: () => _operacaoAposConfigure(),
+      );
+    }
+
+    // Se não autenticado, mostra loading
     if (!_autenticado) return const Scaffold(body: Center(child: CircularProgressIndicator()));
 
     return Scaffold(

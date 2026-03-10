@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../controller/firestore_service.dart';
-import '../controller/log_model.dart';
+import 'package:agenda/core/services/firestore_service.dart';
+import 'package:agenda/core/models/log_model.dart';
 
 class AdminLogsView extends StatefulWidget {
   const AdminLogsView({super.key});

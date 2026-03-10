@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../controller/firestore_service.dart';
-import '../controller/estoque_model.dart';
+import 'package:agenda/core/services/firestore_service.dart';
+import 'package:agenda/core/models/estoque_model.dart';
 
 class AdminEstoqueView extends StatelessWidget {
   const AdminEstoqueView({super.key});

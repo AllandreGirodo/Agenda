@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:agenda/controller/agendamento_model.dart';
+import 'package:agenda/core/models/agendamento_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() {

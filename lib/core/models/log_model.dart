@@ -17,10 +17,12 @@ class LogModel {
 
   factory LogModel.fromMap(Map<String, dynamic> map) {
     return LogModel(
-      tipo: map['tipo'] as String,
-      mensagem: map['mensagem'] as String,
-      dataHora: (map['dataHora'] as Timestamp).toDate(),
-      usuarioId: map['usuarioId'] as String?,
+      tipo: map['tipo'] as String? ?? 'info',
+      mensagem: map['mensagem'] as String? ?? '',
+      dataHora: map['data_hora'] != null 
+          ? (map['data_hora'] as Timestamp).toDate() 
+          : DateTime.now(),
+      usuarioId: map['usuario_id'] as String?,
     );
   }
 }

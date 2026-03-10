@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:agenda/main.dart' as app;
-import 'package:agenda/view/app_strings.dart';
+import 'package:agenda/core/utils/app_strings.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

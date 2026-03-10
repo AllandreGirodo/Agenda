@@ -52,6 +52,17 @@ class TransacaoFinanceira {
   }
 
   factory TransacaoFinanceira.fromMap(Map<String, dynamic> map, {String? id}) {
+    final dataPagamentoRaw = map['data_pagamento'];
+    final dataCriacaoRaw = map['data_criacao'];
+
+    final DateTime dataPagamento = dataPagamentoRaw is Timestamp
+        ? dataPagamentoRaw.toDate()
+        : (dataPagamentoRaw is DateTime ? dataPagamentoRaw : DateTime.now());
+
+    final DateTime? dataCriacao = dataCriacaoRaw is Timestamp
+        ? dataCriacaoRaw.toDate()
+        : (dataCriacaoRaw is DateTime ? dataCriacaoRaw : null);
+
     return TransacaoFinanceira(
       id: id,
       agendamentoId: map['agendamento_id'],
@@ -61,8 +72,8 @@ class TransacaoFinanceira {
       valorLiquido: (map['valor_liquido'] ?? 0.0).toDouble(),
       metodoPagamento: map['metodo_pagamento'] ?? 'dinheiro',
       statusPagamento: map['status_pagamento'] ?? 'pendente',
-      dataPagamento: (map['data_pagamento'] as Timestamp).toDate(),
-      dataCriacao: map['data_criacao'] != null ? (map['data_criacao'] as Timestamp).toDate() : null,
+      dataPagamento: dataPagamento,
+      dataCriacao: dataCriacao,
       criadoPorUid: map['criado_por_uid'] ?? '',
     );
   }

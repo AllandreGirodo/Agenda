@@ -25,6 +25,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
   final List<_Sparkle> _sparkles = []; // Lista para Outubro Rosa
   final List<_Fish> _fishes = []; // Lista para Peixinhos (Férias)
   final List<_Bubble> _bubbles = []; // Lista para Bolhas dos Peixes
+  final List<_HalloweenItem> _halloweenItems = []; // Lista para Halloween
   double _wavePhase = 0.0; // Fase da onda para animação
   int _vacationIndex = 0; // 0: Sol, 1: Bola, 2: Máscara, 3: Peixes
   Timer? _vacationTimer;
@@ -43,7 +44,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
     // Controller rápido para animação fluida (60fps)
     _controller = AnimationController(vsync: this, duration: const Duration(seconds: 10))..repeat();
     
-    // Adiciona listener para atualizar a física da neve a cada frame
+    // Adiciona listener para atualizar a física de cada efeito
     _controller.addListener(_updateSnowPhysics);
     _controller.addListener(_updateGlitchPhysics);
     _controller.addListener(_updateRainPhysics);
@@ -52,6 +53,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
     _controller.addListener(_updateSparklePhysics);
     _controller.addListener(_updateWavePhysics);
     _controller.addListener(_updateVacationPhysics);
+    _controller.addListener(_updateHalloweenPhysics);
     _generateItems();
     _initSensors();
   }
@@ -62,7 +64,6 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
       if (mounted) {
         setState(() {
           // Filtro simples (Low-pass) para suavizar o movimento e evitar tremedeira
-          // Invertemos o sinal (-) para que o fundo mova na direção oposta (profundidade)
           _parallaxX = _parallaxX * 0.9 + (-event.x * 0.1); 
           _parallaxY = _parallaxY * 0.9 + (event.y * 0.1);
         });
@@ -92,14 +93,13 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
     });
   }
 
+  // --- FÍSICA ---
+
   void _updateSnowPhysics() {
     if (widget.themeType == AppThemeType.natal) {
-      // Atualiza a posição de cada floco de neve
       for (var flake in _snowflakes) {
         flake.y += flake.speed;
-        flake.x += sin(flake.y * 10) * 0.002; // Movimento lateral suave (seno)
-        
-        // Se sair da tela, reinicia no topo
+        flake.x += sin(flake.y * 10) * 0.002;
         if (flake.y > 1.0) {
           flake.y = -0.05;
           flake.x = _random.nextDouble();
@@ -110,10 +110,9 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
 
   void _updateGlitchPhysics() {
     if (widget.themeType == AppThemeType.cyberpunk) {
-      // Regenera as barras de glitch aleatoriamente a cada poucos frames
-      if (_random.nextDouble() > 0.8) { // 20% de chance por frame de mudar
+      if (_random.nextDouble() > 0.8) {
         _glitchBars.clear();
-        int count = _random.nextInt(5) + 2; // 2 a 7 barras
+        int count = _random.nextInt(5) + 2;
         for (int i = 0; i < count; i++) {
           _glitchBars.add(_GlitchBar(
             y: _random.nextDouble(),
@@ -127,23 +126,19 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
 
   void _updateRainPhysics() {
     if (widget.themeType == AppThemeType.tempestade) {
-      // Chuva
       for (var drop in _rainDrops) {
         drop.y += drop.speed;
         if (drop.y > 1.0) {
-          drop.y = -0.1 - _random.nextDouble() * 0.2; // Reinicia acima da tela
+          drop.y = -0.1 - _random.nextDouble() * 0.2;
           drop.x = _random.nextDouble();
         }
       }
-      
-      // Raios (Flashes Aleatórios)
       if (_lightningOpacity > 0) {
-        _lightningOpacity -= 0.05; // Fade out rápido
+        _lightningOpacity -= 0.05;
         if (_lightningOpacity < 0) _lightningOpacity = 0;
       } else {
-        // Pequena chance de um raio cair a cada frame
         if (_random.nextDouble() > 0.99) { 
-          _lightningOpacity = 0.6 + _random.nextDouble() * 0.3; // Brilho intenso (0.6 a 0.9)
+          _lightningOpacity = 0.6 + _random.nextDouble() * 0.3;
         }
       }
     } else {
@@ -165,11 +160,10 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
   }
 
   void _updateHeartPhysics() {
-    // Verifica se é o tema Dia da Mulher (assumindo que você adicionou ao enum)
     if (widget.themeType.toString() == 'AppThemeType.diaDaMulher') {
       for (var heart in _hearts) {
-        heart.y -= heart.speed; // Sobe
-        heart.x += sin(heart.y * 5) * 0.005; // Balanço suave
+        heart.y -= heart.speed;
+        heart.x += sin(heart.y * 5) * 0.005;
         if (heart.y < -0.1) {
           heart.y = 1.1;
           heart.x = _random.nextDouble();
@@ -179,7 +173,6 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
   }
 
   void _updateSparklePhysics() {
-    // Verifica se é o tema Outubro Rosa
     if (widget.themeType.toString() == 'AppThemeType.outubroRosa') {
       for (var sparkle in _sparkles) {
         sparkle.y -= sparkle.speed;
@@ -196,25 +189,22 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
   }
 
   void _updateWavePhysics() {
-    // Verifica se é o tema Férias
     if (widget.themeType.toString() == 'AppThemeType.ferias') {
-      _wavePhase += 0.05; // Velocidade da onda
+      _wavePhase += 0.05;
     }
   }
 
   void _updateVacationPhysics() {
     if (widget.themeType.toString() == 'AppThemeType.ferias' && _vacationIndex == 3) {
-       _continuousTime += 0.05; // Incremento constante para movimento suave
-
+       _continuousTime += 0.05;
        for (var fish in _fishes) {
          fish.x -= fish.speed;
-         if (fish.x < -0.1) fish.x = 1.1; // Loop na tela
-         fish.y += sin(_continuousTime + fish.x * 10) * 0.001; // Nadar ondulado sem "pulos"
+         if (fish.x < -0.1) fish.x = 1.1;
+         fish.y += sin(_continuousTime + fish.x * 10) * 0.001;
          
-         // Gera bolhas na cauda (lado direito do peixe, pois ele nada para a esquerda)
-         if (_random.nextDouble() < 0.1) { // 10% de chance por frame
+         if (_random.nextDouble() < 0.1) {
            _bubbles.add(_Bubble(
-             x: fish.x + (fish.size * 0.0015), // Ajuste para sair de trás
+             x: fish.x + (fish.size * 0.0015),
              y: fish.y,
              size: 2 + _random.nextDouble() * 3,
              speed: 0.001 + _random.nextDouble() * 0.002,
@@ -223,14 +213,39 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
        }
     }
     
-    // Atualiza física das bolhas
     for (var bubble in _bubbles) {
-      bubble.y -= bubble.speed; // Sobe
-      bubble.x += sin(bubble.y * 20) * 0.0005; // Oscilação leve
-      bubble.opacity -= 0.01; // Fade out
+      bubble.y -= bubble.speed;
+      bubble.x += sin(bubble.y * 20) * 0.0005;
+      bubble.opacity -= 0.01;
     }
     _bubbles.removeWhere((b) => b.opacity <= 0);
   }
+
+  void _updateHalloweenPhysics() {
+    if (widget.themeType.toString() == 'AppThemeType.halloween') {
+      for (var item in _halloweenItems) {
+        if (item.type == 0) { // Morcego
+          item.x += item.speed;
+          item.y += sin(item.x * 10) * 0.005; // Voo ondulado
+          item.wingFlap += 0.5; // Animação de bater asas
+          
+          if (item.x > 1.1) {
+            item.x = -0.1;
+            item.y = 0.1 + _random.nextDouble() * 0.6;
+          }
+        } else { // Abóbora
+          item.y += item.speed * 0.5;
+          item.x += sin(item.y * 5) * 0.002;
+          if (item.y > 1.1) {
+            item.y = -0.1;
+            item.x = _random.nextDouble();
+          }
+        }
+      }
+    }
+  }
+
+  // --- GERAÇÃO DE ITENS ---
 
   void _generateItems() {
     _items.clear();
@@ -242,11 +257,12 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
     _sparkles.clear();
     _fishes.clear();
     _bubbles.clear();
+    _halloweenItems.clear();
     
     final data = CustomThemeData.getData(widget.themeType);
-    if (data.iconAsset == null) return; // Temas padrão não têm animação de fundo
+    if (data.iconAsset == null) return;
 
-    // Cria 15 elementos flutuantes
+    // Ícones flutuantes padrão
     for (int i = 0; i < 15; i++) {
       _items.add(_FloatingItem(
         x: _random.nextDouble(),
@@ -257,31 +273,31 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
       ));
     }
 
-    // Se for Natal, gera flocos de neve para o CustomPainter
+    // Natal
     if (widget.themeType == AppThemeType.natal) {
-      for (int i = 0; i < 100; i++) { // 100 flocos
+      for (int i = 0; i < 100; i++) {
         _snowflakes.add(_Snowflake(
           x: _random.nextDouble(),
           y: _random.nextDouble(),
-          radius: 1 + _random.nextDouble() * 3, // Tamanho variado
-          speed: 0.001 + _random.nextDouble() * 0.003, // Velocidade variada
+          radius: 1 + _random.nextDouble() * 3,
+          speed: 0.001 + _random.nextDouble() * 0.003,
         ));
       }
     }
 
-    // Se for Tempestade, gera gotas de chuva
+    // Tempestade
     if (widget.themeType == AppThemeType.tempestade) {
-      for (int i = 0; i < 100; i++) { // 100 gotas
+      for (int i = 0; i < 100; i++) {
         _rainDrops.add(_RainDrop(
           x: _random.nextDouble(),
           y: _random.nextDouble(),
-          length: 0.02 + _random.nextDouble() * 0.03, // Comprimento variado
-          speed: 0.015 + _random.nextDouble() * 0.01, // Velocidade rápida
+          length: 0.02 + _random.nextDouble() * 0.03,
+          speed: 0.015 + _random.nextDouble() * 0.01,
         ));
       }
     }
 
-    // Se for Carnaval, gera confetes
+    // Carnaval
     if (widget.themeType == AppThemeType.carnaval) {
       for (int i = 0; i < 50; i++) {
         _confetti.add(_Confetti(
@@ -290,13 +306,13 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
           size: 5 + _random.nextDouble() * 5,
           speed: 0.005 + _random.nextDouble() * 0.01,
           rotation: _random.nextDouble() * 2 * pi,
-          rotationSpeed: (_random.nextDouble() - 0.5) * 0.2,
-          color: Colors.primaries[_random.nextInt(Colors.primaries.length)],
+          rotationSpeed: (_random.nextDouble() - 0.5) * 0.2, // Rotação bidirecional
+          color: Colors.primaries[_random.nextInt(Colors.primaries.length)], // Cores variadas
         ));
       }
     }
 
-    // Dia da Mulher: Corações
+    // Dia da Mulher
     if (widget.themeType.toString() == 'AppThemeType.diaDaMulher') {
       for (int i = 0; i < 40; i++) {
         _hearts.add(_Heart(
@@ -309,7 +325,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
       }
     }
 
-    // Outubro Rosa: Brilhos
+    // Outubro Rosa
     if (widget.themeType.toString() == 'AppThemeType.outubroRosa') {
       for (int i = 0; i < 60; i++) {
         _sparkles.add(_Sparkle(
@@ -323,15 +339,39 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
       }
     }
 
-    // Férias: Peixinhos
+    // Férias
     if (widget.themeType.toString() == 'AppThemeType.ferias') {
       for (int i = 0; i < 6; i++) {
         _fishes.add(_Fish(
           x: 1.0 + _random.nextDouble(),
-          y: 0.7 + _random.nextDouble() * 0.2, // Fundo do mar
+          y: 0.7 + _random.nextDouble() * 0.2,
           size: 8 + _random.nextDouble() * 6,
           speed: 0.001 + _random.nextDouble() * 0.002,
           color: Colors.primaries[_random.nextInt(Colors.primaries.length)],
+        ));
+      }
+    }
+
+    // Halloween
+    if (widget.themeType.toString() == 'AppThemeType.halloween') {
+      // Morcegos
+      for (int i = 0; i < 8; i++) {
+        _halloweenItems.add(_HalloweenItem(
+          x: _random.nextDouble(),
+          y: 0.1 + _random.nextDouble() * 0.6,
+          size: 20 + _random.nextDouble() * 15,
+          speed: 0.003 + _random.nextDouble() * 0.003,
+          type: 0, // Morcego
+        ));
+      }
+      // Abóboras
+      for (int i = 0; i < 6; i++) {
+        _halloweenItems.add(_HalloweenItem(
+          x: _random.nextDouble(),
+          y: _random.nextDouble(),
+          size: 25 + _random.nextDouble() * 15,
+          speed: 0.001 + _random.nextDouble() * 0.002,
+          type: 1, // Abóbora
         ));
       }
     }
@@ -339,17 +379,10 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
 
   @override
   void dispose() {
-    _controller.removeListener(_updateSnowPhysics);
-    _controller.removeListener(_updateGlitchPhysics);
-    _controller.removeListener(_updateRainPhysics);
-    _controller.removeListener(_updateConfettiPhysics);
-    _controller.removeListener(_updateHeartPhysics);
-    _controller.removeListener(_updateSparklePhysics);
-    _controller.removeListener(_updateWavePhysics);
-    _controller.removeListener(_updateVacationPhysics);
+    _controller.removeListener(_updateHalloweenPhysics);
+    _controller.dispose();
     _vacationTimer?.cancel();
     _sensorSubscription?.cancel();
-    _controller.dispose();
     super.dispose();
   }
 
@@ -357,17 +390,14 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
   Widget build(BuildContext context) {
     final data = CustomThemeData.getData(widget.themeType);
 
-    // Define as cores para o AnimatedContainer.
-    // Se não houver cores (tema padrão), usa transparente para deixar o Scaffold do app aparecer.
     List<Color> bgColors = data.gradientColors;
     
-    // Sobrescreve cores para o tema Férias (Simulação de Entardecer)
+    // Simulação de Entardecer para Férias
     if (widget.themeType.toString() == 'AppThemeType.ferias') {
-       // Oscila entre Dia (0.0) e Entardecer (1.0) suavemente
        double t = (sin(_controller.value * 2 * pi) + 1) / 2; 
        bgColors = [
-         Color.lerp(const Color(0xFF4facfe), const Color(0xFFFF7E5F), t)!, // Azul Céu -> Laranja
-         Color.lerp(const Color(0xFF00f2fe), const Color(0xFFFEB47B), t)!, // Ciano -> Pêssego
+         Color.lerp(const Color(0xFF4facfe), const Color(0xFFFF7E5F), t)!,
+         Color.lerp(const Color(0xFF00f2fe), const Color(0xFFFEB47B), t)!,
        ];
     }
 
@@ -375,16 +405,14 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
       bgColors = [Colors.transparent, Colors.transparent];
     }
 
-    // Define o deslocamento base do Parallax
-    // Multiplicamos por valores diferentes para cada camada criar profundidade
     final Offset bgOffset = Offset(_parallaxX * 3, _parallaxY * 3);
     final Offset particleOffset = Offset(_parallaxX * 6, _parallaxY * 6);
 
     return Stack(
       children: [
-        // 1. Gradiente de Fundo
+        // 1. Fundo Gradiente
         Transform.translate(
-          offset: bgOffset, // Fundo move mais devagar
+          offset: bgOffset,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 800),
             curve: Curves.easeInOut,
@@ -398,7 +426,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
           ),
         ),
         
-        // 1.2. Camada de Raios (Tempestade) - Atrás das partículas, sobre o fundo
+        // 1.2. Camada de Raios (Tempestade)
         if (widget.themeType == AppThemeType.tempestade)
           Transform.translate(
             offset: bgOffset,
@@ -410,23 +438,22 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
             ),
           ),
 
-        // 2. Camada de Partículas (Neve, Glitch, Ícones) com Transição Suave
+        // 2. Camada de Partículas com Transição Suave
         Transform.translate(
-          offset: particleOffset, // Partículas movem mais rápido (estão "mais perto")
+          offset: particleOffset,
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 800),
             child: _buildParticleLayer(data),
           ),
         ),
 
-        // 3. Conteúdo da Tela (Scaffold)
+        // 3. Conteúdo do App
         widget.child,
       ],
     );
   }
 
   Widget _buildParticleLayer(CustomThemeData data) {
-    // Retorna o widget específico baseado no tema atual para o AnimatedSwitcher
     if (widget.themeType == AppThemeType.natal) {
       return AnimatedBuilder(
         key: const ValueKey('natal'),
@@ -481,20 +508,21 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
         animation: _controller,
         builder: (context, child) => Stack(
           children: [
-            // Areia no fundo
-            RepaintBoundary(
-              child: CustomPaint(painter: _SandPainter(), size: Size.infinite),
-            ),
-            // Ondas no fundo
-            RepaintBoundary(
-              child: CustomPaint(painter: _WavePainter(_wavePhase), size: Size.infinite),
-            ),
-            // Ciclo de Elementos (Sol, Bola, Máscara, Peixes)
+            RepaintBoundary(child: CustomPaint(painter: _SandPainter(), size: Size.infinite)),
+            RepaintBoundary(child: CustomPaint(painter: _WavePainter(_wavePhase), size: Size.infinite)),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 1000),
               child: _buildVacationItem(),
             ),
           ],
+        ),
+      );
+    } else if (widget.themeType.toString() == 'AppThemeType.halloween') {
+      return AnimatedBuilder(
+        key: const ValueKey('halloween'),
+        animation: _controller,
+        builder: (context, child) => RepaintBoundary(
+          child: CustomPaint(painter: _HalloweenPainter(_halloweenItems), size: Size.infinite),
         ),
       );
     } else if (data.iconAsset != null) {
@@ -504,9 +532,7 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
         builder: (context, child) {
           return Stack(
               children: _items.map((item) {
-                // Atualiza posição (simples loop vertical)
                 double currentY = (item.y + _controller.value * item.speed) % 1.0;
-                
                 return Positioned(
                   left: item.x * MediaQuery.of(context).size.width,
                   top: currentY * MediaQuery.of(context).size.height,
@@ -517,7 +543,6 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
         },
       );
     }
-    // Retorna um container vazio para temas sem partículas (Standard)
     return const SizedBox.shrink(key: ValueKey('empty'));
   }
 
@@ -538,22 +563,65 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
   }
 }
 
+// --- CLASSES AUXILIARES ---
+
 class _FloatingItem {
-  double x;
-  double y;
-  double size;
-  double speed;
-  double opacity;
+  double x, y, size, speed, opacity;
   _FloatingItem({required this.x, required this.y, required this.size, required this.speed, required this.opacity});
 }
 
 class _Snowflake {
-  double x;
-  double y;
-  double radius;
-  double speed;
+  double x, y, radius, speed;
   _Snowflake({required this.x, required this.y, required this.radius, required this.speed});
 }
+
+class _GlitchBar {
+  double y, height;
+  Color color;
+  _GlitchBar({required this.y, required this.height, required this.color});
+}
+
+class _RainDrop {
+  double x, y, length, speed;
+  _RainDrop({required this.x, required this.y, required this.length, required this.speed});
+}
+
+class _Confetti {
+  double x, y, size, speed, rotation, rotationSpeed;
+  Color color;
+  _Confetti({required this.x, required this.y, required this.size, required this.speed, required this.rotation, required this.rotationSpeed, required this.color});
+}
+
+class _Heart {
+  double x, y, size, speed;
+  Color color;
+  _Heart({required this.x, required this.y, required this.size, required this.speed, required this.color});
+}
+
+class _Sparkle {
+  double x, y, size, speed, opacity, pulseSpeed;
+  _Sparkle({required this.x, required this.y, required this.size, required this.speed, required this.opacity, required this.pulseSpeed});
+}
+
+class _Fish {
+  double x, y, size, speed;
+  Color color;
+  _Fish({required this.x, required this.y, required this.size, required this.speed, required this.color});
+}
+
+class _Bubble {
+  double x, y, size, speed, opacity = 0.8;
+  _Bubble({required this.x, required this.y, required this.size, required this.speed});
+}
+
+class _HalloweenItem {
+  double x, y, size, speed;
+  int type; // 0: Bat, 1: Pumpkin
+  double wingFlap = 0.0;
+  _HalloweenItem({required this.x, required this.y, required this.size, required this.speed, required this.type});
+}
+
+// --- PAINTERS ---
 
 class _SnowPainter extends CustomPainter {
   final List<_Snowflake> snowflakes;
@@ -562,9 +630,6 @@ class _SnowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.white.withValues(alpha: 0.8);
-    
-    // Otimização: Agrupar por tamanho para usar drawPoints
-    // Isso evita centenas de chamadas de drawCircle
     final List<Offset> smallFlakes = [];
     final List<Offset> mediumFlakes = [];
     final List<Offset> largeFlakes = [];
@@ -580,14 +645,12 @@ class _SnowPainter extends CustomPainter {
       }
     }
 
-    paint.strokeWidth = 3.0; // Tamanho pequeno
+    paint.strokeWidth = 3.0;
     paint.strokeCap = StrokeCap.round;
     canvas.drawPoints(PointMode.points, smallFlakes, paint);
-
-    paint.strokeWidth = 5.0; // Tamanho médio
+    paint.strokeWidth = 5.0;
     canvas.drawPoints(PointMode.points, mediumFlakes, paint);
-
-    paint.strokeWidth = 8.0; // Tamanho grande
+    paint.strokeWidth = 8.0;
     canvas.drawPoints(PointMode.points, largeFlakes, paint);
   }
 
@@ -595,10 +658,75 @@ class _SnowPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-class _Bubble {
-  double x, y, size, speed;
-  double opacity = 1.0;
-  _Bubble({required this.x, required this.y, required this.size, required this.speed});
+class _HalloweenPainter extends CustomPainter {
+  final List<_HalloweenItem> items;
+  _HalloweenPainter(this.items);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint();
+    
+    for (var item in items) {
+      final cx = item.x * size.width;
+      final cy = item.y * size.height;
+      
+      if (item.type == 0) { // Morcego
+        paint.color = Colors.black.withValues(alpha: 0.8);
+        paint.style = PaintingStyle.fill;
+        
+        // Corpo
+        canvas.drawCircle(Offset(cx, cy), item.size * 0.2, paint);
+        
+        // Asas
+        final path = Path();
+        double flap = sin(item.wingFlap) * item.size * 0.2;
+        
+        // Asa Esquerda
+        path.moveTo(cx - item.size * 0.2, cy);
+        path.quadraticBezierTo(cx - item.size * 0.6, cy - item.size * 0.4 + flap, cx - item.size, cy + flap);
+        path.quadraticBezierTo(cx - item.size * 0.6, cy + item.size * 0.2 + flap, cx - item.size * 0.2, cy + item.size * 0.1);
+        
+        // Asa Direita
+        path.moveTo(cx + item.size * 0.2, cy);
+        path.quadraticBezierTo(cx + item.size * 0.6, cy - item.size * 0.4 + flap, cx + item.size, cy + flap);
+        path.quadraticBezierTo(cx + item.size * 0.6, cy + item.size * 0.2 + flap, cx + item.size * 0.2, cy + item.size * 0.1);
+        
+        canvas.drawPath(path, paint);
+        
+      } else { // Abóbora
+        paint.color = Colors.orange;
+        paint.style = PaintingStyle.fill;
+        
+        // Formato base
+        canvas.drawOval(Rect.fromCenter(center: Offset(cx, cy), width: item.size, height: item.size * 0.8), paint);
+        
+        // Gomos
+        paint.color = Colors.deepOrange;
+        paint.style = PaintingStyle.stroke;
+        paint.strokeWidth = 2;
+        canvas.drawArc(Rect.fromCenter(center: Offset(cx, cy), width: item.size * 0.5, height: item.size * 0.8), 0, pi * 2, false, paint);
+        
+        // Talo
+        paint.color = Colors.green;
+        paint.style = PaintingStyle.fill;
+        canvas.drawRect(Rect.fromCenter(center: Offset(cx, cy - item.size * 0.4), width: item.size * 0.15, height: item.size * 0.2), paint);
+        
+        // Olhos e Boca (Jack-o'-lantern)
+        paint.color = Colors.black;
+        final facePath = Path();
+        // Olhos
+        facePath.addPolygon([Offset(cx - item.size * 0.2, cy - item.size * 0.1), Offset(cx - item.size * 0.3, cy + item.size * 0.05), Offset(cx - item.size * 0.1, cy + item.size * 0.05)], true);
+        facePath.addPolygon([Offset(cx + item.size * 0.2, cy - item.size * 0.1), Offset(cx + item.size * 0.3, cy + item.size * 0.05), Offset(cx + item.size * 0.1, cy + item.size * 0.05)], true);
+        // Boca
+        facePath.moveTo(cx - item.size * 0.25, cy + item.size * 0.15);
+        facePath.quadraticBezierTo(cx, cy + item.size * 0.35, cx + item.size * 0.25, cy + item.size * 0.15);
+        canvas.drawPath(facePath, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 class _BubblePainter extends CustomPainter {
@@ -607,7 +735,7 @@ class _BubblePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white.withValues(alpha: 0.4)..style = PaintingStyle.stroke..strokeWidth = 1;
+    final paint = Paint()..style = PaintingStyle.stroke..strokeWidth = 1;
     for (var b in bubbles) {
       paint.color = Colors.white.withValues(alpha: b.opacity.clamp(0.0, 0.5));
       canvas.drawCircle(Offset(b.x * size.width, b.y * size.height), b.size, paint);
@@ -621,7 +749,7 @@ class _BubblePainter extends CustomPainter {
 class _SandPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = const Color(0xFFE6C288); // Cor de areia
+    final paint = Paint()..color = const Color(0xFFE6C288);
     final path = Path();
     path.moveTo(0, size.height * 0.85);
     path.quadraticBezierTo(size.width * 0.5, size.height * 0.82, size.width, size.height * 0.85);
@@ -642,7 +770,6 @@ class _WavePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..style = PaintingStyle.fill;
     
-    // Onda de trás (mais escura)
     paint.color = Colors.blue.shade800.withValues(alpha: 0.5);
     final path1 = Path();
     path1.moveTo(0, size.height);
@@ -653,7 +780,6 @@ class _WavePainter extends CustomPainter {
     path1.close();
     canvas.drawPath(path1, paint);
 
-    // Onda da frente (mais clara)
     paint.color = Colors.blue.shade400.withValues(alpha: 0.6);
     final path2 = Path();
     path2.moveTo(0, size.height);
@@ -694,8 +820,6 @@ class _BeachBallPainter extends CustomPainter {
     final center = Offset(size.width * 0.2, size.height * 0.75);
     final radius = 20.0;
     final paint = Paint()..style = PaintingStyle.fill;
-    
-    // Desenha segmentos coloridos
     final colors = [Colors.red, Colors.blue, Colors.yellow, Colors.green, Colors.white, Colors.orange];
     for (int i = 0; i < 6; i++) {
       paint.color = colors[i];
@@ -711,21 +835,12 @@ class _MaskPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.cyanAccent..style = PaintingStyle.stroke..strokeWidth = 3;
     final center = Offset(size.width * 0.5, size.height * 0.5);
-    
-    // Óculos
     canvas.drawOval(Rect.fromCenter(center: center, width: 60, height: 30), paint);
-    // Tira
     paint.color = Colors.black54;
     canvas.drawArc(Rect.fromCenter(center: center, width: 55, height: 25), pi, pi, false, paint);
   }
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _Fish {
-  double x, y, size, speed;
-  Color color;
-  _Fish({required this.x, required this.y, required this.size, required this.speed, required this.color});
 }
 
 class _FishPainter extends CustomPainter {
@@ -738,9 +853,7 @@ class _FishPainter extends CustomPainter {
     for (var fish in fishes) {
       paint.color = fish.color;
       final center = Offset(fish.x * size.width, fish.y * size.height);
-      // Corpo
       canvas.drawOval(Rect.fromCenter(center: center, width: fish.size * 1.5, height: fish.size), paint);
-      // Cauda
       final tailPath = Path();
       tailPath.moveTo(center.dx + fish.size * 0.6, center.dy);
       tailPath.lineTo(center.dx + fish.size * 1.2, center.dy - fish.size * 0.4);
@@ -753,12 +866,6 @@ class _FishPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
-class _Heart {
-  double x, y, size, speed;
-  Color color;
-  _Heart({required this.x, required this.y, required this.size, required this.speed, required this.color});
-}
-
 class _HeartPainter extends CustomPainter {
   final List<_Heart> hearts;
   _HeartPainter(this.hearts);
@@ -766,11 +873,9 @@ class _HeartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..style = PaintingStyle.fill;
-    
     for (var heart in hearts) {
       paint.color = heart.color;
       final path = Path();
-      // Desenha um coração relativo à posição (x,y)
       final cx = heart.x * size.width;
       final cy = heart.y * size.height;
       final s = heart.size;
@@ -778,18 +883,11 @@ class _HeartPainter extends CustomPainter {
       path.moveTo(cx, cy + s * 0.2);
       path.cubicTo(cx - s, cy - s * 0.5, cx - s, cy - s, cx, cy - s * 0.5);
       path.cubicTo(cx + s, cy - s, cx + s, cy - s * 0.5, cx, cy + s * 0.2);
-      
       canvas.drawPath(path, paint);
     }
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-class _Sparkle {
-  double x, y, size, speed, opacity, pulseSpeed;
-  _Sparkle({required this.x, required this.y, required this.size, required this.speed, required this.opacity, required this.pulseSpeed});
 }
 
 class _SparklePainter extends CustomPainter {
@@ -803,26 +901,13 @@ class _SparklePainter extends CustomPainter {
       paint.color = Colors.white.withValues(alpha: s.opacity.clamp(0.0, 1.0));
       final cx = s.x * size.width;
       final cy = s.y * size.height;
-      // Desenha um losango/estrela simples
-      canvas.drawCircle(Offset(cx, cy), s.size * 0.2, paint); // Centro
-      canvas.drawLine(Offset(cx - s.size, cy), Offset(cx + s.size, cy), paint..strokeWidth = 1); // Horizontal
-      canvas.drawLine(Offset(cx, cy - s.size), Offset(cx, cy + s.size), paint); // Vertical
+      canvas.drawCircle(Offset(cx, cy), s.size * 0.2, paint);
+      canvas.drawLine(Offset(cx - s.size, cy), Offset(cx + s.size, cy), paint..strokeWidth = 1);
+      canvas.drawLine(Offset(cx, cy - s.size), Offset(cx, cy + s.size), paint);
     }
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-class _Confetti {
-  double x;
-  double y;
-  double size;
-  double speed;
-  double rotation;
-  double rotationSpeed;
-  Color color;
-  _Confetti({required this.x, required this.y, required this.size, required this.speed, required this.rotation, required this.rotationSpeed, required this.color});
 }
 
 class _ConfettiPainter extends CustomPainter {
@@ -832,7 +917,7 @@ class _ConfettiPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     for (var conf in confetti) {
-      final paint = Paint()..color = conf.color;
+      final paint = Paint()..color = conf.color.withValues(alpha: 0.6); // Opacidade adicionada para suavidade
       canvas.save();
       canvas.translate(conf.x * size.width, conf.y * size.height);
       canvas.rotate(conf.rotation);
@@ -840,17 +925,8 @@ class _ConfettiPainter extends CustomPainter {
       canvas.restore();
     }
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-class _RainDrop {
-  double x;
-  double y;
-  double length;
-  double speed;
-  _RainDrop({required this.x, required this.y, required this.length, required this.speed});
 }
 
 class _RainPainter extends CustomPainter {
@@ -864,16 +940,8 @@ class _RainPainter extends CustomPainter {
       canvas.drawLine(Offset(drop.x * size.width, drop.y * size.height), Offset(drop.x * size.width, (drop.y + drop.length) * size.height), paint);
     }
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
-}
-
-class _GlitchBar {
-  double y;
-  double height;
-  Color color;
-  _GlitchBar({required this.y, required this.height, required this.color});
 }
 
 class _GlitchPainter extends CustomPainter {
@@ -887,7 +955,6 @@ class _GlitchPainter extends CustomPainter {
       canvas.drawRect(Rect.fromLTWH(0, bar.y * size.height, size.width, bar.height * size.height), paint);
     }
   }
-
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

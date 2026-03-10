@@ -6,7 +6,7 @@ import 'package:agenda/core/utils/app_styles.dart';
 import 'package:agenda/core/utils/app_strings.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:agenda/features/agendamento/view/agendamento_view.dart';
-import 'package:agenda/view/admin_agendamentos_view.dart';
+import 'package:agenda/features/agendamento/view/admin_agendamentos_view.dart';
 import 'package:agenda/features/perfil/view/perfil_view.dart'; // Para cadastro, se necessário redirecionar
 import 'package:agenda/core/widgets/language_selector.dart';
 import 'package:agenda/core/services/firestore_service.dart';

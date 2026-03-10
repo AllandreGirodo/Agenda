@@ -5,8 +5,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import '../controller/firestore_service.dart';
-import '../controller/agendamento_model.dart';
+import 'package:agenda/core/services/firestore_service.dart';
+import 'package:agenda/core/models/agendamento_model.dart';
 
 class AdminRelatoriosView extends StatelessWidget {
   const AdminRelatoriosView({super.key});

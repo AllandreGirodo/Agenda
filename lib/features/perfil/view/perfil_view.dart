@@ -7,12 +7,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:agenda/core/services/firestore_service.dart';
-import 'package:agenda/features/perfil/models/cliente_model.dart';
+import 'package:agenda/core/models/cliente_model.dart';
 import 'package:agenda/core/models/config_model.dart';
 import 'package:agenda/core/models/agendamento_model.dart';
 import 'package:agenda/core/utils/validadores.dart';
 import 'package:agenda/features/auth/view/login_view.dart';
-import 'package:agenda/view/app_strings.dart';
+import 'package:agenda/core/utils/app_strings.dart';
 import 'package:agenda/core/widgets/language_selector.dart';
 
 class PerfilView extends StatefulWidget {
@@ -65,13 +65,13 @@ class _PerfilViewState extends State<PerfilView> {
     final usuario = results[2];
 
     if (cliente != null) {
-      _nomeController.text = cliente.nome ?? '';
-      _whatsappController.text = cliente.whatsapp ?? '';
-      _enderecoController.text = cliente.endereco ?? '';
-      _historicoController.text = cliente.historicoMedico ?? '';
-      _alergiasController.text = cliente.alergias ?? '';
-      _medicamentosController.text = cliente.medicamentos ?? '';
-      _cirurgiasController.text = cliente.cirurgias ?? '';
+      _nomeController.text = cliente.nome;
+      _whatsappController.text = cliente.whatsapp;
+      _enderecoController.text = cliente.endereco;
+      _historicoController.text = cliente.historicoMedico;
+      _alergiasController.text = cliente.alergias;
+      _medicamentosController.text = cliente.medicamentos;
+      _cirurgiasController.text = cliente.cirurgias;
       _dataNascimento = cliente.dataNascimento;
     } else if (usuario != null) {
       _nomeController.text = (usuario as dynamic).nome;
@@ -165,12 +165,11 @@ class _PerfilViewState extends State<PerfilView> {
 
     setState(() => _isLoading = true);
 
-    String? urlFinal = _urlImagemRemota;
     if (_imagemLocal != null) {
       try {
         final ref = FirebaseStorage.instance.ref().child('perfis/${_user!.uid}.jpg');
         await ref.putData(_imagemBytes!);
-        urlFinal = await ref.getDownloadURL();
+        _urlImagemRemota = await ref.getDownloadURL();
       } catch (e) {
         debugPrint('Erro ao fazer upload da imagem: $e');
       }
@@ -180,7 +179,6 @@ class _PerfilViewState extends State<PerfilView> {
       idCliente: _user!.uid,
       nomeCliente: _nomeController.text,
       whatsappCliente: _whatsappController.text,
-      // fotoUrl: urlFinal, // Campo removido ou inexistente no modelo Cliente atual
       enderecoCliente: _enderecoController.text,
       dataNascimentoCliente: _dataNascimento,
       historicoMedicoCliente: _historicoController.text,
@@ -195,7 +193,7 @@ class _PerfilViewState extends State<PerfilView> {
     if (mounted) setState(() => _isLoading = false);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(AppStrings.profileUpdatedSuccess)),
+        SnackBar(content: Text(AppStrings.profileUpdatedSuccess)),
       );
       Navigator.pop(context);
     }
@@ -205,17 +203,17 @@ class _PerfilViewState extends State<PerfilView> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text(AppStrings.deleteAccountDialogTitle),
-        content: const Text(AppStrings.deleteAccountDialogContent),
+        title: Text(AppStrings.deleteAccountDialogTitle),
+        content: Text(AppStrings.deleteAccountDialogContent),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text(AppStrings.cancelButton),
+            child: Text(AppStrings.cancelButton),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(AppStrings.deleteEverythingButton),
+            child: Text(AppStrings.deleteEverythingButton),
           ),
         ],
       ),
@@ -228,7 +226,7 @@ class _PerfilViewState extends State<PerfilView> {
         await _user.delete();
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(AppStrings.accountDeletedSuccess)));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.accountDeletedSuccess)));
           Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LoginView()), (route) => false);
         }
       } on FirebaseAuthException catch (e) {
@@ -253,14 +251,14 @@ class _PerfilViewState extends State<PerfilView> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text(AppStrings.profileTitle),
+          title: Text(AppStrings.profileTitle),
           backgroundColor: Colors.teal,
           foregroundColor: Colors.white,
           actions: [
             const LanguageSelector(),
             IconButton(icon: const Icon(Icons.save), onPressed: _salvar, tooltip: AppStrings.saveButton),
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white70,
             indicatorColor: Colors.orange,
@@ -286,7 +284,7 @@ class _PerfilViewState extends State<PerfilView> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            const Text(AppStrings.personalDataTitle, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
+            Text(AppStrings.personalDataTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
             const SizedBox(height: 10),
             
             Center(
@@ -294,20 +292,17 @@ class _PerfilViewState extends State<PerfilView> {
                 children: [
                   CircleAvatar(
                     radius: 50,
-                    backgroundColor: Colors.grey.shade200,
-                    backgroundImage: _imagemBytes != null
-                        ? MemoryImage(_imagemBytes!)
+                    backgroundImage: _imagemBytes != null 
+                        ? MemoryImage(_imagemBytes!) 
                         : (_urlImagemRemota != null ? NetworkImage(_urlImagemRemota!) : null) as ImageProvider?,
-                    child: (_imagemBytes == null && _urlImagemRemota == null)
-                        ? const Icon(Icons.person, size: 50, color: Colors.grey)
-                        : null,
+                    child: (_imagemBytes == null && _urlImagemRemota == null) ? const Icon(Icons.person, size: 50) : null,
                   ),
                   Positioned(
                     bottom: 0,
                     right: 0,
                     child: CircleAvatar(
+                      backgroundColor: Colors.orange,
                       radius: 18,
-                      backgroundColor: Colors.teal,
                       child: IconButton(
                         icon: const Icon(Icons.camera_alt, size: 18, color: Colors.white),
                         onPressed: _selecionarImagem,
@@ -318,51 +313,52 @@ class _PerfilViewState extends State<PerfilView> {
               ),
             ),
             const SizedBox(height: 20),
-
             TextFormField(
               controller: _nomeController,
-              decoration: const InputDecoration(labelText: AppStrings.fullNameLabel, border: OutlineInputBorder()),
-              validator: (v) => v!.isEmpty ? AppStrings.requiredField : null,
-            ),
-            const SizedBox(height: 10),
-            TextFormField(
-              controller: _cpfController,
-              decoration: InputDecoration(
-                labelText: '${AppStrings.cpfLabel} ${_isObrigatorio('cpf') ? '*' : ''}',
-                border: const OutlineInputBorder(),
-                hintText: '000.000.000-00',
-              ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                CpfInputFormatter(),
-              ],
-              validator: _validarCpf,
+              decoration: const InputDecoration(labelText: 'Nome Completo', prefixIcon: Icon(Icons.person)),
+              validator: (v) => _validar('nome', v),
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _whatsappController,
-              decoration: InputDecoration(
-                labelText: '${AppStrings.whatsappLabel} ${_isObrigatorio('whatsapp') ? '*' : ''}',
-                border: const OutlineInputBorder(),
-              ),
-              validator: (v) => _validar('whatsapp', v),
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                TelefoneInputFormatter(),
-              ],
+              decoration: const InputDecoration(labelText: 'WhatsApp', prefixIcon: Icon(Icons.phone)),
               keyboardType: TextInputType.phone,
+              validator: (v) => _validar('whatsapp', v),
             ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _cpfController,
+              decoration: const InputDecoration(labelText: 'CPF', prefixIcon: Icon(Icons.badge)),
+              keyboardType: TextInputType.number,
+              validator: _validarCpf,
+            ),
+            const SizedBox(height: 10),
+            ListTile(
+              title: const Text('Data de Nascimento'),
+              subtitle: Text(_dataNascimento == null ? 'Não informada' : DateFormat('dd/MM/yyyy').format(_dataNascimento!)),
+              leading: const Icon(Icons.calendar_today),
+              trailing: const Icon(Icons.edit),
+              onTap: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _dataNascimento ?? DateTime(2000),
+                  firstDate: DateTime(1920),
+                  lastDate: DateTime.now(),
+                );
+                if (date != null) setState(() => _dataNascimento = date);
+              },
+            ),
+            const SizedBox(height: 20),
+            const Text('Endereço', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
             const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
                     controller: _cepController,
-                    decoration: const InputDecoration(labelText: AppStrings.cepLabel, border: OutlineInputBorder(), hintText: '00000-000'),
+                    decoration: const InputDecoration(labelText: 'CEP', prefixIcon: Icon(Icons.location_on)),
                     keyboardType: TextInputType.number,
                     validator: _validarCep,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(8)],
                   ),
                 ),
                 IconButton(icon: const Icon(Icons.search), onPressed: _buscarCep),
@@ -371,243 +367,73 @@ class _PerfilViewState extends State<PerfilView> {
             const SizedBox(height: 10),
             TextFormField(
               controller: _enderecoController,
-              decoration: InputDecoration(
-                labelText: '${AppStrings.addressLabel} ${_isObrigatorio('endereco') ? '*' : ''}',
-                border: const OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'Endereço Completo'),
+              maxLines: 2,
               validator: (v) => _validar('endereco', v),
             ),
+            const SizedBox(height: 20),
+            const Text('Anamnese / Saúde', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
             const SizedBox(height: 10),
-            ListTile(
-              title: Text(_dataNascimento == null
-                  ? '${AppStrings.birthDateLabel} ${_isObrigatorio('data_nascimento') ? '*' : ''}'
-                  : '${AppStrings.birthDateLabel}: ${DateFormat('dd/MM/yyyy').format(_dataNascimento!)}'),
-              trailing: const Icon(Icons.calendar_today),
-              shape: RoundedRectangleBorder(side: const BorderSide(color: Colors.grey), borderRadius: BorderRadius.circular(4)),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _dataNascimento ?? DateTime(1990),
-                  firstDate: DateTime(1920),
-                  lastDate: DateTime.now(),
-                );
-                if (picked != null) setState(() => _dataNascimento = picked);
-              },
+            TextFormField(
+              controller: _historicoController,
+              decoration: const InputDecoration(labelText: 'Histórico Médico / Observações'),
+              maxLines: 3,
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _alergiasController,
+              decoration: const InputDecoration(labelText: 'Alergias'),
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _medicamentosController,
+              decoration: const InputDecoration(labelText: 'Medicamentos em uso'),
+            ),
+            const SizedBox(height: 10),
+            TextFormField(
+              controller: _cirurgiasController,
+              decoration: const InputDecoration(labelText: 'Cirurgias recentes'),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: _salvar,
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 15)),
+              child: const Text('SALVAR PERFIL'),
             ),
             const SizedBox(height: 20),
-            const Text(AppStrings.anamnesisTitle, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
-            const SizedBox(height: 10),
-            _buildAnamneseField(AppStrings.medicalHistoryLabel, 'historico_medico', _historicoController),
-            _buildAnamneseField(AppStrings.allergiesLabel, 'alergias', _alergiasController),
-            _buildAnamneseField(AppStrings.medicationsLabel, 'medicamentos', _medicamentosController),
-            _buildAnamneseField(AppStrings.surgeriesLabel, 'cirurgias', _cirurgiasController),
-            
-            const SizedBox(height: 30),
-            const Divider(),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              child: TextButton.icon(
-                icon: const Icon(Icons.delete_forever, color: Colors.red),
-                label: const Text(AppStrings.deleteAccountButton, style: TextStyle(color: Colors.red)),
-                onPressed: _excluirConta,
-              ),
+            TextButton.icon(
+              onPressed: _excluirConta,
+              icon: const Icon(Icons.delete_forever, color: Colors.red),
+              label: const Text('EXCLUIR MINHA CONTA', style: TextStyle(color: Colors.red)),
             ),
           ],
         ),
-      );
+    );
   }
 
   Widget _buildHistoricoTab() {
-    if (_user == null) return const Center(child: Text('Usuário não identificado'));
-
     return StreamBuilder<List<Agendamento>>(
-      stream: _firestoreService.getAgendamentosDoCliente(_user.uid),
+      stream: _firestoreService.getAgendamentosDoCliente(_user!.uid),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text(AppStrings.noAppointmentsFound));
-        }
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        final agendamentos = snapshot.data ?? [];
+        if (agendamentos.isEmpty) return const Center(child: Text('Nenhum agendamento encontrado.'));
 
-        final agendamentos = snapshot.data!;
-        
         return ListView.builder(
           itemCount: agendamentos.length,
           itemBuilder: (context, index) {
-            final agendamento = agendamentos[index];
-            final dataFormatada = DateFormat('dd/MM/yyyy HH:mm').format(agendamento.dataHora);
-            
-            final bool podeCancelar = agendamento.status != 'recusado' &&
-                                      agendamento.status != 'cancelado' &&
-                                      agendamento.status != 'cancelado_tardio' &&
-                                      agendamento.dataHora.isAfter(DateTime.now());
-            
+            final a = agendamentos[index];
             return Card(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ListTile(
-                leading: _getIconStatus(agendamento.status),
-                title: Text(dataFormatada),
-                subtitle: Text('Status: ${agendamento.status.toUpperCase()}${agendamento.motivoCancelamento != null ? '\nMotivo: ${agendamento.motivoCancelamento}' : ''}'),
-                isThreeLine: agendamento.motivoCancelamento != null,
-                trailing: podeCancelar
-                    ? IconButton(
-                        icon: const Icon(Icons.delete_forever, color: Colors.red),
-                        tooltip: 'Cancelar Agendamento',
-                        onPressed: () => _iniciarCancelamento(agendamento),
-                      )
-                    : null,
+                title: Text(a.tipo),
+                subtitle: Text(DateFormat('dd/MM/yyyy HH:mm').format(a.dataHora)),
+                trailing: Text(a.status.toUpperCase(), style: TextStyle(color: a.status == 'aprovado' ? Colors.green : Colors.orange, fontWeight: FontWeight.bold)),
               ),
             );
           },
         );
       },
-    );
-  }
-
-  Future<void> _iniciarCancelamento(Agendamento agendamento) async {
-    _config ??= await _firestoreService.getConfiguracao();
-    
-    final agora = DateTime.now();
-    final dataAgendamento = agendamento.dataHora;
-
-    int minutosValidos = 0;
-    DateTime cursor = agora;
-    
-    while (cursor.isBefore(dataAgendamento)) {
-      final hora = cursor.hour;
-      bool dormindo = false;
-
-      if (_config!.inicioSono < _config!.fimSono) {
-        dormindo = hora >= _config!.inicioSono && hora < _config!.fimSono;
-      } else {
-        dormindo = hora >= _config!.inicioSono || hora < _config!.fimSono;
-      }
-
-      if (!dormindo) {
-        minutosValidos++;
-      }
-      cursor = cursor.add(const Duration(minutes: 1));
-    }
-
-    final horasValidas = minutosValidos / 60.0;
-    final horasNecessarias = _config!.horasAntecedenciaCancelamento;
-    
-    bool foraDoPrazo = horasValidas < horasNecessarias;
-
-    if (!mounted) return;
-
-    final motivoController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: Text(foraDoPrazo ? 'Cancelamento Tardio' : AppStrings.cancelButton),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (foraDoPrazo)
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  color: Colors.red.shade50,
-                  child: Text(
-                    'Atenção: Você está cancelando com menos de $horasNecessarias horas úteis de antecedência.\nTempo útil restante: ${horasValidas.toStringAsFixed(1)}h.',
-                    style: const TextStyle(color: Colors.red, fontSize: 12),
-                  ),
-                ),
-              const SizedBox(height: 10),
-              const Text(AppStrings.cancellationReasonLabel),
-              TextField(
-                controller: motivoController,
-                decoration: const InputDecoration(hintText: 'Ex: Imprevisto de saúde'),
-                maxLines: 2,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text(AppStrings.cancelButton)),
-            ElevatedButton(
-              onPressed: () async {
-                if (motivoController.text.isEmpty) return;
-                
-                final status = foraDoPrazo ? 'cancelado_tardio' : 'cancelado';
-                final motivoFinal = foraDoPrazo ? '[FORA DO PRAZO] ${motivoController.text}' : motivoController.text;
-
-                await _firestoreService.cancelarAgendamento(agendamento.id!, motivoFinal, status);
-                if (dialogContext.mounted) Navigator.pop(dialogContext);
-              },
-              child: const Text(AppStrings.confirmCancellationButton),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildAnamneseField(String label, String key, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: TextFormField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: '$label ${_isObrigatorio(key) ? '*' : ''}',
-          border: const OutlineInputBorder(),
-        ),
-        validator: (v) => _validar(key, v),
-        maxLines: 2,
-      ),
-    );
-  }
-
-  Icon _getIconStatus(String status) {
-    switch (status) {
-      case 'aprovado': return const Icon(Icons.check_circle, color: Colors.green);
-      case 'cancelado': return const Icon(Icons.cancel, color: Colors.red);
-      case 'pendente': return const Icon(Icons.access_time, color: Colors.orange);
-      default: return const Icon(Icons.info, color: Colors.grey);
-    }
-  }
-}
-
-class CpfInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    final text = newValue.text;
-    if (text.length > 11) return oldValue;
-    
-    var newText = StringBuffer();
-    for (int i = 0; i < text.length; i++) {
-      if (i == 3 || i == 6) newText.write('.');
-      if (i == 9) newText.write('-');
-      newText.write(text[i]);
-    }
-    
-    return TextEditingValue(
-      text: newText.toString(),
-      selection: TextSelection.collapsed(offset: newText.length),
-    );
-  }
-}
-
-class TelefoneInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    final text = newValue.text;
-    if (text.length > 11) return oldValue;
-
-    var newText = StringBuffer();
-    if (text.isNotEmpty) newText.write('(');
-    for (int i = 0; i < text.length; i++) {
-      if (i == 2) newText.write(') ');
-      if (i == 7) newText.write('-');
-      newText.write(text[i]);
-    }
-
-    return TextEditingValue(
-      text: newText.toString(),
-      selection: TextSelection.collapsed(offset: newText.length),
     );
   }
 }

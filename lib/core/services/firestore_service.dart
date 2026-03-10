@@ -3,9 +3,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:cross_file/cross_file.dart';
 import 'dart:convert';
 import 'package:excel/excel.dart';
-import 'package:cross_file/cross_file.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:agenda/core/models/agendamento_model.dart';
@@ -18,7 +18,7 @@ import 'package:agenda/core/models/log_model.dart';
 import 'package:agenda/core/models/transacao_model.dart';
 import 'package:agenda/core/models/usuario_model.dart';
 import 'package:agenda/core/utils/app_strings.dart';
-import 'package:agenda/features/perfil/models/cliente_model.dart';
+import 'package:agenda/core/models/cliente_model.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -98,6 +98,42 @@ class FirestoreService {
       return ConfigModel.fromMap(doc.data()!);
     }
     return ConfigModel(camposObrigatorios: ConfigModel.padrao);
+  }
+
+  Future<String?> _buscarSenhaAdminFerramentas() async {
+    final docSeguranca = await _db.collection('configuracoes').doc('seguranca').get();
+    final senhaSeguranca = docSeguranca.data()?['senha_admin_ferramentas'];
+    if (senhaSeguranca is String && senhaSeguranca.trim().isNotEmpty) {
+      return senhaSeguranca.trim();
+    }
+
+    final docGeral = await _db.collection('configuracoes').doc('geral').get();
+    final senhaGeral = docGeral.data()?['senha_admin_ferramentas'];
+    if (senhaGeral is String && senhaGeral.trim().isNotEmpty) {
+      return senhaGeral.trim();
+    }
+
+    return null;
+  }
+
+  Future<bool> verificaSenhaAdminFerramentasConfigurada() async {
+    return await _buscarSenhaAdminFerramentas() != null;
+  }
+
+  Future<void> salvarSenhaAdminFerramentas(String novaSenha) async {
+    await _db.collection('configuracoes').doc('seguranca').set({
+      'senha_admin_ferramentas': novaSenha.trim(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<bool> validarSenhaAdminFerramentas(String senhaInformada) async {
+    final senhaConfigurada = await _buscarSenhaAdminFerramentas();
+    if (senhaConfigurada == null) {
+      throw StateError(
+        'Senha de admin nao configurada em configuracoes/seguranca.senha_admin_ferramentas',
+      );
+    }
+    return senhaInformada.trim() == senhaConfigurada;
   }
 
   // Busca o telefone do admin (WhatsApp) configurado, ou retorna um padrão se não existir
@@ -262,111 +298,43 @@ class FirestoreService {
       // Decrementa 1 unidade de todos os itens marcados como consumo automático
       final batch = _db.batch();
       final estoqueSnapshot = await _db.collection('estoque').where('consumo_automatico', isEqualTo: true).get();
-      
       for (var doc in estoqueSnapshot.docs) {
-        // FieldValue.increment(-1) garante atomicidade e permite ficar negativo (histórico)
-        batch.update(doc.reference, {'quantidade': FieldValue.increment(-1)});
+        final qtdAtual = doc.data()['quantidade'] ?? 0;
+        if (qtdAtual > 0) {
+          batch.update(doc.reference, {'quantidade': qtdAtual - 1});
+        }
       }
       await batch.commit();
-      
-      await registrarLog('aprovacao', 'Agendamento $id aprovado. Estoque baixado.', usuarioId: clienteId);
-      
     } else {
       await _db.collection('agendamentos').doc(id).update({'status': novoStatus});
-      await registrarLog('atualizacao', 'Status do agendamento $id alterado para $novoStatus', usuarioId: clienteId);
     }
   }
 
   // --- Lembretes Manuais (Cloud Functions) ---
-  // Permite ao Admin disparar lembretes definindo as horas de antecedência
   Future<Map<String, dynamic>> dispararLembretes({int horas = 24}) async {
-    try {
-      final HttpsCallable callable = _functions.httpsCallable('enviarLembretesManual');
-      final result = await callable.call(<String, dynamic>{
-        'horas': horas,
-      });
-      return Map<String, dynamic>.from(result.data);
-    } catch (e) {
-      debugPrint('Erro ao chamar Cloud Function: $e');
-      rethrow;
-    }
-  }
-
-  // --- Notificações Push (FCM) ---
-  // DEPRECATED: Use Cloud Functions para enviar notificações em produção.
-  Future<void> enviarNotificacaoPush(String token, String titulo, String corpo) async {
-    try {
-      // ATENÇÃO: Em produção, mova isso para uma Cloud Function para proteger sua Server Key.
-      // Para o TCC, você pode usar a chave de servidor (Legacy) do console do Firebase.
-      final String? serverKey = dotenv.env['FCM_SERVER_KEY'];
-
-      if (serverKey == null || serverKey.isEmpty) {
-        debugPrint('ERRO: FCM_SERVER_KEY não configurada no arquivo .env');
-        return;
-      }
-      
-      await http.post(
-        Uri.parse('https://fcm.googleapis.com/fcm/send'),
-        headers: <String, String>{
-          'Content-Type': 'application/json',
-          'Authorization': 'key=$serverKey',
-        },
-        body: jsonEncode(
-          <String, dynamic>{
-            'notification': <String, dynamic>{'body': corpo, 'title': titulo},
-            'priority': 'high',
-            'data': <String, dynamic>{'click_action': 'FLUTTER_NOTIFICATION_CLICK', 'id': '1', 'status': 'done'},
-            'to': token,
-          },
-        ),
-      );
-    } catch (e) {
-      debugPrint('Erro ao enviar push: $e');
-    }
+    final callable = _functions.httpsCallable('enviarLembretesManual');
+    final result = await callable.call(<String, dynamic>{'horas': horas});
+    return Map<String, dynamic>.from(result.data as Map);
   }
 
   // --- Lista de Espera ---
   Future<void> toggleListaEspera(String agendamentoId, String uid, bool entrar) async {
-    if (entrar) {
-      await _db.collection('agendamentos').doc(agendamentoId).update({
-        'lista_espera': FieldValue.arrayUnion([uid])
-      });
-    } else {
-      await _db.collection('agendamentos').doc(agendamentoId).update({
-        'lista_espera': FieldValue.arrayRemove([uid])
-      });
-      await registrarLog('espera', 'Usuário $uid saiu da lista de espera do agendamento $agendamentoId', usuarioId: uid);
-    }
+    await _db.collection('agendamentos').doc(agendamentoId).update({
+      'lista_espera': entrar
+          ? FieldValue.arrayUnion([uid])
+          : FieldValue.arrayRemove([uid]),
+    });
   }
 
   Future<void> cancelarAgendamento(String id, String motivo, String status) async {
-    await _db.runTransaction((transaction) async {
-      final docRef = _db.collection('agendamentos').doc(id);
-      final snapshot = await transaction.get(docRef);
-      
-      if (snapshot.exists) {
-        transaction.update(docRef, {
-          'status': status,
-          'motivo_cancelamento': motivo,
-        });
-
-        // Notificar Lista de Espera
-        final listaEspera = List<String>.from(snapshot.data()?['lista_espera'] ?? []);
-        if (listaEspera.isNotEmpty) {
-          // Aqui seria implementada a chamada real para o FCM (Cloud Functions)
-          debugPrint('NOTIFICAÇÃO: Enviando alerta para ${listaEspera.length} usuários na lista de espera sobre o cancelamento.');
-        }
-
-        // Notificar Administradora
-        debugPrint('NOTIFICAÇÃO: Alerta para Administradora - Agendamento cancelado. Motivo: $motivo');
-        
-        // O log será registrado fora da transação para simplificar, ou poderíamos adicionar uma escrita na coleção 'logs' aqui.
-      }
+    await _db.collection('agendamentos').doc(id).update({
+      'status': status,
+      'motivo_cancelamento': motivo,
     });
     await registrarLog('cancelamento', 'Agendamento $id cancelado. Motivo: $motivo');
   }
 
-  // --- Avaliação ---
+  // --- Avaliacao ---
   Future<void> avaliarAgendamento(String id, int nota, String comentario) async {
     await _db.collection('agendamentos').doc(id).update({
       'avaliacao': nota,
@@ -375,7 +343,12 @@ class FirestoreService {
   }
 
   // --- Chat (Agendamento) ---
-  Future<void> enviarMensagem(String agendamentoId, String texto, String autorId, {String tipo = 'texto'}) async {
+  Future<void> enviarMensagem(
+    String agendamentoId,
+    String texto,
+    String autorId, {
+    String tipo = 'texto',
+  }) async {
     final mensagem = ChatMensagem(
       texto: texto,
       tipo: tipo,
@@ -383,66 +356,36 @@ class FirestoreService {
       dataHora: DateTime.now(),
       lida: false,
     );
-    await _db.collection('agendamentos').doc(agendamentoId).collection('mensagens').add(mensagem.toMap());
 
-    // --- Lógica de Notificação Push ---
-    try {
-      // 1. Obter dados do agendamento para saber quem é o cliente
-      final agendamentoDoc = await _db.collection('agendamentos').doc(agendamentoId).get();
-      if (!agendamentoDoc.exists) return;
-      final agendamento = Agendamento.fromMap(agendamentoDoc.data()!, id: agendamentoDoc.id);
-
-      // 2. Identificar o destinatário
-      String? destinatarioUid;
-      String? nomeRemetente;
-
-      // Se o autor da mensagem é o cliente do agendamento
-      if (autorId == agendamento.idCliente) {
-        // O destinatário é o admin. Vamos buscar o primeiro admin.
-        final adminSnapshot = await _db.collection('usuarios').where('tipo', isEqualTo: 'admin').limit(1).get();
-        if (adminSnapshot.docs.isNotEmpty) {
-          destinatarioUid = adminSnapshot.docs.first.id;
-        }
-        nomeRemetente = agendamento.nomeClienteSnapshot ?? 'Um cliente';
-      } else { // Se o autor é o admin
-        // O destinatário é o cliente
-        destinatarioUid = agendamento.idCliente;
-        nomeRemetente = 'Administradora';
-      }
-
-      if (destinatarioUid == null) return;
-
-      // 3. Obter o token FCM do destinatário
-      final usuarioDoc = await _db.collection('usuarios').doc(destinatarioUid).get();
-      final token = usuarioDoc.data()?['fcm_token'] as String?;
-
-      if (token != null) {
-        await enviarNotificacaoPush(token, AppStrings.notifNovaMensagemTitulo, AppStrings.notifNovaMensagemCorpo(nomeRemetente, tipo, texto));
-      }
-    } catch (e) {
-      debugPrint('Erro ao tentar enviar notificação de chat: $e');
-    }
+    await _db
+        .collection('agendamentos')
+        .doc(agendamentoId)
+        .collection('mensagens')
+        .add(mensagem.toMap());
   }
-    // NOTA: A notificação push agora é tratada pela Cloud Function 'notificarNovaMensagemChat'
-    // que observa a criação de documentos nesta subcoleção.
-
-  // Retorna um Stream para atualização em tempo real 
 
   Stream<List<ChatMensagem>> getMensagens(String agendamentoId) {
-    return _db.collection('agendamentos').doc(agendamentoId).collection('mensagens')
+    return _db
+        .collection('agendamentos')
+        .doc(agendamentoId)
+        .collection('mensagens')
         .orderBy('data_hora', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => ChatMensagem.fromMap(doc.data(), id: doc.id)).toList());
+        .map((snapshot) => snapshot.docs
+            .map((doc) => ChatMensagem.fromMap(doc.data(), id: doc.id))
+            .toList());
   }
 
   Future<void> marcarMensagensComoLidas(String agendamentoId, String usuarioLogadoId) async {
     final batch = _db.batch();
-    final snapshot = await _db.collection('agendamentos').doc(agendamentoId).collection('mensagens')
+    final snapshot = await _db
+        .collection('agendamentos')
+        .doc(agendamentoId)
+        .collection('mensagens')
         .where('lida', isEqualTo: false)
         .get();
 
-    for (var doc in snapshot.docs) {
-      // Só marca como lida se a mensagem NÃO foi enviada por mim (usuário logado)
+    for (final doc in snapshot.docs) {
       if (doc.data()['autor_id'] != usuarioLogadoId) {
         batch.update(doc.reference, {'lida': true});
       }
@@ -450,38 +393,56 @@ class FirestoreService {
     await batch.commit();
   }
 
-  // Helper para upload de arquivos
   Future<String> uploadArquivoChat(String agendamentoId, XFile arquivo) async {
     final nomeArquivo = '${DateTime.now().millisecondsSinceEpoch}_${arquivo.name}';
     final ref = FirebaseStorage.instance.ref().child('chats/$agendamentoId/$nomeArquivo');
     await ref.putData(await arquivo.readAsBytes());
-    return await ref.getDownloadURL();
+    return ref.getDownloadURL();
   }
 
   // --- Cupons ---
   Future<CupomModel?> validarCupom(String codigo) async {
-    final snapshot = await _db.collection('cupons')
+    final snapshot = await _db
+        .collection('cupons')
         .where('codigo', isEqualTo: codigo.toUpperCase())
         .where('ativo', isEqualTo: true)
         .limit(1)
         .get();
 
-    if (snapshot.docs.isNotEmpty) {
-      final cupom = CupomModel.fromMap(snapshot.docs.first.data());
-      if (cupom.validade.isAfter(DateTime.now())) {
-        return cupom;
-      }
+    if (snapshot.docs.isEmpty) return null;
+
+    final cupom = CupomModel.fromMap(snapshot.docs.first.data());
+    if (cupom.validade.isAfter(DateTime.now())) {
+      return cupom;
     }
     return null;
   }
 
-  // --- Transações Financeiras (Novo Módulo) ---
-  Future<void> salvarTransacao(TransacaoFinanceira transacao) async {
-    await _db.collection('transacoes_financeiras').add(transacao.toMap());
+  Future<void> enviarNotificacaoPush(String token, String titulo, String corpo) async {
+    final serverKey = dotenv.env['FCM_SERVER_KEY'];
+    if (serverKey == null) return;
+
+    try {
+      await http.post(
+        Uri.parse('https://fcm.googleapis.com/fcm/send'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'key=$serverKey',
+        },
+        body: jsonEncode({
+          'notification': {'title': titulo, 'body': corpo},
+          'priority': 'high',
+          'to': token,
+        }),
+      );
+    } catch (e) {
+      debugPrint('Erro ao enviar push: $e');
+    }
   }
 
+  // --- Financeiro ---
   Stream<List<TransacaoFinanceira>> getTransacoes() {
-    return _db.collection('transacoes_financeiras')
+    return _db.collection('transacoes')
         .orderBy('data_pagamento', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
@@ -489,14 +450,21 @@ class FirestoreService {
             .toList());
   }
 
-  // Calcula o faturamento total (soma do valor líquido) em um período específico
-  Future<double> calcularFaturamentoTotal(DateTime inicio, DateTime fim) async {
-    final snapshot = await _db.collection('transacoes_financeiras')
+  Future<void> salvarTransacao(TransacaoFinanceira transacao) async {
+    await _db.collection('transacoes').add(transacao.toMap());
+  }
+
+  Future<double> calcularFaturamentoMensal(int mes, int ano) async {
+    final inicio = DateTime(ano, mes, 1);
+    final fim = DateTime(ano, mes + 1, 1);
+
+    final snapshot = await _db.collection('transacoes')
         .where('data_pagamento', isGreaterThanOrEqualTo: Timestamp.fromDate(inicio))
-        .where('data_pagamento', isLessThanOrEqualTo: Timestamp.fromDate(fim))
+        .where('data_pagamento', isLessThan: Timestamp.fromDate(fim))
+        .where('status_pagamento', isEqualTo: 'pago')
         .get();
 
-    double total = 0.0;
+    double total = 0;
     for (var doc in snapshot.docs) {
       final transacao = TransacaoFinanceira.fromMap(doc.data());
       total += transacao.valorLiquidoTransacao;

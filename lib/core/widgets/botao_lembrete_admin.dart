@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:agenda/controller/firestore_service.dart';
+import 'package:agenda/core/services/firestore_service.dart';
 
 class BotaoLembreteAdmin extends StatefulWidget {
   const BotaoLembreteAdmin({super.key});
