@@ -13,8 +13,7 @@ import 'package:agenda/core/utils/custom_theme_data.dart';
 import 'package:agenda/core/widgets/animated_background.dart';
 import 'package:agenda/core/widgets/background_sound_manager.dart';
 import 'package:agenda/core/utils/app_styles.dart';
-import 'package:agenda/features/auth/view/login_view.dart';
-import 'package:agenda/view/onboarding_view.dart';
+import 'package:agenda/view/app_initialization_view.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:agenda/config/firebase_options.dart';
 import 'package:agenda/view/config_error_view.dart';
@@ -330,7 +329,7 @@ class _MyAppState extends State<MyApp> {
             Locale('es', 'ES'),
             Locale('ja', 'JP'),
           ],
-          home: widget.onboardingComplete ? const LoginView() : const OnboardingView(),
+          home: AppInitializationView(onboardingComplete: widget.onboardingComplete),
           // Builder global: Envolve todo o app no fundo animado e verifica manutenção
           builder: (context, child) {
             final childWithPreview = DevicePreview.appBuilder(context, child);

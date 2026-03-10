@@ -116,6 +116,10 @@ class FirestoreService {
     return null;
   }
 
+  Future<String?> buscarSenhaAdminFerramentasAtual() async {
+    return await _buscarSenhaAdminFerramentas();
+  }
+
   Future<bool> verificaSenhaAdminFerramentasConfigurada() async {
     return await _buscarSenhaAdminFerramentas() != null;
   }

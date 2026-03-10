@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:agenda/core/services/firestore_service.dart';
+import 'package:agenda/features/admin/view/admin_ferramentas_database_setup_view.dart';
 
 class AdminFerramentasSenhaSetupView extends StatefulWidget {
   final VoidCallback? onConfirmed;
@@ -128,10 +129,42 @@ class _AdminFerramentasSenhaSetupViewState
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
+              const SizedBox(height: 16),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 48),
+                child: Text(
+                  'Acesse as ferramentas de configuração do banco de dados abaixo',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ),
               const SizedBox(height: 30),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.storage),
+                label: const Text('Database Setup'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminFerramentasDatabaseSetupView(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
               ElevatedButton.icon(
                 icon: const Icon(Icons.edit),
                 label: const Text('Alterar Senha'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                ),
                 onPressed: _abrirFormulario,
               ),
               const SizedBox(height: 10),

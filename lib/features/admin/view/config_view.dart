@@ -27,6 +27,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
   bool _biometriaAtiva = true;
   bool _chatAtivo = true;
   bool _reciboLeitura = true;
+  String _senhaAdminFerramentas = '';
 
   // Campos que não podem ser desmarcados pelo admin (Regra de Negócio/Segurança)
   final List<String> _camposCriticos = ['whatsapp', 'data_nascimento', 'termos_uso'];
@@ -42,6 +43,10 @@ class _AdminConfigViewState extends State<AdminConfigView> {
 
   Future<void> _carregarConfig() async {
     final config = await _firestoreService.getConfiguracao();
+    
+    // Busca senha admin atual
+    final senhaAtual = await _firestoreService.buscarSenhaAdminFerramentasAtual();
+    
     setState(() {
       _campos = Map.from(config.camposObrigatorios);
       
@@ -58,8 +63,27 @@ class _AdminConfigViewState extends State<AdminConfigView> {
       _biometriaAtiva = config.biometriaAtiva;
       _chatAtivo = config.chatAtivo;
       _reciboLeitura = config.reciboLeitura;
+      _senhaAdminFerramentas = senhaAtual ?? '';
       _isLoading = false;
     });
+    
+    // Se algum valor estava vazio/padrão e veio do código, salva no banco
+    await _garantirValoresPadrao(config);
+  }
+  
+  Future<void> _garantirValoresPadrao(ConfigModel config) async {
+    // Se a configuração estava vazia ou com valores default, força salvamento
+    bool precisaSalvar = false;
+    
+    if (config.horasAntecedenciaCancelamento == 24 && 
+        config.inicioSono == 22 && 
+        config.fimSono == 6) {
+      precisaSalvar = true;
+    }
+    
+    if (precisaSalvar) {
+      await _firestoreService.salvarConfiguracao(config);
+    }
   }
 
   Future<void> _salvar() async {
@@ -116,6 +140,98 @@ class _AdminConfigViewState extends State<AdminConfigView> {
     } finally {
       setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _configurarSenhaAdmin() async {
+    final senhaController = TextEditingController();
+    final confirmaSenhaController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(_senhaAdminFerramentas.isEmpty ? 'Configurar Senha Admin' : 'Alterar Senha Admin'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: senhaController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Nova Senha',
+                  hintText: 'Mínimo 6 caracteres',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Senha obrigatória';
+                  }
+                  if (value.trim().length < 6) {
+                    return 'Mínimo 6 caracteres';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: confirmaSenhaController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Confirme a Senha',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value != senhaController.text) {
+                    return 'As senhas não coincidem';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (formKey.currentState?.validate() ?? false) {
+                try {
+                  await _firestoreService.salvarSenhaAdminFerramentas(
+                    senhaController.text.trim(),
+                  );
+                  setState(() => _senhaAdminFerramentas = senhaController.text.trim());
+                  if (!mounted) return;
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Senha salva com sucesso!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Erro ao salvar: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+
+    senhaController.dispose();
+    confirmaSenhaController.dispose();
   }
 
   @override
@@ -220,6 +336,56 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                         onChanged: (v) => setState(() => _statusCampoCupom = v!),
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text('Segurança - Senha Admin', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.orange)),
+                const SizedBox(height: 10),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Senha de Acesso a DevTools',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Esta senha protege o acesso a ferramentas perigosas como DevTools.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _senhaAdminFerramentas.isEmpty 
+                                    ? 'Não configurada' 
+                                    : '••••••••',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color: _senhaAdminFerramentas.isEmpty 
+                                      ? Colors.red 
+                                      : Colors.green,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              icon: Icon(_senhaAdminFerramentas.isEmpty 
+                                  ? Icons.add_circle 
+                                  : Icons.edit),
+                              label: Text(_senhaAdminFerramentas.isEmpty 
+                                  ? 'Configurar' 
+                                  : 'Alterar'),
+                              onPressed: _configurarSenhaAdmin,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
