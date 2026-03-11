@@ -120,12 +120,21 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get avisoRecuperacaoSenha => _isPt
     ? 'Se este for seu e-mail e tiver cadastro, enviaremos um link para recuperação.'
     : 'If this is your email and it is registered, we will send a recovery link.';
+  static String get confirmarRecuperacaoSenha => _isPt ? 'Confirmar recuperação' : 'Confirm recovery';
+  static String tentativasExcedidas(String acao, int segundos) => _isPt
+    ? 'Muitas tentativas de $acao. Aguarde $segundos segundos para tentar novamente.'
+    : 'Too many $acao attempts. Wait $segundos seconds before trying again.';
+  static String get acaoLogin => _isPt ? 'login' : 'login';
+  static String get acaoRecuperacaoSenha => _isPt ? 'recuperação de senha' : 'password recovery';
   static String get erroEmailObrigatorio => _isPt ? 'Por favor, digite seu e-mail para recuperar a senha.' : 'Please enter your email to reset password.';
   static String get emailRecuperacaoEnviado => _isPt ? 'E-mail de recuperação enviado! Verifique sua caixa de entrada.' : 'Recovery email sent! Check your inbox.';
   static String emailRedefinicaoEnviadoPara(String email) => _isPt ? 'Email de redefinição enviado para $email' : 'Password reset email sent to $email';
   static String get cadastroUsuarioNaoEncontrado => _isPt ? 'Cadastro de usuário não encontrado.' : 'User record not found.';
   static String erroLoginComDetalhe(String? erro) => _isPt ? 'Erro de login: ${erro ?? 'desconhecido'}' : 'Login error: ${erro ?? 'unknown'}';
   static String erroCadastroComDetalhe(String erro) => _isPt ? 'Erro ao cadastrar: $erro' : 'Registration error: $erro';
+  static String get erroCadastroAppCheck => _isPt
+    ? 'Erro de segurança do Firebase no cadastro. Em ambiente local web, registre o token de debug do App Check e tente novamente.'
+    : 'Firebase security error during registration. In local web development, register the App Check debug token and try again.';
   static String get biometriaBtn => _isPt ? 'Entrar com Biometria' : 'Login with Biometrics';
   static String get biometriaErro => _isPt ? 'Erro na autenticação biométrica' : 'Biometric authentication error';
 
@@ -374,6 +383,28 @@ Service and package prices are subject to change. Payment must be made as agreed
   // Admin - Logs
   static String get logsSistema => _isPt ? 'Logs do Sistema' : 'System Logs';
   static String get nenhumLogEncontrado => _isPt ? 'Nenhum log encontrado.' : 'No logs found.';
+  static String get segurancaAuth => _isPt ? 'Segurança Auth' : 'Auth Security';
+  static String get filtroTodos => _isPt ? 'Todos' : 'All';
+  static String get filtroCancelamento => _isPt ? 'Cancelamento' : 'Cancellation';
+  static String get filtroAprovacao => _isPt ? 'Aprovação' : 'Approval';
+  static String get filtroEspera => _isPt ? 'Espera' : 'Waitlist';
+  static String get filtroSistema => _isPt ? 'Sistema' : 'System';
+  static String get emailCampo => _isPt ? 'E-mail' : 'Email';
+  static String get acaoCampo => _isPt ? 'Ação' : 'Action';
+  static String get tentativasCampo => _isPt ? 'Tentativas' : 'Attempts';
+  static String get motivoCampo => _isPt ? 'Motivo' : 'Reason';
+  static String get desbloqueioCampo => _isPt ? 'Desbloqueio' : 'Unlock time';
+  static String get naoInformado => _isPt ? 'Não informado' : 'Not informed';
+  static String acaoSegurancaLabel(String acao) {
+    switch (acao) {
+      case 'login':
+        return _isPt ? 'Login' : 'Login';
+      case 'esqueceu_senha':
+        return _isPt ? 'Esqueceu a senha' : 'Forgot password';
+      default:
+        return acao;
+    }
+  }
   static String get sistema => _isPt ? 'Sistema' : 'System';
   static String usuarioLog(String usuarioId) => _isPt ? 'Usuário: $usuarioId' : 'User: $usuarioId';
 
@@ -462,10 +493,10 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get processoConcluido => _isPt ? 'Processo concluído!' : 'Process completed!';
   static String erroAoDisparar(String erro) => _isPt ? 'Erro ao disparar: $erro' : 'Error sending reminders: $erro';
   static String get tooltipAlterarIdioma => _isPt ? 'Alterar Idioma / Change Language' : 'Change Language / Alterar Idioma';
-  static String get idiomaPortugues => _isPt ? '🇧🇷 Português' : '🇧🇷 Portuguese';
-  static String get idiomaIngles => _isPt ? '🇺🇸 English' : '🇺🇸 English';
-  static String get idiomaEspanhol => _isPt ? '🇪🇸 Español' : '🇪🇸 Spanish';
-  static String get idiomaJapones => _isPt ? '🇯🇵 日本語' : '🇯🇵 Japanese';
+  static String get idiomaPortugues => _isPt ? '🇧🇷 Português (Brasileiro)' : '🇧🇷 Portuguese (Brazilian)';
+  static String get idiomaIngles => _isPt ? '🇺🇸 Inglês (English)' : '🇺🇸 English';
+  static String get idiomaEspanhol => _isPt ? '🇪🇸 Espanhol (Español)' : '🇪🇸 Spanish (Español)';
+  static String get idiomaJapones => _isPt ? '🇯🇵 Japonês (日本語)' : '🇯🇵 Japanese (日本語)';
 
   // Login/Auth
   static String get erroLogin => _isPt ? 'Erro ao fazer login' : 'Login error';

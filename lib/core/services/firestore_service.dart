@@ -93,9 +93,16 @@ class FirestoreService {
   }
 
   Future<ConfigModel> getConfiguracao() async {
-    final doc = await _db.collection('configuracoes').doc('geral').get();
-    if (doc.exists && doc.data() != null) {
-      return ConfigModel.fromMap(doc.data()!);
+    try {
+      final doc = await _db.collection('configuracoes').doc('geral').get();
+      if (doc.exists && doc.data() != null) {
+        return ConfigModel.fromMap(doc.data()!);
+      }
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        rethrow;
+      }
+      debugPrint('Acesso negado a configuracoes/geral antes do login. Usando configuracao padrao.');
     }
     return ConfigModel(camposObrigatorios: ConfigModel.padrao);
   }
@@ -655,6 +662,21 @@ class FirestoreService {
       usuarioId: usuarioId,
     );
     await _db.collection('logs').add(log.toMap());
+  }
+
+  Future<void> registrarLogPublicoSegurancaAuth(String mensagem) async {
+    final log = LogModel(
+      dataHora: DateTime.now(),
+      tipo: 'seguranca_auth',
+      mensagem: mensagem,
+      usuarioId: null,
+    );
+
+    try {
+      await _db.collection('logs').add(log.toMap());
+    } catch (e) {
+      debugPrint('Falha ao registrar log publico de seguranca: $e');
+    }
   }
 
   Stream<List<LogModel>> getLogs() {

@@ -5,6 +5,7 @@ import 'package:agenda/features/agendamento/view/agendamento_view.dart';
 import 'package:agenda/features/agendamento/view/admin_agendamentos_view.dart';
 import 'package:agenda/features/auth/view/aguardando_aprovacao_view.dart';
 import 'package:agenda/core/services/firestore_service.dart';
+import 'package:agenda/core/services/auth_security_service.dart';
 import 'package:agenda/core/models/usuario_model.dart';
 import 'package:agenda/main.dart';
 import 'package:agenda/core/utils/custom_theme_data.dart';
@@ -14,8 +15,27 @@ class LoginController {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirestoreService _firestoreService = FirestoreService();
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  final AuthSecurityService _authSecurityService = AuthSecurityService();
 
   Future<void> logar(BuildContext context, String email, String senha) async {
+    final loginStatus = _authSecurityService.canAttempt(email, AuthAttemptAction.login);
+    if (!loginStatus.allowed) {
+      final decision = await _authSecurityService.registerBlockedAttempt(email, AuthAttemptAction.login);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppStrings.tentativasExcedidas(
+                AppStrings.acaoLogin,
+                _secondsFrom(decision.retryAfter),
+              ),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
     try {
       // 1. Autenticar no Firebase Auth
       UserCredential userCredential = await _auth.signInWithEmailAndPassword(
@@ -84,6 +104,13 @@ class LoginController {
         }
       }
     } on FirebaseAuthException catch (e) {
+      if (_shouldCountAsFailedLogin(e.code)) {
+        await _authSecurityService.registerFailedLogin(
+          email,
+          motivo: e.code,
+        );
+      }
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppStrings.erroLoginComDetalhe(e.message))),
@@ -98,7 +125,14 @@ class LoginController {
     }
   }
 
-  Future<void> cadastrar(BuildContext context, String nome, String email, String senha, String whatsapp) async {
+  Future<void> cadastrar(
+    BuildContext context,
+    String nome,
+    String email,
+    String senha,
+    String whatsapp,
+    bool numeroEhWhatsapp,
+  ) async {
     try {
       // 1. Criar usuário no Auth
       UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
@@ -119,6 +153,8 @@ class LoginController {
           aprovado: false,
           dataCadastro: dataAgora,
           theme: AppThemeType.sistema.toString(),
+          whatsapp: whatsapp,
+          numeroEhWhatsapp: numeroEhWhatsapp,
         );
 
         // 3. Salvar no Firestore
@@ -131,6 +167,15 @@ class LoginController {
             MaterialPageRoute(builder: (context) => AguardandoAprovacaoView(dataCadastro: dataAgora)),
           );
         }
+      }
+    } on FirebaseAuthException catch (e) {
+      if (context.mounted) {
+        final message = e.code == 'firebase-app-check-token-is-invalid'
+            ? AppStrings.erroCadastroAppCheck
+            : AppStrings.erroCadastroComDetalhe(e.message ?? e.code);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
       }
     } catch (e) {
       if (context.mounted) {
@@ -146,6 +191,24 @@ class LoginController {
       );
       return;
     }
+
+    final resetDecision = await _authSecurityService.registerPasswordResetRequest(email);
+    if (!resetDecision.allowed) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppStrings.tentativasExcedidas(
+                AppStrings.acaoRecuperacaoSenha,
+                _secondsFrom(resetDecision.retryAfter),
+              ),
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
     try {
       await _auth.sendPasswordResetEmail(email: email);
       if (context.mounted) {
@@ -158,5 +221,19 @@ class LoginController {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.erroGenerico('${e.message}'))));
       }
     }
+  }
+
+  bool _shouldCountAsFailedLogin(String code) {
+    return code == 'wrong-password' ||
+        code == 'invalid-credential' ||
+        code == 'invalid-login-credentials' ||
+        code == 'user-not-found' ||
+        code == 'invalid-email';
+  }
+
+  int _secondsFrom(Duration? duration) {
+    if (duration == null) return 60;
+    final seconds = duration.inSeconds;
+    return seconds <= 0 ? 1 : seconds;
   }
 }

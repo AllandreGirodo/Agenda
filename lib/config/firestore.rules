@@ -20,6 +20,13 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.tipo == 'admin';
     }
 
+    function logPublicoSegurancaAuth() {
+      return request.resource.data.keys().hasOnly(['data_hora', 'tipo', 'mensagem', 'usuario_id'])
+        && request.resource.data.data_hora is timestamp
+        && request.resource.data.tipo == 'seguranca_auth'
+        && request.resource.data.mensagem is string;
+    }
+
     // --- Regras das Coleções ---
 
     // Usuários (Dados de login e tipo)
@@ -95,7 +102,7 @@ service cloud.firestore {
       // RISCO: Permitir que o cliente escreva diretamente pode ser abusado (spam/custos).
       // IDEAL: Logs devem ser escritos por Cloud Functions (ambiente seguro).
       // Por enquanto, mantemos, mas com essa observação de segurança.
-      allow create: if estaLogado(); 
+      allow create: if estaLogado() || logPublicoSegurancaAuth(); 
     }
     
     match /lgpd_logs/{logId} {

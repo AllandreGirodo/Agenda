@@ -54,42 +54,11 @@ class _LoginViewState extends State<LoginView> {
   Future<void> _recuperarSenha() async {
     String email = _emailController.text.trim();
 
-    // Se o campo estiver vazio, abre um diálogo para digitar o email
-    if (email.isEmpty) {
-      if (!mounted) return;
-      final emailDigitado = await showDialog<String>(
-        context: context,
-        builder: (dialogContext) {
-          final controllerTemp = TextEditingController();
-          return AlertDialog(
-            title: Text(AppStrings.esqueceuSenha),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: controllerTemp,
-                  decoration: InputDecoration(labelText: AppStrings.digiteEmailCadastrado),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  AppStrings.avisoRecuperacaoSenha,
-                  style: Theme.of(dialogContext).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(AppStrings.cancelButton)),
-              ElevatedButton(onPressed: () => Navigator.pop(dialogContext, controllerTemp.text.trim()), child: Text(AppStrings.enviar)),
-            ],
-          );
-        },
-      );
-      if (!mounted) return;
-      if (emailDigitado == null || emailDigitado.isEmpty) return;
-      email = emailDigitado;
-    }
+    if (!mounted) return;
+    final emailConfirmado = await _abrirDialogoRecuperacaoSenha(emailInicial: email);
+    if (!mounted) return;
+    if (emailConfirmado == null || emailConfirmado.isEmpty) return;
+    email = emailConfirmado;
 
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -99,6 +68,56 @@ class _LoginViewState extends State<LoginView> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<String?> _abrirDialogoRecuperacaoSenha({required String emailInicial}) async {
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        final controllerTemp = TextEditingController(text: emailInicial);
+        final bool temEmailPreenchido = emailInicial.isNotEmpty;
+
+        return AlertDialog(
+          title: Text(
+            temEmailPreenchido
+                ? AppStrings.confirmarRecuperacaoSenha
+                : AppStrings.esqueceuSenha,
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!temEmailPreenchido)
+                TextField(
+                  controller: controllerTemp,
+                  decoration: InputDecoration(labelText: AppStrings.digiteEmailCadastrado),
+                  keyboardType: TextInputType.emailAddress,
+                )
+              else
+                SelectableText(
+                  emailInicial,
+                  style: Theme.of(dialogContext).textTheme.bodyLarge,
+                ),
+              const SizedBox(height: 10),
+              Text(
+                AppStrings.avisoRecuperacaoSenha,
+                style: Theme.of(dialogContext).textTheme.bodySmall?.copyWith(color: Colors.grey.shade700),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(AppStrings.cancelButton),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, controllerTemp.text.trim()),
+              child: Text(AppStrings.enviar),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _googleLogin() async {

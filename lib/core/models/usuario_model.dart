@@ -10,6 +10,8 @@ class UsuarioModel {
   final String? fcmToken;
   final bool visualizaTodos;
   final String? theme;
+  final String? whatsapp;
+  final bool numeroEhWhatsapp;
 
   UsuarioModel({
     required this.id,
@@ -21,6 +23,8 @@ class UsuarioModel {
     this.fcmToken,
     this.visualizaTodos = false,
     this.theme,
+    this.whatsapp,
+    this.numeroEhWhatsapp = true,
   });
 
   // Converter para Map (para salvar no Firestore)
@@ -35,6 +39,8 @@ class UsuarioModel {
       'fcm_token': fcmToken,
       'visualiza_todos': visualizaTodos,
       'theme': theme,
+      'whatsapp': whatsapp,
+      'numero_e_whatsapp': numeroEhWhatsapp,
     };
   }
 
@@ -52,6 +58,8 @@ class UsuarioModel {
       fcmToken: map['fcm_token'],
       visualizaTodos: map['visualiza_todos'] ?? false,
       theme: map['theme'],
+      whatsapp: map['whatsapp'] as String?,
+      numeroEhWhatsapp: map['numero_e_whatsapp'] as bool? ?? true,
     );
   }
 }

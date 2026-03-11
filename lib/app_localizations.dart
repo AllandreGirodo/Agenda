@@ -27,6 +27,18 @@ class AppLocalizations {
       'signupTitle': 'Criar Conta',
       'fullNameLabel': 'Nome Completo',
       'whatsappLabel': 'WhatsApp',
+      'phoneNumberLabel': 'Telefone/Celular',
+      'isWhatsappNumber': 'Este número é WhatsApp',
+      'isNotWhatsappNumber': 'Este número não é WhatsApp',
+      'signupInvalidEmailTyping': 'E-mail ainda não é válido.',
+      'signupPhoneDigitsLimitReached': 'Limite de dígitos do celular atingido.',
+      'signupPasswordCriteriaTitle': 'Senha sugerida:',
+      'signupPasswordRuleLength': 'Entre 6 e 20 caracteres',
+      'signupPasswordRuleUppercase': 'Pelo menos 1 letra maiúscula',
+      'signupPasswordRuleLowercase': 'Pelo menos 1 letra minúscula',
+      'signupPasswordRuleNumber': 'Pelo menos 1 número',
+      'signupPasswordRuleSpecial': 'Pelo menos 1 caractere especial',
+      'signupPasswordWeakMessage': 'A senha ainda não atende ao padrão sugerido.',
       'registerButton': 'CADASTRAR',
       'registrationError': 'Erro ao cadastrar',
       // Agendamento
@@ -80,6 +92,18 @@ class AppLocalizations {
       'signupTitle': 'Create Account',
       'fullNameLabel': 'Full Name',
       'whatsappLabel': 'WhatsApp',
+      'phoneNumberLabel': 'Phone Number',
+      'isWhatsappNumber': 'This number is WhatsApp',
+      'isNotWhatsappNumber': 'This number is not WhatsApp',
+      'signupInvalidEmailTyping': 'Email is not valid yet.',
+      'signupPhoneDigitsLimitReached': 'Phone digit limit reached.',
+      'signupPasswordCriteriaTitle': 'Suggested password:',
+      'signupPasswordRuleLength': 'Between 6 and 20 characters',
+      'signupPasswordRuleUppercase': 'At least 1 uppercase letter',
+      'signupPasswordRuleLowercase': 'At least 1 lowercase letter',
+      'signupPasswordRuleNumber': 'At least 1 number',
+      'signupPasswordRuleSpecial': 'At least 1 special character',
+      'signupPasswordWeakMessage': 'Password does not meet the suggested pattern yet.',
       'registerButton': 'REGISTER',
       'registrationError': 'Error registering',
       // Appointment
@@ -133,6 +157,18 @@ class AppLocalizations {
       'signupTitle': 'Crear Cuenta',
       'fullNameLabel': 'Nombre Completo',
       'whatsappLabel': 'WhatsApp',
+      'phoneNumberLabel': 'Número de teléfono',
+      'isWhatsappNumber': 'Este número es WhatsApp',
+      'isNotWhatsappNumber': 'Este número no es WhatsApp',
+      'signupInvalidEmailTyping': 'El correo aún no es válido.',
+      'signupPhoneDigitsLimitReached': 'Se alcanzó el límite de dígitos del celular.',
+      'signupPasswordCriteriaTitle': 'Contraseña sugerida:',
+      'signupPasswordRuleLength': 'Entre 6 y 20 caracteres',
+      'signupPasswordRuleUppercase': 'Al menos 1 letra mayúscula',
+      'signupPasswordRuleLowercase': 'Al menos 1 letra minúscula',
+      'signupPasswordRuleNumber': 'Al menos 1 número',
+      'signupPasswordRuleSpecial': 'Al menos 1 carácter especial',
+      'signupPasswordWeakMessage': 'La contraseña aún no cumple el patrón sugerido.',
       'registerButton': 'REGISTRAR',
       'registrationError': 'Error al registrar',
       // Appointment
@@ -186,6 +222,18 @@ class AppLocalizations {
       'signupTitle': 'アカウント作成',
       'fullNameLabel': '氏名',
       'whatsappLabel': 'WhatsApp',
+      'phoneNumberLabel': '電話番号',
+      'isWhatsappNumber': 'この番号はWhatsAppです',
+      'isNotWhatsappNumber': 'この番号はWhatsAppではありません',
+      'signupInvalidEmailTyping': 'メールアドレスの形式がまだ無効です。',
+      'signupPhoneDigitsLimitReached': '電話番号の桁数上限に達しました。',
+      'signupPasswordCriteriaTitle': '推奨パスワード:',
+      'signupPasswordRuleLength': '6〜20文字',
+      'signupPasswordRuleUppercase': '英大文字を1文字以上',
+      'signupPasswordRuleLowercase': '英小文字を1文字以上',
+      'signupPasswordRuleNumber': '数字を1文字以上',
+      'signupPasswordRuleSpecial': '記号を1文字以上',
+      'signupPasswordWeakMessage': 'パスワードが推奨パターンをまだ満たしていません。',
       'registerButton': '登録',
       'registrationError': '登録エラー',
       // Appointment
@@ -248,6 +296,18 @@ class AppLocalizations {
   String get signupTitle => _t('signupTitle');
   String get fullNameLabel => _t('fullNameLabel');
   String get whatsappLabel => _t('whatsappLabel');
+  String get phoneNumberLabel => _t('phoneNumberLabel');
+  String get isWhatsappNumber => _t('isWhatsappNumber');
+  String get isNotWhatsappNumber => _t('isNotWhatsappNumber');
+  String get signupInvalidEmailTyping => _t('signupInvalidEmailTyping');
+  String get signupPhoneDigitsLimitReached => _t('signupPhoneDigitsLimitReached');
+  String get signupPasswordCriteriaTitle => _t('signupPasswordCriteriaTitle');
+  String get signupPasswordRuleLength => _t('signupPasswordRuleLength');
+  String get signupPasswordRuleUppercase => _t('signupPasswordRuleUppercase');
+  String get signupPasswordRuleLowercase => _t('signupPasswordRuleLowercase');
+  String get signupPasswordRuleNumber => _t('signupPasswordRuleNumber');
+  String get signupPasswordRuleSpecial => _t('signupPasswordRuleSpecial');
+  String get signupPasswordWeakMessage => _t('signupPasswordWeakMessage');
   String get registerButton => _t('registerButton');
   String get registrationError => _t('registrationError');
   // Appointment

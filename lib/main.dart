@@ -13,6 +13,7 @@ import 'package:agenda/core/utils/custom_theme_data.dart';
 import 'package:agenda/core/widgets/animated_background.dart';
 import 'package:agenda/core/widgets/background_sound_manager.dart';
 import 'package:agenda/core/utils/app_styles.dart';
+import 'package:agenda/core/utils/app_check_debug_token.dart';
 import 'package:agenda/view/app_initialization_view.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:agenda/config/firebase_options.dart';
@@ -82,6 +83,14 @@ void main() async {
       debugPrint("Aviso: Arquivo .env não encontrado ou erro ao carregar: $e");
     }
 
+    const String appCheckDebugToken = String.fromEnvironment(
+      'FIREBASE_APPCHECK_DEBUG_TOKEN',
+      defaultValue: '',
+    );
+    await configureWebAppCheckDebugToken(
+      appCheckDebugToken.isEmpty ? null : appCheckDebugToken,
+    );
+
     // 2. Inicialização do Firebase
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -114,11 +123,11 @@ void main() async {
       debugPrint('Usando Firebase online (sem emuladores locais).');
     }
 
-    // 3. App Check (em debug fica opcional para evitar bloquear desenvolvimento web local)
+    // 3. App Check para Web
     const bool enableAppCheckInDebug = bool.fromEnvironment('ENABLE_APPCHECK_IN_DEBUG', defaultValue: false);
-    final bool shouldEnableAppCheck = kReleaseMode || enableAppCheckInDebug;
     final recaptchaKey = dotenv.env['RECAPTCHA_SITE_KEY'];
-    if (shouldEnableAppCheck && recaptchaKey != null && recaptchaKey.isNotEmpty) {
+    final bool shouldEnableWebAppCheck = kIsWeb && (kReleaseMode || kDebugMode || enableAppCheckInDebug);
+    if (shouldEnableWebAppCheck && recaptchaKey != null && recaptchaKey.isNotEmpty) {
       try {
         await FirebaseAppCheck.instance.activate(
           providerWeb: ReCaptchaV3Provider(recaptchaKey),
@@ -126,10 +135,8 @@ void main() async {
       } catch (e) {
         debugPrint('Aviso: falha ao ativar App Check: $e');
       }
-    } else if (shouldEnableAppCheck) {
-      debugPrint('Aviso: RECAPTCHA_SITE_KEY não configurado. App Check ignorado.');
-    } else {
-      debugPrint('App Check desativado em debug. Use --dart-define=ENABLE_APPCHECK_IN_DEBUG=true para habilitar.');
+    } else if (kIsWeb) {
+      debugPrint('Aviso: RECAPTCHA_SITE_KEY não configurado. App Check web ignorado.');
     }
 
     // 4. Configurações adicionais
