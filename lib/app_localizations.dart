@@ -31,6 +31,8 @@ class AppLocalizations {
       'isWhatsappNumber': 'Este número é WhatsApp',
       'isNotWhatsappNumber': 'Este número não é WhatsApp',
       'signupInvalidEmailTyping': 'E-mail ainda não é válido.',
+      'signupPhoneOnlyDigitsMessage': 'Preencha apenas com números de 0 a 9.',
+      'signupPhoneMinDigitsMessage': 'Mínimo de 10 dígitos necessários.',
       'signupPhoneDigitsLimitReached': 'Limite de dígitos do celular atingido.',
       'signupPasswordCriteriaTitle': 'Senha sugerida:',
       'signupPasswordRuleLength': 'Entre 6 e 20 caracteres',
@@ -96,6 +98,8 @@ class AppLocalizations {
       'isWhatsappNumber': 'This number is WhatsApp',
       'isNotWhatsappNumber': 'This number is not WhatsApp',
       'signupInvalidEmailTyping': 'Email is not valid yet.',
+      'signupPhoneOnlyDigitsMessage': 'Use only numbers from 0 to 9.',
+      'signupPhoneMinDigitsMessage': 'Minimum of 10 digits required.',
       'signupPhoneDigitsLimitReached': 'Phone digit limit reached.',
       'signupPasswordCriteriaTitle': 'Suggested password:',
       'signupPasswordRuleLength': 'Between 6 and 20 characters',
@@ -161,6 +165,8 @@ class AppLocalizations {
       'isWhatsappNumber': 'Este número es WhatsApp',
       'isNotWhatsappNumber': 'Este número no es WhatsApp',
       'signupInvalidEmailTyping': 'El correo aún no es válido.',
+      'signupPhoneOnlyDigitsMessage': 'Complete solo con números del 0 al 9.',
+      'signupPhoneMinDigitsMessage': 'Se requieren mínimo 10 dígitos.',
       'signupPhoneDigitsLimitReached': 'Se alcanzó el límite de dígitos del celular.',
       'signupPasswordCriteriaTitle': 'Contraseña sugerida:',
       'signupPasswordRuleLength': 'Entre 6 y 20 caracteres',
@@ -226,6 +232,8 @@ class AppLocalizations {
       'isWhatsappNumber': 'この番号はWhatsAppです',
       'isNotWhatsappNumber': 'この番号はWhatsAppではありません',
       'signupInvalidEmailTyping': 'メールアドレスの形式がまだ無効です。',
+      'signupPhoneOnlyDigitsMessage': '0から9の数字のみ入力してください。',
+      'signupPhoneMinDigitsMessage': '最低10桁が必要です。',
       'signupPhoneDigitsLimitReached': '電話番号の桁数上限に達しました。',
       'signupPasswordCriteriaTitle': '推奨パスワード:',
       'signupPasswordRuleLength': '6〜20文字',
@@ -300,6 +308,8 @@ class AppLocalizations {
   String get isWhatsappNumber => _t('isWhatsappNumber');
   String get isNotWhatsappNumber => _t('isNotWhatsappNumber');
   String get signupInvalidEmailTyping => _t('signupInvalidEmailTyping');
+  String get signupPhoneOnlyDigitsMessage => _t('signupPhoneOnlyDigitsMessage');
+  String get signupPhoneMinDigitsMessage => _t('signupPhoneMinDigitsMessage');
   String get signupPhoneDigitsLimitReached => _t('signupPhoneDigitsLimitReached');
   String get signupPasswordCriteriaTitle => _t('signupPasswordCriteriaTitle');
   String get signupPasswordRuleLength => _t('signupPasswordRuleLength');

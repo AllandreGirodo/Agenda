@@ -132,6 +132,7 @@ class LoginController {
     String senha,
     String whatsapp,
     bool numeroEhWhatsapp,
+    String? locale,
   ) async {
     try {
       // 1. Criar usuário no Auth
@@ -155,6 +156,7 @@ class LoginController {
           theme: AppThemeType.sistema.toString(),
           whatsapp: whatsapp,
           numeroEhWhatsapp: numeroEhWhatsapp,
+          locale: locale,
         );
 
         // 3. Salvar no Firestore
@@ -170,16 +172,24 @@ class LoginController {
       }
     } on FirebaseAuthException catch (e) {
       if (context.mounted) {
-        final message = e.code == 'firebase-app-check-token-is-invalid'
-            ? AppStrings.erroCadastroAppCheck
-            : AppStrings.erroCadastroComDetalhe(e.message ?? e.code);
+        final String message;
+        switch (e.code) {
+          case 'email-already-in-use':
+            message = AppStrings.erroEmailJaEmUso;
+            break;
+          case 'firebase-app-check-token-is-invalid':
+            message = AppStrings.erroCadastroAppCheck;
+            break;
+          default:
+            message = AppStrings.erroCadastroComDetalhe(e.message ?? e.code);
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(message)),
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.erroCadastroComDetalhe('$e'))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.erroCadastro)));
       }
     }
   }

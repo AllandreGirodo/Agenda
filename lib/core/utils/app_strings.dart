@@ -132,6 +132,7 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get cadastroUsuarioNaoEncontrado => _isPt ? 'Cadastro de usuário não encontrado.' : 'User record not found.';
   static String erroLoginComDetalhe(String? erro) => _isPt ? 'Erro de login: ${erro ?? 'desconhecido'}' : 'Login error: ${erro ?? 'unknown'}';
   static String erroCadastroComDetalhe(String erro) => _isPt ? 'Erro ao cadastrar: $erro' : 'Registration error: $erro';
+  static String get erroEmailJaEmUso => _isPt ? 'Este e-mail já está cadastrado.' : 'This email is already registered.';
   static String get erroCadastroAppCheck => _isPt
     ? 'Erro de segurança do Firebase no cadastro. Em ambiente local web, registre o token de debug do App Check e tente novamente.'
     : 'Firebase security error during registration. In local web development, register the App Check debug token and try again.';
@@ -493,6 +494,7 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get processoConcluido => _isPt ? 'Processo concluído!' : 'Process completed!';
   static String erroAoDisparar(String erro) => _isPt ? 'Erro ao disparar: $erro' : 'Error sending reminders: $erro';
   static String get tooltipAlterarIdioma => _isPt ? 'Alterar Idioma / Change Language' : 'Change Language / Alterar Idioma';
+  static String get labelIdioma => _isPt ? 'Idioma: ' : 'Language: ';
   static String get idiomaPortugues => _isPt ? '🇧🇷 Português (Brasileiro)' : '🇧🇷 Portuguese (Brazilian)';
   static String get idiomaIngles => _isPt ? '🇺🇸 Inglês (English)' : '🇺🇸 English';
   static String get idiomaEspanhol => _isPt ? '🇪🇸 Espanhol (Español)' : '🇪🇸 Spanish (Español)';
@@ -503,6 +505,34 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get erroCadastro => _isPt ? 'Erro ao cadastrar' : 'Registration error';
   static String erroGoogleLogin(String erro) => _isPt ? 'Erro no Google Login: $erro' : 'Google Login error: $erro';
   static String get biometriaLoginMsg => _isPt ? 'Faça login com senha uma vez para habilitar o acesso rápido.' : 'Log in with password once to enable quick access.';
+  static String get phoneNumberMinTenDigits => _isPt ? 'com no mínimo 10 dígitos' : 'with minimum 10 digits';
+  
+  // Relatórios (chaves adicionais)
+  static String get exportarPdfCompartilhar => _isPt ? 'Exportar PDF e Compartilhar' : 'Export PDF and Share';
+  static String get metricsTotal => _isPt ? 'Total Agendado' : 'Total Scheduled';
+  static String get metricsCompleted => _isPt ? 'Realizados/Conf.' : 'Completed/Confirmed';
+  static String get metricsCanceled => _isPt ? 'Cancelados' : 'Canceled';
+  static String get metricsCancellationRate => _isPt ? 'Taxa Cancelamento' : 'Cancellation Rate';
+  static String get recarregar => _isPt ? 'Recarregar' : 'Reload';
+  
+  // Admin - Database Setup
+  static String get configuracoesGerais => _isPt ? '📋 Configurações Gerais' : '📋 General Settings';
+  static String get usuariosManutencao => _isPt ? '👥 Usuários (Manutenção)' : '👥 Users (Maintenance)';
+  static String get agendamentosManutencao => _isPt ? '📅 Agendamentos (Manutenção)' : '📅 Appointments (Maintenance)';
+  static String get validandoDados => _isPt ? 'Validando dados...' : 'Validating data...';
+  static String get dadosValidos => _isPt ? 'Dados válidos! ✓' : 'Data valid! ✓';
+  static String get jaPossuiRegistro => _isPt ? 'Já possui registro' : 'Already has record';
+  static String get sincronizarDados => _isPt ? 'Sincronizar Dados' : 'Synchronize Data';
+  static String get sucessoSincronizacao => _isPt ? 'Sincronização realizada!' : 'Synchronization completed!';
+  static String erroSincronizacao(String erro) => _isPt ? 'Erro na sincronização: $erro' : 'Synchronization error: $erro';
+  
+  // Admin - Password Setup
+  static String get senhasMaster => _isPt ? 'Senhas Master' : 'Master Passwords';
+  static String get adicionarSenha => _isPt ? 'Adicionar Senha' : 'Add Password';
+  
+  // Admin - Agendamentos View
+  static String get administracaoAgendamentosCompleto => _isPt ? 'Administração de Agendamentos' : 'Appointment Administration';
+  static String get procurarAgendamento => _isPt ? 'Procurar agendamento...' : 'Search appointment...';
 
   // Geral
   static String erroGenerico(String erro) => _isPt ? 'Erro: $erro' : 'Error: $erro';

@@ -12,6 +12,7 @@ class UsuarioModel {
   final String? theme;
   final String? whatsapp;
   final bool numeroEhWhatsapp;
+  final String? locale;
 
   UsuarioModel({
     required this.id,
@@ -25,6 +26,7 @@ class UsuarioModel {
     this.theme,
     this.whatsapp,
     this.numeroEhWhatsapp = true,
+    this.locale,
   });
 
   // Converter para Map (para salvar no Firestore)
@@ -41,6 +43,7 @@ class UsuarioModel {
       'theme': theme,
       'whatsapp': whatsapp,
       'numero_e_whatsapp': numeroEhWhatsapp,
+      'locale': locale,
     };
   }
 
@@ -60,6 +63,7 @@ class UsuarioModel {
       theme: map['theme'],
       whatsapp: map['whatsapp'] as String?,
       numeroEhWhatsapp: map['numero_e_whatsapp'] as bool? ?? true,
+      locale: map['locale'] as String?,
     );
   }
 }

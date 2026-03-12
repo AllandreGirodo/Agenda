@@ -1,4 +1,5 @@
-import 'dart:js_util' as js_util;
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 import 'package:web/web.dart' as web;
 
@@ -10,9 +11,12 @@ Future<void> configureAppCheckDebugToken(String? debugToken) async {
     return;
   }
 
-  js_util.setProperty(
-    web.window,
-    'FIREBASE_APPCHECK_DEBUG_TOKEN',
-    debugToken != null && debugToken.isNotEmpty ? debugToken : true,
+  final token = (debugToken != null && debugToken.isNotEmpty)
+      ? debugToken.toJS
+      : true.toJS;
+
+  (web.window as JSObject).setProperty(
+    'FIREBASE_APPCHECK_DEBUG_TOKEN'.toJS,
+    token,
   );
 }
