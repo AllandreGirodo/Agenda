@@ -206,14 +206,15 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get biometriaErro => _isPt
       ? 'Erro na autenticação biométrica'
       : 'Biometric authentication error';
-  static String get testeInsercaoBancoBtn =>
-      _isPt ? 'Criar coleção de teste' : 'Create test collection';
-  static String testeInsercaoBancoSucesso(String id) => _isPt
-      ? 'Documento criado na coleção teste. ID: $id'
-      : 'Document created in test collection. ID: $id';
-  static String testeInsercaoBancoErro(String erro) => _isPt
-      ? 'Falha ao inserir teste no banco: $erro'
-      : 'Failed to insert test record in database: $erro';
+  static String get testeBooleanoBancoBtn => _isPt
+      ? 'Alternar booleano no banco'
+      : 'Toggle database boolean';
+  static String testeBooleanoBancoSucesso(bool valor) => _isPt
+      ? 'Documento criado na coleção teste. ativo = $valor'
+      : 'Document created in test collection. active = $valor';
+  static String testeBooleanoBancoErro(String erro) => _isPt
+      ? 'Falha ao alternar booleano no banco: $erro'
+      : 'Failed to toggle database boolean: $erro';
 
   // Onboarding
   static String get onboardingTitulo1 => _isPt ? 'Bem-vindo(a)' : 'Welcome';

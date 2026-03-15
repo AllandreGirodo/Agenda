@@ -77,14 +77,14 @@ No documento da transação, não salvamos apenas `cliente_uid: "123"`. Salvamos
   "transacao_id": "tx_999",
   "cliente_uid": "123",
   "cliente_snapshot": {
-    "nome": "João da Silva",
+    "nome": "Maria Joaquina da Silva",
     "cpf": "111.222.333-44"
   },
   "valor": 100.00
 }
 ```
 
-Dessa forma, mesmo que o documento original em `clientes/123` vire "Anonimizado", o relatório financeiro continuará mostrando que "João da Silva" pagou R$ 100,00 naquela data.
+Dessa forma, mesmo que o documento original em `clientes/123` vire "Anonimizado", o relatório financeiro continuará mostrando que "Maria Joaquina da Silva" pagou R$ 100,00 naquela data.
 
 ---
-*Documento gerado para padronização do TCC - Agenda Massoterapia.*
+*Documento para padronização do TCC - Agenda Massoterapia.*

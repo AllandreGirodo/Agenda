@@ -148,7 +148,11 @@ class _AgendamentoViewState extends State<AgendamentoView> {
 
           Expanded(
             child: StreamBuilder<List<Agendamento>>(
-        stream: _firestoreService.getAgendamentos(),
+        stream: currentUser == null
+            ? Stream.value(const <Agendamento>[])
+            : (_mostrarTodos && temPermissao)
+                ? _firestoreService.getAgendamentos()
+                : _firestoreService.getAgendamentosDoCliente(currentUser.uid),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return Center(child: Text(AppStrings.erroGenerico('${snapshot.error}')));
@@ -163,11 +167,6 @@ class _AgendamentoViewState extends State<AgendamentoView> {
           }
 
           var agendamentos = snapshot.data ?? [];
-
-          // Filtro: Se não estiver mostrando todos (ou não tiver permissão), filtra pelos do usuário
-          if (!(_mostrarTodos && temPermissao) && currentUser != null) {
-             agendamentos = agendamentos.where((a) => a.clienteId == currentUser.uid).toList();
-          }
 
           // Filtro por Data
           if (_filtroData != null) {

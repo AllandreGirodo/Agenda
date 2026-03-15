@@ -249,19 +249,22 @@ class FirestoreService {
     await _db.collection('usuarios').doc(usuario.id).set(usuario.toMap());
   }
 
-  Future<String> inserirTesteLoginView({
+  Future<bool> alternarTesteBooleanoLoginView({
     required String emailDigitado,
+    required bool valorAtual,
     String? uid,
   }) async {
-    final doc = await _db.collection('teste').add({
-      'tipo': 'insercao_teste',
+    final proximoValor = !valorAtual;
+
+    await _db.collection('teste').add({
+      'ativo': proximoValor,
       'email_digitado': emailDigitado.isEmpty ? 'sem_email' : emailDigitado,
       'uid': uid ?? 'nao_autenticado',
       'origem': 'login_view',
       'criado_em': FieldValue.serverTimestamp(),
     });
 
-    return doc.id;
+    return proximoValor;
   }
 
   Stream<List<UsuarioModel>> getUsuariosPendentes() {

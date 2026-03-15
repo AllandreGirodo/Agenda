@@ -3,10 +3,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Funções Auxiliares ---
+    // --- Funcoes Auxiliares ---
     
     function estaLogado() {
       return request.auth != null;
+    }
+
+    function existeUsuarioAtual() {
+      return estaLogado() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid));
+    }
+
+    function dadosUsuarioAtual() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
     }
 
     function eDono(userId) {
@@ -14,10 +23,314 @@ service cloud.firestore {
     }
 
     function eAdmin() {
-      // Garante autenticação antes de consultar documento e evita erro quando o doc ainda não existe.
+      return existeUsuarioAtual() && dadosUsuarioAtual().tipo == 'admin';
+    }
+
+    function podeVisualizarTudo() {
+      return existeUsuarioAtual() && dadosUsuarioAtual().visualiza_todos == true;
+    }
+
+    function statusAgendamentoValido(status) {
+      return status == 'pendente'
+        || status == 'aprovado'
+        || status == 'recusado'
+        || status == 'cancelado'
+        || status == 'cancelado_tardio';
+    }
+
+    function tipoMensagemValido(tipo) {
+      return tipo == 'texto' || tipo == 'imagem' || tipo == 'audio';
+    }
+
+    function podeLerAgendamento(dadosAgendamento) {
+      return eAdmin()
+        || podeVisualizarTudo()
+        || (estaLogado() && dadosAgendamento.cliente_id == request.auth.uid);
+    }
+
+    function agendamentoExiste(agendamentoId) {
+      return exists(/databases/$(database)/documents/agendamentos/$(agendamentoId));
+    }
+
+    function dadosAgendamento(agendamentoId) {
+      return get(/databases/$(database)/documents/agendamentos/$(agendamentoId)).data;
+    }
+
+    function podeLerAgendamentoPorId(agendamentoId) {
+      return agendamentoExiste(agendamentoId)
+        && podeLerAgendamento(dadosAgendamento(agendamentoId));
+    }
+
+    function configuracaoGeralExiste() {
+      return exists(/databases/$(database)/documents/configuracoes/geral);
+    }
+
+    function precoSessaoConfigurado() {
+      return get(/databases/$(database)/documents/configuracoes/geral).data.preco_sessao;
+    }
+
+    function cupomExiste(codigo) {
+      return codigo is string
+        && exists(/databases/$(database)/documents/cupons/$(codigo));
+    }
+
+    function dadosCupom(codigo) {
+      return get(/databases/$(database)/documents/cupons/$(codigo)).data;
+    }
+
+    function cupomValido(codigo) {
+      return cupomExiste(codigo)
+        && dadosCupom(codigo).ativo == true
+        && dadosCupom(codigo).validade > request.time;
+    }
+
+    function precoAgendamentoClienteValido() {
+      return configuracaoGeralExiste()
+        && (precoSessaoConfigurado() is int || precoSessaoConfigurado() is float)
+        && (request.resource.data.valor_original is int || request.resource.data.valor_original is float)
+        && (request.resource.data.valor_final is int || request.resource.data.valor_final is float)
+        && (request.resource.data.preco is int || request.resource.data.preco is float)
+        && request.resource.data.valor_original == precoSessaoConfigurado()
+        && request.resource.data.preco == request.resource.data.valor_final
+        && (
+          (
+            request.resource.data.cupom_aplicado == null
+            && request.resource.data.valor_final == request.resource.data.valor_original
+          )
+          ||
+          (
+            cupomValido(request.resource.data.cupom_aplicado)
+            && (
+              (
+                dadosCupom(request.resource.data.cupom_aplicado).tipo == 'porcentagem'
+                && request.resource.data.valor_final == request.resource.data.valor_original - (request.resource.data.valor_original * dadosCupom(request.resource.data.cupom_aplicado).valor / 100.0)
+              )
+              ||
+              (
+                dadosCupom(request.resource.data.cupom_aplicado).tipo == 'fixo'
+                && (
+                  (
+                    request.resource.data.valor_original - dadosCupom(request.resource.data.cupom_aplicado).valor > 0
+                    && request.resource.data.valor_final == request.resource.data.valor_original - dadosCupom(request.resource.data.cupom_aplicado).valor
+                  )
+                  ||
+                  (
+                    request.resource.data.valor_original - dadosCupom(request.resource.data.cupom_aplicado).valor <= 0
+                    && request.resource.data.valor_final == 0
+                  )
+                )
+              )
+            )
+          )
+        );
+    }
+
+    function donoPodeCriarUsuario(userId) {
+      return eDono(userId)
+        && request.resource.data.keys().hasOnly([
+          'id',
+          'nome',
+          'email',
+          'tipo',
+          'aprovado',
+          'data_cadastro',
+          'fcm_token',
+          'visualiza_todos',
+          'theme',
+          'whatsapp',
+          'numero_e_whatsapp',
+          'locale',
+        ])
+        && request.resource.data.id == userId
+        && request.resource.data.email is string
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.tipo == 'cliente'
+        && request.resource.data.aprovado == false
+        && request.resource.data.visualiza_todos == false
+        && (request.resource.data.nome == null || request.resource.data.nome is string)
+        && (request.resource.data.data_cadastro == request.time || request.resource.data.data_cadastro is timestamp)
+        && (request.resource.data.fcm_token == null || request.resource.data.fcm_token is string)
+        && (request.resource.data.theme == null || request.resource.data.theme is string)
+        && (request.resource.data.whatsapp == null || request.resource.data.whatsapp is string)
+        && (request.resource.data.numero_e_whatsapp == null || request.resource.data.numero_e_whatsapp is bool)
+        && (request.resource.data.locale == null || request.resource.data.locale is string);
+    }
+
+    function donoPodeAtualizarUsuario(userId) {
+      return eDono(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'nome',
+          'email',
+          'aprovado',
+          'fcm_token',
+          'theme',
+          'whatsapp',
+          'numero_e_whatsapp',
+          'locale',
+        ])
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.tipo == resource.data.tipo
+        && request.resource.data.visualiza_todos == resource.data.visualiza_todos
+        && request.resource.data.email is string
+        && (
+          request.resource.data.aprovado == resource.data.aprovado
+          || request.resource.data.aprovado == false
+        )
+        && (request.resource.data.nome == null || request.resource.data.nome is string)
+        && (request.resource.data.fcm_token == null || request.resource.data.fcm_token is string)
+        && (request.resource.data.theme == null || request.resource.data.theme is string)
+        && (request.resource.data.whatsapp == null || request.resource.data.whatsapp is string)
+        && (request.resource.data.numero_e_whatsapp == null || request.resource.data.numero_e_whatsapp is bool)
+        && (request.resource.data.locale == null || request.resource.data.locale is string);
+    }
+
+    function donoPodeCriarOuAtualizarCliente(clienteId) {
+      return eDono(clienteId)
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'nome',
+          'whatsapp',
+          'data_nascimento',
+          'saldo_sessoes',
+          'favoritos',
+          'endereco',
+          'historico_medico',
+          'alergias',
+          'medicamentos',
+          'cirurgias',
+          'anamnese_ok',
+        ])
+        && request.resource.data.uid == clienteId
+        && (request.resource.data.nome == null || request.resource.data.nome is string)
+        && (request.resource.data.whatsapp == null || request.resource.data.whatsapp is string)
+        && (request.resource.data.data_nascimento == null || request.resource.data.data_nascimento is timestamp)
+        && (request.resource.data.favoritos == null || request.resource.data.favoritos is list)
+        && (request.resource.data.endereco == null || request.resource.data.endereco is string)
+        && (request.resource.data.historico_medico == null || request.resource.data.historico_medico is string)
+        && (request.resource.data.alergias == null || request.resource.data.alergias is string)
+        && (request.resource.data.medicamentos == null || request.resource.data.medicamentos is string)
+        && (request.resource.data.cirurgias == null || request.resource.data.cirurgias is string)
+        && (request.resource.data.anamnese_ok == null || request.resource.data.anamnese_ok is bool);
+    }
+
+    function donoPodeCriarCliente(clienteId) {
+      return donoPodeCriarOuAtualizarCliente(clienteId)
+        && (request.resource.data.saldo_sessoes == null || request.resource.data.saldo_sessoes == 0);
+    }
+
+    function donoPodeAtualizarCliente(clienteId) {
+      return donoPodeCriarOuAtualizarCliente(clienteId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'nome',
+          'whatsapp',
+          'data_nascimento',
+          'favoritos',
+          'endereco',
+          'historico_medico',
+          'alergias',
+          'medicamentos',
+          'cirurgias',
+          'anamnese_ok',
+        ])
+        && request.resource.data.saldo_sessoes == resource.data.saldo_sessoes;
+    }
+
+    function camposAgendamentoValidosNaCriacao() {
+      return request.resource.data.keys().hasOnly([
+          'cliente_id',
+          'data_hora',
+          'tipo',
+          'tipo_id',
+          'tipo_massagem',
+          'status',
+          'motivo_cancelamento',
+          'lista_espera',
+          'data_criacao',
+          'cliente_nome_snapshot',
+          'cliente_telefone_snapshot',
+          'avaliacao',
+          'comentario_avaliacao',
+          'cupom_aplicado',
+          'valor_original',
+          'valor_final',
+          'preco',
+        ])
+        && request.resource.data.cliente_id is string
+        && request.resource.data.data_hora is timestamp
+        && request.resource.data.tipo is string
+        && (request.resource.data.tipo_id == null || request.resource.data.tipo_id is string)
+        && (request.resource.data.tipo_massagem == null || request.resource.data.tipo_massagem is string)
+        && statusAgendamentoValido(request.resource.data.status)
+        && request.resource.data.lista_espera is list
+        && (request.resource.data.data_criacao == request.time || request.resource.data.data_criacao is timestamp)
+        && (request.resource.data.cliente_nome_snapshot == null || request.resource.data.cliente_nome_snapshot is string)
+        && (request.resource.data.cliente_telefone_snapshot == null || request.resource.data.cliente_telefone_snapshot is string)
+        && (request.resource.data.motivo_cancelamento == null || request.resource.data.motivo_cancelamento is string)
+        && (request.resource.data.avaliacao == null || request.resource.data.avaliacao is int || request.resource.data.avaliacao is float)
+        && (request.resource.data.comentario_avaliacao == null || request.resource.data.comentario_avaliacao is string)
+        && (request.resource.data.cupom_aplicado == null || request.resource.data.cupom_aplicado is string)
+        && (request.resource.data.valor_original == null || request.resource.data.valor_original is int || request.resource.data.valor_original is float)
+        && (request.resource.data.valor_final == null || request.resource.data.valor_final is int || request.resource.data.valor_final is float)
+        && (request.resource.data.preco == null || request.resource.data.preco is int || request.resource.data.preco is float)
+        && (request.resource.data.valor_final == null || request.resource.data.preco == request.resource.data.valor_final);
+    }
+
+    function clientePodeCriarAgendamento() {
       return estaLogado()
-        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
-        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.tipo == 'admin';
+        && camposAgendamentoValidosNaCriacao()
+        && precoAgendamentoClienteValido()
+        && request.resource.data.cliente_id == request.auth.uid
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.lista_espera.size() == 0
+        && request.resource.data.motivo_cancelamento == null
+        && (request.resource.data.avaliacao == null || request.resource.data.avaliacao == 0)
+        && (request.resource.data.comentario_avaliacao == null || request.resource.data.comentario_avaliacao == '');
+    }
+
+    function adminPodeCriarAgendamento() {
+      return eAdmin() && camposAgendamentoValidosNaCriacao();
+    }
+
+    function clientePodeCancelarAgendamento() {
+      return estaLogado()
+        && resource.data.cliente_id == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'motivo_cancelamento'])
+        && (request.resource.data.status == 'cancelado' || request.resource.data.status == 'cancelado_tardio')
+        && request.resource.data.motivo_cancelamento is string;
+    }
+
+    function clientePodeAvaliarAgendamento() {
+      return estaLogado()
+        && resource.data.cliente_id == request.auth.uid
+        && resource.data.status == 'aprovado'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avaliacao', 'comentario_avaliacao'])
+        && request.resource.data.avaliacao is int
+        && request.resource.data.avaliacao >= 1
+        && request.resource.data.avaliacao <= 5
+        && (request.resource.data.comentario_avaliacao == null || request.resource.data.comentario_avaliacao is string);
+    }
+
+    function clientePodeGerenciarListaEspera() {
+      return estaLogado()
+        && resource.data.status == 'aprovado'
+        && resource.data.cliente_id != request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lista_espera'])
+        && request.resource.data.lista_espera is list
+        && resource.data.lista_espera is list
+        && (
+          (
+            request.resource.data.lista_espera.size() == resource.data.lista_espera.size() + 1
+            && request.resource.data.lista_espera.hasAll(resource.data.lista_espera)
+            && request.resource.data.lista_espera.hasAll([request.auth.uid])
+          )
+          ||
+          (
+            request.resource.data.lista_espera.size() + 1 == resource.data.lista_espera.size()
+            && resource.data.lista_espera.hasAll(request.resource.data.lista_espera)
+            && resource.data.lista_espera.hasAll([request.auth.uid])
+            && !request.resource.data.lista_espera.hasAny([request.auth.uid])
+          )
+        );
     }
 
     function logPublicoSegurancaAuth() {
@@ -27,93 +340,132 @@ service cloud.firestore {
         && request.resource.data.mensagem is string;
     }
 
-    // --- Regras das Coleções ---
+    function testeLoginPublicoValido() {
+      return request.resource.data.keys().hasOnly(['ativo', 'email_digitado', 'uid', 'origem', 'criado_em'])
+        && request.resource.data.ativo is bool
+        && request.resource.data.email_digitado is string
+        && request.resource.data.uid is string
+        && request.resource.data.origem == 'login_view'
+        && request.resource.data.criado_em is timestamp;
+    }
 
-    // Usuários (Dados de login e tipo)
+    // --- Regras das Colecoes ---
+
+    // Usuarios (dados de login e tipo)
     match /usuarios/{userId} {
-      // Novo usuário pode criar seu próprio documento
-      allow create: if eDono(userId);
-      // Após criado, apenas o dono ou admin podem ler/escrever
-      allow read, update, delete: if eDono(userId) || eAdmin();
+      allow create: if donoPodeCriarUsuario(userId) || eAdmin();
+      allow read: if eDono(userId) || eAdmin();
+      allow update: if donoPodeAtualizarUsuario(userId) || eAdmin();
+      allow delete: if eAdmin();
     }
 
-    // Clientes (Dados pessoais e sensíveis)
+    // Clientes (dados pessoais e sensiveis)
     match /clientes/{clienteId} {
-      // Apenas o próprio dono do perfil ou um admin podem acessar.
-      allow read, write: if eDono(clienteId) || eAdmin();
+      allow create: if donoPodeCriarCliente(clienteId) || eAdmin();
+      allow read: if eDono(clienteId) || eAdmin();
+      allow update: if donoPodeAtualizarCliente(clienteId) || eAdmin();
+      allow delete: if eAdmin();
     }
 
-    // Agendamentos (Regra mais complexa e importante)
+    // Agendamentos
     match /agendamentos/{agendamentoId} {
-      // LEITURA:
-      // - 'get': Admin pode ler qualquer agendamento. Cliente só pode ler o seu.
-      allow get: if eAdmin() || (estaLogado() && resource.data.cliente_id == request.auth.uid);
-      // - 'list': Permite queries. Admin pode listar tudo. Cliente SÓ pode listar SE a query filtrar por seu próprio ID.
-      //   Isso impede um cliente de listar todos os agendamentos do sistema.
-      allow list: if eAdmin() || (estaLogado() && request.query.get('cliente_id') == request.auth.uid);
-      
-      // CRIAÇÃO:
-      // - Cliente deve estar logado e criando um agendamento para si mesmo.
-      // - Valida os campos para garantir a integridade dos dados na criação.
-      allow create: if estaLogado() 
-                    && request.resource.data.cliente_id == request.auth.uid
-                    && request.resource.data.dataHora is timestamp
-                    && request.resource.data.tipo is string
-                    && request.resource.data.status == 'pendente'; // Sempre começa como pendente
-
-      // ATUALIZAÇÃO:
-      // - Regra para o Cliente: Permite que o cliente atualize apenas campos específicos e seguros.
-      //   (Ex: cancelar, avaliar, mas não mudar o preço ou status para 'aprovado').
-      // - Regra para o Admin: Permite que o admin mude qualquer campo (Ex: aprovar/recusar status).
-      allow update: if (
-        eAdmin() || 
-        (
-          estaLogado() && resource.data.cliente_id == request.auth.uid && (
-            // Permite ao cliente cancelar (apenas o campo motivo e status)
-            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['motivoCancelamento', 'status'])) &&
-            (request.resource.data.status == 'cancelado' || request.resource.data.status == 'cancelado_tardio')
-          ) || (
-            // Permite ao cliente avaliar (apenas os campos de avaliação)
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['avaliacao', 'comentarioAvaliacao'])
-          )
-        )
-      );
-
-      // Ninguém pode apagar agendamentos, apenas cancelar.
+      allow read: if podeLerAgendamento(resource.data);
+      allow create: if clientePodeCriarAgendamento() || adminPodeCriarAgendamento();
+      allow update: if eAdmin() || clientePodeCancelarAgendamento() || clientePodeAvaliarAgendamento() || clientePodeGerenciarListaEspera();
       allow delete: if false;
+
+      match /mensagens/{mensagemId} {
+        allow read: if podeLerAgendamentoPorId(agendamentoId);
+        allow create: if agendamentoExiste(agendamentoId)
+          && estaLogado()
+          && (eAdmin() || dadosAgendamento(agendamentoId).cliente_id == request.auth.uid)
+          && request.resource.data.keys().hasOnly(['texto', 'autor_id', 'tipo', 'data_hora', 'lida'])
+          && request.resource.data.autor_id == request.auth.uid
+          && request.resource.data.texto is string
+          && tipoMensagemValido(request.resource.data.tipo)
+          && request.resource.data.data_hora is timestamp
+          && request.resource.data.lida == false;
+        allow update: if agendamentoExiste(agendamentoId)
+          && estaLogado()
+          && (eAdmin() || dadosAgendamento(agendamentoId).cliente_id == request.auth.uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lida'])
+          && request.resource.data.lida == true;
+        allow delete: if false;
+      }
     }
 
-    // Configurações e Estoque
+    // Configuracoes
+    match /configuracoes/geral {
+      allow read: if estaLogado();
+      allow write: if eAdmin();
+    }
+
+    match /configuracoes/servicos {
+      allow read: if estaLogado();
+      allow write: if eAdmin();
+    }
+
+    match /configuracoes/notificacoes {
+      allow read: if estaLogado();
+      allow write: if eAdmin();
+    }
+
+    match /configuracoes/pagamento {
+      allow read: if estaLogado();
+      allow write: if eAdmin();
+    }
+
+    match /configuracoes/seguranca {
+      allow read, write: if eAdmin();
+    }
+
     match /configuracoes/{docId} {
-      // APENAS usuários logados podem ler. Apenas Admins podem escrever.
-      allow read: if estaLogado();
-      allow write: if eAdmin();
+      allow read, write: if eAdmin();
     }
-    
+
     match /estoque/{itemId} {
-      // APENAS usuários logados podem ler. Apenas Admins podem escrever.
-      allow read: if estaLogado();
+      allow read, write: if eAdmin();
+    }
+
+    match /cupons/{cupomId} {
+      allow read: if eAdmin() || (estaLogado() && resource.data.ativo == true && resource.data.validade > request.time);
       allow write: if eAdmin();
     }
-    
-    // Logs (Apenas Admin lê, sistema grava)
-    match /logs/{logId} {
-      allow read: if eAdmin();
-      // RISCO: Permitir que o cliente escreva diretamente pode ser abusado (spam/custos).
-      // IDEAL: Logs devem ser escritos por Cloud Functions (ambiente seguro).
-      // Por enquanto, mantemos, mas com essa observação de segurança.
-      allow create: if estaLogado() || logPublicoSegurancaAuth(); 
+
+    match /transacoes/{transacaoId} {
+      allow read, write: if eAdmin();
     }
-    
+
+    match /metricas_diarias/{docId} {
+      allow read, write: if eAdmin();
+    }
+
+    match /changelogs/{versao} {
+      allow read: if true;
+      allow write: if eAdmin();
+    }
+
+    // Logs
+    match /logs/{logId} {
+      allow read, update, delete: if eAdmin();
+      allow create: if estaLogado() || logPublicoSegurancaAuth();
+    }
+
     match /lgpd_logs/{logId} {
       allow read: if eAdmin();
       allow create: if estaLogado();
+      allow update, delete: if eAdmin();
     }
 
-    // Coleção de teste (apenas debug) — apenas usuários autenticados podem criar documentos
+    // Colecao de teste usada no fluxo de login
     match /teste/{docId} {
-      allow create: if estaLogado();
+      allow create: if estaLogado() || testeLoginPublicoValido();
       allow read, update, delete: if eAdmin();
+    }
+
+    // Demais colecoes nao mapeadas explicitamente ficam restritas ao admin.
+    match /{document=**} {
+      allow read, write: if eAdmin();
     }
   }
 }

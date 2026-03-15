@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'dart:ui'; // Necessário para PointMode
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:agenda/core/utils/custom_theme_data.dart';
 import 'package:sensors_plus/sensors_plus.dart';
@@ -59,16 +60,24 @@ class _AnimatedBackgroundState extends State<AnimatedBackground> with SingleTick
   }
 
   void _initSensors() {
+    if (kIsWeb) return;
+
     // Escuta o acelerômetro para criar o efeito de profundidade
-    _sensorSubscription = accelerometerEventStream().listen((event) {
-      if (mounted) {
-        setState(() {
-          // Filtro simples (Low-pass) para suavizar o movimento e evitar tremedeira
-          _parallaxX = _parallaxX * 0.9 + (-event.x * 0.1); 
-          _parallaxY = _parallaxY * 0.9 + (event.y * 0.1);
-        });
-      }
-    });
+    _sensorSubscription = accelerometerEventStream().listen(
+      (event) {
+        if (mounted) {
+          setState(() {
+            // Filtro simples (Low-pass) para suavizar o movimento e evitar tremedeira
+            _parallaxX = _parallaxX * 0.9 + (-event.x * 0.1);
+            _parallaxY = _parallaxY * 0.9 + (event.y * 0.1);
+          });
+        }
+      },
+      onError: (_) {
+        _sensorSubscription?.cancel();
+        _sensorSubscription = null;
+      },
+    );
   }
 
   @override

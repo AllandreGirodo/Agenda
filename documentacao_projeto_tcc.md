@@ -167,4 +167,14 @@ O desenvolvimento deste projeto demonstrou a aplicação prática de diversos co
 **P: Como o sistema lida com cancelamentos tardios?**
 *R: O sistema calcula a diferença entre a hora atual e a hora do agendamento, descontando o "horário de sono" configurado pela admin. Se o tempo útil for menor que o limite, o cancelamento é marcado como "tardio" e exige justificativa.*
 
+**P: Como garantir a segurança dos dados médicos?**
+*R: Configurando regras de segurança no Firestore para que apenas o Administrador possa ler os campos sensíveis (anamnese, endereço) e os clientes só possam ler seus próprios dados.*
+
+**P: O que acontece se o cliente solicitar exclusão da conta?**
+*R: O sistema realiza a anonimização dos dados pessoais, mantendo apenas o ID e os registros de agendamento para fins de histórico financeiro. A ação é registrada em `lgpd_logs` para comprovação.*
+
+**P: Como o sistema lida com a falta de conexão à internet?**
+*R: O Firestore possui suporte offline. As operações de leitura e escrita são enfileiradas e sincronizadas automaticamente quando a conexão é restabelecida. O usuário recebe feedback visual (ex: "Salvando...") durante esse processo.*
+
+
 ---

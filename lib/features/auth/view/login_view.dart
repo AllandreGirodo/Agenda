@@ -24,6 +24,7 @@ class _LoginViewState extends State<LoginView> {
   final _loginController = LoginController();
   bool _isLoading = false;
   bool _isObscure = true;
+  bool _valorTesteBooleanoBanco = false;
   final LocalAuthentication auth = LocalAuthentication();
 
   @override
@@ -233,27 +234,32 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
-  Future<void> _inserirTesteNoBanco() async {
+  Future<void> _alternarTesteBooleanoNoBanco() async {
     if (!mounted) return;
 
     setState(() => _isLoading = true);
     final messenger = ScaffoldMessenger.of(context);
 
     try {
-      final id = await FirestoreService().inserirTesteLoginView(
+      final valorAtual = await FirestoreService().alternarTesteBooleanoLoginView(
         emailDigitado: _emailController.text.trim(),
+        valorAtual: _valorTesteBooleanoBanco,
         uid: FirebaseAuth.instance.currentUser?.uid,
       );
 
+      _valorTesteBooleanoBanco = valorAtual;
+
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(content: Text(AppStrings.testeInsercaoBancoSucesso(id))),
+        SnackBar(
+          content: Text(AppStrings.testeBooleanoBancoSucesso(valorAtual)),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text(AppStrings.testeInsercaoBancoErro(e.toString())),
+          content: Text(AppStrings.testeBooleanoBancoErro(e.toString())),
         ),
       );
     } finally {
@@ -374,9 +380,9 @@ class _LoginViewState extends State<LoginView> {
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton.icon(
-                              onPressed: _inserirTesteNoBanco,
-                              icon: const Icon(Icons.bug_report_outlined),
-                              label: Text(AppStrings.testeInsercaoBancoBtn),
+                              onPressed: _alternarTesteBooleanoNoBanco,
+                              icon: const Icon(Icons.toggle_on_outlined),
+                              label: Text(AppStrings.testeBooleanoBancoBtn),
                             ),
                           ),
                         ],
