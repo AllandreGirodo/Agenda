@@ -45,22 +45,22 @@ class _AdminFerramentasSenhaSetupViewState
       if (!mounted) return;
       setState(() {
         _carregando = false;
-        _mensagemErro = 'Erro ao verificar configuração: $e';
+        _mensagemErro = AppStrings.erroVerificarConfiguracao(e.toString());
       });
     }
   }
 
   Future<void> _salvarNovaSenha() async {
     if (_novoaSenhaController.text.isEmpty) {
-      setState(() => _mensagemErro = 'Digite uma senha');
+      setState(() => _mensagemErro = AppStrings.senhaObrigatoria);
       return;
     }
     if (_novoaSenhaController.text != _confirmacaoController.text) {
-      setState(() => _mensagemErro = 'Senhas não coincidem');
+      setState(() => _mensagemErro = AppStrings.senhasNaoCoincidem);
       return;
     }
     if (_novoaSenhaController.text.length < 6) {
-      setState(() => _mensagemErro = 'Senha deve ter pelo menos 6 caracteres');
+      setState(() => _mensagemErro = AppStrings.minimoSeisCaracteres);
       return;
     }
 
@@ -85,7 +85,7 @@ class _AdminFerramentasSenhaSetupViewState
       widget.onConfirmed?.call();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _mensagemErro = 'Erro ao salvar: $e');
+      setState(() => _mensagemErro = AppStrings.erroSalvar(e.toString()));
     }
   }
 
@@ -125,28 +125,34 @@ class _AdminFerramentasSenhaSetupViewState
             children: [
               const Icon(Icons.check_circle, size: 80, color: Colors.green),
               const SizedBox(height: 20),
-              const Text(
-                'Senha de Admin\nConfigurada ✓',
+              Text(
+                AppStrings.senhaAdminConfiguradaTitulo,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 16),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(horizontal: 48),
                 child: Text(
-                  'Acesse as ferramentas de configuração do banco de dados abaixo',
+                  AppStrings.acesseFerramentasBancoAbaixo,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
               ),
               const SizedBox(height: 30),
               ElevatedButton.icon(
                 icon: const Icon(Icons.storage),
-                label: Text(AppStrings.databaseSetup),
+                label: Text(AppStrings.conferirPrepararBanco),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
                 ),
                 onPressed: () {
                   Navigator.push(
@@ -208,16 +214,16 @@ class _AdminFerramentasSenhaSetupViewState
                   ),
                 ),
                 const SizedBox(height: 30),
-                const Text(
-                  'Clique no ícone acima\npara configurar a senha\nde administrador das ferramentas',
+                  Text(
+                    AppStrings.cliqueIconeConfigurarSenhaFerramentas,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                    style: const TextStyle(fontSize: 16, color: Colors.grey),
                 ),
                 const SizedBox(height: 50),
                 if (_mostraFormulario) ...[
-                  const Text(
-                    'Nova Senha de Admin',
-                    style: TextStyle(
+                    Text(
+                      AppStrings.novaSenhaAdminTitulo,
+                      style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
@@ -227,7 +233,7 @@ class _AdminFerramentasSenhaSetupViewState
                     controller: _novoaSenhaController,
                     obscureText: !_mostrarSenha,
                     decoration: InputDecoration(
-                      labelText: 'Senha',
+                      labelText: AppStrings.senhaLabel,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -246,7 +252,7 @@ class _AdminFerramentasSenhaSetupViewState
                     controller: _confirmacaoController,
                     obscureText: !_mostrarSenha,
                     decoration: InputDecoration(
-                      labelText: 'Confirmar Senha',
+                      labelText: AppStrings.confirmeSenha,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),

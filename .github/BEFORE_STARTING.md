@@ -88,8 +88,8 @@ flutter run -d chrome --dart-define=ENV=dev --dart-define=ENABLE_APPCHECK_IN_DEB
 ## 🔐 Segurança
 
 - ✅ O arquivo `.env` (local) está no `.gitignore`
-- ✅ Archivos de secrets (`.github/SECRETS_*.md`) estão no `.gitignore`
-- ✅ Valores reais ficam em **GitHub Secrets** (100% ocultos)
+- ✅ Valores reais de CI ficam em **GitHub Secrets**
+- ✅ Segredos de backend devem ficar em backend/Cloud Functions/secret manager
 - ✅ Credenciais do Firebase (`.json`) estão no `.gitignore`
 
 **Nunca commite:** `.env`, `serviceAccountKey.json`, ou qualquer arquivo com credenciais reais.
@@ -110,7 +110,7 @@ flutter run -d chrome --dart-define=ENV=dev --dart-define=ENABLE_APPCHECK_IN_DEB
 → Você cadastrou os GitHub Secrets? Veja [SECRETS_QUICK_SETUP.md](.github/SECRETS_QUICK_SETUP.md)
 
 ### ❌ "CI/CD não roda"
-→ Verifique se todos os ~30 secrets estão cadastrados em **Settings > Secrets and variables > Actions**
+→ Verifique se todos os secrets da checklist atual estão cadastrados em **Settings > Secrets and variables > Actions**
 
 ### ❌ ".env: arquivo não encontrado"
 → Execute: `cp .env.example .env`

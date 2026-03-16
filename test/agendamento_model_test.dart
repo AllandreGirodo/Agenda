@@ -3,6 +3,11 @@ import 'package:agenda/core/models/agendamento_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() {
+  const whatsappAdmin = String.fromEnvironment(
+    'WHATSAPP_ADMIN',
+    defaultValue: '',
+  );
+
   group('AgendamentoModel - Testes de Serialização', () {
     test('Deve converter objeto para Map (toMap) corretamente', () {
       final dataHora = DateTime(2023, 12, 25, 14, 30);
@@ -16,13 +21,13 @@ void main() {
         avaliacao: 0,
         comentarioAvaliacao: '',
         clienteNomeSnapshot: 'Maria',
-        clienteTelefoneSnapshot: '11999999999',
+        clienteTelefoneSnapshot: whatsappAdmin,
       );
 
       final map = agendamento.toMap();
 
       expect(map['cliente_id'], 'user_001');
-      expect(map['tipo_massagem'], 'Massagem Relaxante');
+      expect(map['tipo_massagem'], 'relaxante');
       expect(map['preco'], 120.0);
       expect(map['status'], 'pendente');
       // Verifica se a data foi mantida (seja como DateTime ou Timestamp, dependendo da implementação)
@@ -47,7 +52,7 @@ void main() {
 
       expect(agendamento.id, '999');
       expect(agendamento.dataHora, dataHora); // Verifica se converteu Timestamp -> DateTime
-      expect(agendamento.tipo, 'Drenagem');
+      expect(agendamento.tipo, 'drenagem');
     });
   });
 }

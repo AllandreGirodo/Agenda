@@ -41,7 +41,7 @@ graph TD
 ```javascript
 {
   uid: string,                    // ID único do Firebase Auth
-  nome: string,                   // Nome completo do cliente
+  cliente_nome: string,           // Nome completo do cliente
   whatsapp: string,               // Telefone WhatsApp
   data_nascimento: Timestamp,     // Data de nascimento
   saldo_sessoes: number,          // Quantidade de sessões pré-pagas
@@ -56,7 +56,7 @@ graph TD
 ```
 
 **Índices Necessários:**
-- `nome` (ASC)
+- `cliente_nome` (ASC)
 - `whatsapp` (ASC)
 
 ---
@@ -246,7 +246,7 @@ graph TD
   tempo_bloqueio_noturno_fim: string,      // "06:00"
   
   // Configurações de contato
-  whatsapp_admin: string,                  // "5511999999999"
+  whatsapp_admin: string,                  // valor de WHATSAPP_ADMIN
   
   // Configurações de sessões
   preco_sessao: number,                    // 100.0
@@ -449,7 +449,7 @@ erDiagram
     
     CLIENTES {
         string uid PK
-        string nome
+        string cliente_nome
         string whatsapp
         number saldo_sessoes
     }

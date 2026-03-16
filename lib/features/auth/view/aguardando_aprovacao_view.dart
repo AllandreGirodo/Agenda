@@ -23,41 +23,52 @@ class AguardandoAprovacaoView extends StatelessWidget {
         automaticallyImplyLeading: false, // Remove botão de voltar para não burlar
       ),
       body: ConfettiAnimation(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.access_time, size: 80, color: Colors.orange),
-              const SizedBox(height: 24),
-              Text(
-                AppLocalizations.of(context)!.analysisTitle,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.access_time, size: 80, color: Colors.orange),
+                  const SizedBox(height: 24),
+                  Text(
+                    AppLocalizations.of(context)!.analysisTitle,
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    AppLocalizations.of(context)!.analysisMessage(DateFormat('dd/MM/yyyy HH:mm').format(dataCadastro)),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(height: 40),
+                  ElevatedButton.icon(
+                    onPressed: _abrirWhatsApp,
+                    icon: const Icon(Icons.chat),
+                    label: Text(AppLocalizations.of(context)!.contactAdminButton),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextButton(
+                    onPressed: () async {
+                      await FirebaseAuth.instance.signOut();
+                      if (!context.mounted) return;
+                      Navigator.of(context).pop();
+                    },
+                    child: Text(AppLocalizations.of(context)!.backToLoginButton),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              Text(
-                AppLocalizations.of(context)!.analysisMessage(DateFormat('dd/MM/yyyy HH:mm').format(dataCadastro)),
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 40),
-              ElevatedButton.icon(
-                onPressed: _abrirWhatsApp,
-                icon: const Icon(Icons.chat),
-                label: Text(AppLocalizations.of(context)!.contactAdminButton),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(), // Voltar para Login
-                child: Text(AppLocalizations.of(context)!.backToLoginButton),
-              ),
-            ],
+            ),
           ),
         ),
       ),

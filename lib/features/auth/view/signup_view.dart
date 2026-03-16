@@ -1,3 +1,4 @@
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +7,7 @@ import 'package:agenda/app_localizations.dart';
 import 'package:agenda/core/widgets/language_selector.dart';
 import 'package:agenda/core/utils/app_strings.dart';
 import 'package:agenda/main.dart';
+import 'package:agenda/view/termos_uso_view.dart';
 
 class SignUpView extends StatefulWidget {
   const SignUpView({super.key});
@@ -26,8 +28,16 @@ class _SignUpViewState extends State<SignUpView> {
   final _senhaFocusNode = FocusNode();
   final _controller = LoginController();
   bool _isWhatsappNumber = true;
+  bool _lgpdConsentido = false;
   bool _senhaVisivel = false;
   bool _phoneHasInvalidInput = false;
+  bool _limiteCelularAtingidoAnterior = false;
+  bool _mostrarAvisoLimiteCelular = false;
+  bool _avisoLimiteCelularVisivel = false;
+  bool _avisoTermosVisivel = true;
+  Timer? _timerFadeLimiteCelular;
+  Timer? _timerOcultarLimiteCelular;
+  Timer? _timerFadeAvisoTermos;
 
   @override
   void initState() {
@@ -41,6 +51,9 @@ class _SignUpViewState extends State<SignUpView> {
 
   @override
   void dispose() {
+    _timerFadeLimiteCelular?.cancel();
+    _timerOcultarLimiteCelular?.cancel();
+    _timerFadeAvisoTermos?.cancel();
     _nomeController.dispose();
     _emailController.dispose();
     _senhaController.dispose();
@@ -58,9 +71,12 @@ class _SignUpViewState extends State<SignUpView> {
       fontFamily: 'monospace',
       fontFeatures: const [FontFeature.tabularFigures()],
     );
+    final nome = _nomeController.text.trim();
     final email = _emailController.text.trim();
     final phoneDigits = _countPhoneDigits(_whatsappController.text);
     final senha = _senhaController.text;
+    final nomeValido = nome.isNotEmpty;
+    final emailValido = email.isNotEmpty && _isValidEmail(email);
     final numeroLabel = _isWhatsappNumber
         ? localizations.whatsappLabel
         : localizations.phoneNumberLabel;
@@ -84,6 +100,7 @@ class _SignUpViewState extends State<SignUpView> {
         senhaTemMinuscula &&
         senhaTemNumero &&
         senhaTemEspecial;
+    final podeCadastrar = senhaValida;
     final currentLocale = Localizations.localeOf(context);
 
     return Scaffold(
@@ -97,7 +114,7 @@ class _SignUpViewState extends State<SignUpView> {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            const Icon(Icons.person_add, size: 60, color: Colors.teal),
+            const Icon(Icons.person_add, size: 30, color: Colors.teal),
             const SizedBox(height: 20),
             TextField(
               controller: _nomeController,
@@ -106,7 +123,12 @@ class _SignUpViewState extends State<SignUpView> {
               decoration: InputDecoration(
                 labelText: localizations.fullNameLabel,
                 border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.person),
+                prefixIcon: Icon(
+                  nomeValido ? Icons.person : Icons.person_outline,
+                  color: nomeValido
+                      ? Colors.green.shade600
+                      : Colors.grey.shade400,
+                ),
                 counterText: '',
               ),
             ),
@@ -118,7 +140,12 @@ class _SignUpViewState extends State<SignUpView> {
               decoration: InputDecoration(
                 labelText: localizations.emailLabel,
                 border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.email),
+                prefixIcon: Icon(
+                  emailValido ? Icons.mark_email_read_outlined : Icons.email_outlined,
+                  color: emailValido
+                      ? Colors.green.shade600
+                      : Colors.grey.shade400,
+                ),
                 counterText: '',
               ),
               keyboardType: TextInputType.emailAddress,
@@ -166,7 +193,14 @@ class _SignUpViewState extends State<SignUpView> {
                   decoration: InputDecoration(
                     labelText: numeroLabel,
                     border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.phone),
+                    prefixIcon: Icon(
+                      _isWhatsappNumber ? Icons.perm_phone_msg : Icons.phone,
+                      color: _isWhatsappNumber
+                          ? (limiteCelularAtingido
+                              ? Colors.green.shade600
+                              : Colors.grey.shade400)
+                          : null,
+                    ),
                   ),
                   keyboardType: TextInputType.phone,
                   inputFormatters: [
@@ -209,14 +243,21 @@ class _SignUpViewState extends State<SignUpView> {
                   ),
                 ),
               ),
-            if (limiteCelularAtingido)
+            if (_mostrarAvisoLimiteCelular)
               Padding(
                 padding: const EdgeInsets.only(top: 6, left: 4),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text(
-                    localizations.signupPhoneDigitsLimitReached,
-                    style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+                  child: AnimatedOpacity(
+                    opacity: _avisoLimiteCelularVisivel ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 400),
+                    child: Text(
+                      localizations.signupPhoneDigitsLimitReached,
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontSize: 12,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -244,7 +285,12 @@ class _SignUpViewState extends State<SignUpView> {
               decoration: InputDecoration(
                 labelText: localizations.passwordLabel,
                 border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.lock),
+                prefixIcon: Icon(
+                  senhaValida ? Icons.lock_open_outlined : Icons.lock_outline,
+                  color: senhaValida
+                      ? Colors.green.shade600
+                      : Colors.grey.shade400,
+                ),
                 counterText: '',
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -263,50 +309,127 @@ class _SignUpViewState extends State<SignUpView> {
               duration: const Duration(milliseconds: 280),
               curve: Curves.easeInOut,
               child: AnimatedOpacity(
-                opacity: _senhaFocusNode.hasFocus || senha.isNotEmpty ? 1.0 : 0.0,
+                opacity: _senhaFocusNode.hasFocus || senha.isNotEmpty
+                    ? 1.0
+                    : 0.0,
                 duration: const Duration(milliseconds: 220),
                 child: _senhaFocusNode.hasFocus || senha.isNotEmpty
                     ? Padding(
                         padding: const EdgeInsets.only(top: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              localizations.signupPasswordCriteriaTitle,
-                              style: TextStyle(
-                                color: theme.colorScheme.onSurface
-                                    .withValues(alpha: 0.75),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            _PasswordRuleItem(
-                              text: localizations.signupPasswordRuleLength,
-                              ok: senhaTemTamanhoValido,
-                            ),
-                            _PasswordRuleItem(
-                              text: localizations.signupPasswordRuleUppercase,
-                              ok: senhaTemMaiuscula,
-                            ),
-                            _PasswordRuleItem(
-                              text: localizations.signupPasswordRuleLowercase,
-                              ok: senhaTemMinuscula,
-                            ),
-                            _PasswordRuleItem(
-                              text: localizations.signupPasswordRuleNumber,
-                              ok: senhaTemNumero,
-                            ),
-                            _PasswordRuleItem(
-                              text:
-                                  '${localizations.signupPasswordRuleSpecial}  ex: ! @ # \$ % & *',
-                              ok: senhaTemEspecial,
-                            ),
-                          ],
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 400),
+                          switchInCurve: Curves.easeInOut,
+                          switchOutCurve: Curves.easeInOut,
+                          transitionBuilder: (child, animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            );
+                          },
+                          child: senhaValida
+                              ? Row(
+                                  key: const ValueKey('senha_valida_feedback'),
+                                  children: [
+                                    Icon(
+                                      Icons.check_circle,
+                                      size: 16,
+                                      color: Colors.green.shade700,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        localizations
+                                            .signupPasswordReadyMessage,
+                                        style: TextStyle(
+                                          color: Colors.green.shade700,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : Column(
+                                  key: const ValueKey('senha_regras_feedback'),
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      localizations.signupPasswordCriteriaTitle,
+                                      style: TextStyle(
+                                        color: theme.colorScheme.onSurface
+                                            .withValues(alpha: 0.75),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    _PasswordRuleItem(
+                                      text: localizations
+                                          .signupPasswordRuleLength,
+                                      ok: senhaTemTamanhoValido,
+                                    ),
+                                    _PasswordRuleItem(
+                                      text: localizations
+                                          .signupPasswordRuleUppercase,
+                                      ok: senhaTemMaiuscula,
+                                    ),
+                                    _PasswordRuleItem(
+                                      text: localizations
+                                          .signupPasswordRuleLowercase,
+                                      ok: senhaTemMinuscula,
+                                    ),
+                                    _PasswordRuleItem(
+                                      text: localizations
+                                          .signupPasswordRuleNumber,
+                                      ok: senhaTemNumero,
+                                    ),
+                                    _PasswordRuleItem(
+                                      text:
+                                          '${localizations.signupPasswordRuleSpecial}  ex: ! @ # \$ % & *',
+                                      ok: senhaTemEspecial,
+                                    ),
+                                  ],
+                                ),
                         ),
                       )
                     : const SizedBox.shrink(),
               ),
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () async {
+                  final aceitouTermos = await _abrirTermosEPrivacidade();
+                  if (!mounted || !aceitouTermos) return;
+                  _atualizarConsentimentoLgpd(true);
+                },
+                icon: const Icon(Icons.description_outlined),
+                label: Text(localizations.signupTermsReadButton),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  alignment: Alignment.centerLeft,
+                ),
+              ),
+            ),
+            CheckboxListTile(
+              value: _lgpdConsentido,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              title: Text(
+                localizations.signupLgpdConsentLabel,
+                style: const TextStyle(fontSize: 13),
+              ),
+              onChanged: (value) async {
+                if (!(value ?? false)) {
+                  _atualizarConsentimentoLgpd(false);
+                  return;
+                }
+
+                final aceitouTermos = await _abrirTermosEPrivacidade();
+                if (!mounted) return;
+                _atualizarConsentimentoLgpd(aceitouTermos);
+              },
             ),
             const SizedBox(height: 24),
             // Seletor de idioma no final
@@ -317,7 +440,10 @@ class _SignUpViewState extends State<SignUpView> {
                 const SizedBox(width: 6),
                 Text(
                   AppStrings.labelIdioma,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 _LanguageFlagButton(
                   flag: '🇧🇷',
@@ -355,63 +481,111 @@ class _SignUpViewState extends State<SignUpView> {
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: AnimatedOpacity(
+                opacity: _avisoTermosVisivel ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 400),
+                child: Text(
+                  _lgpdConsentido
+                      ? localizations.signupLgpdConsentAcceptedMessage
+                      : localizations.signupLgpdConsentPendingMessage,
+                  style: TextStyle(
+                    color: _lgpdConsentido
+                        ? Colors.green.shade700
+                        : Colors.red.shade700,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {
-                  final nome = _nomeController.text.trim();
+                onPressed: podeCadastrar
+                    ? () async {
+                        final nome = _nomeController.text.trim();
+                        final emailValido = _isValidEmail(email);
+                        final motivos = <String>[];
 
-                  if (nome.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(localizations.fullNameLabel),
-                      ),
-                    );
-                    return;
-                  }
+                        if (nome.isEmpty) {
+                          motivos.add('nome_obrigatorio');
+                        }
+                        if (!emailValido) {
+                          motivos.add('email_invalido_regex');
+                        }
+                        if (_phoneHasInvalidInput) {
+                          motivos.add('telefone_caracter_invalido');
+                        }
+                        if (phoneDigits < 10) {
+                          motivos.add('telefone_minimo_digitos');
+                        }
+                        if (!senhaValida) {
+                          motivos.add('senha_fraca');
+                        }
+                        if (!_lgpdConsentido) {
+                          motivos.add('lgpd_nao_consentido');
+                        }
 
-                  if (!_isValidEmail(email)) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(localizations.signupInvalidEmailTyping),
-                      ),
-                    );
-                    return;
-                  }
+                        if (motivos.isNotEmpty) {
+                          await _controller.auditarTentativaCredencial(
+                            origem: 'cadastro_formulario',
+                            emailDigitado: email,
+                            senhaInformada: senha,
+                            inconformidade: true,
+                            lgpdConsentido: _lgpdConsentido,
+                            motivos: motivos,
+                            nomeClienteDigitado: nome,
+                            emailValido: emailValido,
+                            senhaForte: senhaValida,
+                          );
 
-                  if (phoneDigits < 10) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('$numeroLabel com no mínimo 10 dígitos'),
-                      ),
-                    );
-                    return;
-                  }
+                          if (!mounted) return;
 
-                  if (!senhaValida) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(localizations.signupPasswordWeakMessage),
-                      ),
-                    );
-                    return;
-                  }
+                          final mensagem = nome.isEmpty
+                              ? localizations.signupNameRequiredMessage
+                              : !emailValido
+                              ? localizations.signupInvalidEmailTyping
+                              : _phoneHasInvalidInput
+                              ? localizations.signupPhoneOnlyDigitsMessage
+                              : phoneDigits < 10
+                              ? localizations.signupPhoneMinDigitsSubmitMessage(
+                                  numeroLabel,
+                                )
+                              : !senhaValida
+                              ? localizations.signupPasswordWeakMessage
+                              : localizations.signupLgpdConsentError;
 
-                  _controller.cadastrar(
-                    context,
-                    nome,
-                    email,
-                    senha,
-                    _whatsappController.text.replaceAll(RegExp(r'[^0-9]'), ''),
-                    _isWhatsappNumber,
-                    currentLocale.languageCode,
-                  );
-                },
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text(mensagem)));
+                          return;
+                        }
+
+                        await _controller.cadastrar(
+                          context,
+                          nome,
+                          email,
+                          senha,
+                          _whatsappController.text.replaceAll(
+                            RegExp(r'[^0-9]'),
+                            '',
+                          ),
+                          _isWhatsappNumber,
+                          _lgpdConsentido,
+                          currentLocale.languageCode,
+                        );
+                      }
+                    : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
+                  backgroundColor: theme.colorScheme.primary,
                   foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade400,
+                  disabledForegroundColor: Colors.white70,
                 ),
                 child: Text(localizations.registerButton),
               ),
@@ -454,10 +628,81 @@ class _SignUpViewState extends State<SignUpView> {
     return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(normalized);
   }
 
+  Future<bool> _abrirTermosEPrivacidade() async {
+    final aceitouTermos = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const TermosUsoView()));
+
+    return aceitouTermos ?? false;
+  }
+
   void _refreshFormState() {
+    final limiteCelularAtingidoAgora =
+        _countPhoneDigits(_whatsappController.text) >= _maxPhoneDigits;
+
+    if (limiteCelularAtingidoAgora && !_limiteCelularAtingidoAnterior) {
+      _exibirAvisoLimiteCelularComFade();
+    }
+
+    if (!limiteCelularAtingidoAgora && _mostrarAvisoLimiteCelular) {
+      _timerFadeLimiteCelular?.cancel();
+      _timerOcultarLimiteCelular?.cancel();
+      _mostrarAvisoLimiteCelular = false;
+      _avisoLimiteCelularVisivel = false;
+    }
+
+    _limiteCelularAtingidoAnterior = limiteCelularAtingidoAgora;
+
     if (mounted) {
       setState(() {});
     }
+  }
+
+  void _exibirAvisoLimiteCelularComFade() {
+    _timerFadeLimiteCelular?.cancel();
+    _timerOcultarLimiteCelular?.cancel();
+
+    _mostrarAvisoLimiteCelular = true;
+    _avisoLimiteCelularVisivel = true;
+
+    _timerFadeLimiteCelular = Timer(const Duration(milliseconds: 2600), () {
+      if (!mounted) return;
+      setState(() {
+        _avisoLimiteCelularVisivel = false;
+      });
+
+      _timerOcultarLimiteCelular = Timer(const Duration(milliseconds: 400), () {
+        if (!mounted) return;
+        setState(() {
+          _mostrarAvisoLimiteCelular = false;
+        });
+      });
+    });
+  }
+
+  void _atualizarConsentimentoLgpd(bool consentiu) {
+    if (!mounted) return;
+    setState(() {
+      _lgpdConsentido = consentiu;
+    });
+
+    _animarAvisoTermosComFade();
+  }
+
+  void _animarAvisoTermosComFade() {
+    _timerFadeAvisoTermos?.cancel();
+    if (!mounted) return;
+
+    setState(() {
+      _avisoTermosVisivel = false;
+    });
+
+    _timerFadeAvisoTermos = Timer(const Duration(milliseconds: 120), () {
+      if (!mounted) return;
+      setState(() {
+        _avisoTermosVisivel = true;
+      });
+    });
   }
 }
 
@@ -580,10 +825,7 @@ class _LanguageFlagButton extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                flag,
-                style: const TextStyle(fontSize: 14),
-              ),
+              Text(flag, style: const TextStyle(fontSize: 14)),
               const SizedBox(height: 2),
               Text(
                 label,
@@ -617,10 +859,7 @@ class _LanguageFlagButton extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              flag,
-              style: const TextStyle(fontSize: 28),
-            ),
+            Text(flag, style: const TextStyle(fontSize: 28)),
             const SizedBox(height: 4),
             Text(
               label,

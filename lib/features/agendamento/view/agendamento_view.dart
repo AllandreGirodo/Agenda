@@ -5,6 +5,7 @@ import 'package:flutter/services.dart'; // Import necessário para HapticFeedbac
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:agenda/core/services/firestore_service.dart';
+import 'package:agenda/core/services/app_governance_service.dart';
 import 'package:agenda/core/models/agendamento_model.dart';
 import 'package:agenda/core/services/scheduling_service.dart';
 import 'package:agenda/features/auth/view/login_view.dart';
@@ -17,6 +18,7 @@ import 'package:agenda/app_localizations.dart';
 import 'package:agenda/core/models/cliente_model.dart';
 import 'package:agenda/core/utils/app_strings.dart';
 import 'package:agenda/core/utils/massage_type_catalog.dart';
+import 'package:agenda/core/widgets/app_governance_dialogs.dart';
 
 class AgendamentoView extends StatefulWidget {
   const AgendamentoView({super.key});
@@ -27,32 +29,37 @@ class AgendamentoView extends StatefulWidget {
 
 class _AgendamentoViewState extends State<AgendamentoView> {
   final FirestoreService _firestoreService = FirestoreService();
+  final AppGovernanceService _appGovernanceService = AppGovernanceService();
   DateTime _dataSelecionada = DateTime.now();
   String? _horarioSelecionado;
   String? _tipoSelecionado;
-  
+
   // Variáveis para o Cupom no Dialog
   CupomModel? _cupomAplicado;
   double _valorFinalSessao = 0.0;
-  
+
   ConfigModel? _config;
   bool _mostrarTodos = false;
   late final Stream<DateTime> _clockStream;
-  
+
   // Dicas do Dia
   String? _dicaDoDia;
   late final List<String> _dicas;
-  
+
   // Filtros
   DateTime? _filtroData;
   final TextEditingController _searchController = TextEditingController();
   String _filtroTexto = '';
+  bool _governancaVersionadaVerificada = false;
 
   @override
   void initState() {
     super.initState();
     _carregarConfig();
-    _clockStream = Stream.periodic(const Duration(seconds: 1), (_) => DateTime.now());
+    _clockStream = Stream.periodic(
+      const Duration(seconds: 1),
+      (_) => DateTime.now(),
+    );
     _dicas = AppStrings.dicasMassagem;
     _dicaDoDia = _dicas[Random().nextInt(_dicas.length)];
   }
@@ -72,178 +79,314 @@ class _AgendamentoViewState extends State<AgendamentoView> {
     return MassageTypeCatalog.localize(localizations, tipoIdOuLegado);
   }
 
+  bool _isStatusCancelado(String status) {
+    return status == 'cancelado' || status == 'cancelado_tardio';
+  }
+
+  Future<void> _executarGovernancaPosLogin(UsuarioModel usuario) async {
+    if (!mounted) return;
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final resultado = await _appGovernanceService.verificarPosLogin(usuario);
+    if (!mounted) return;
+
+    if (resultado.forceUpdate) {
+      await AppGovernanceDialogs.showForceUpdateDialog(
+        context,
+        localVersion: resultado.localVersion,
+        minRequiredVersion: resultado.minRequiredVersion,
+        currentVersion: resultado.currentVersion,
+      );
+
+      if (!mounted) return;
+
+      await FirebaseAuth.instance.signOut();
+
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginView()),
+          (route) => false,
+        );
+      }
+      return;
+    }
+
+    if (!resultado.shouldShowChangelog || resultado.changelog == null) return;
+
+    final manterExibicaoAutomatica =
+        await AppGovernanceDialogs.showChangelogDialog(
+          context,
+          changelog: resultado.changelog!,
+          initialShowAuto: usuario.showChangelogAuto,
+        );
+
+    if (!mounted) return;
+
+    await _appGovernanceService.registrarVisualizacaoChangelog(
+      uid: uid,
+      versao: resultado.currentVersion,
+      manterExibicaoAutomatica: manterExibicaoAutomatica,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     return StreamBuilder<UsuarioModel?>(
-      stream: currentUser != null ? _firestoreService.getUsuarioStream(currentUser.uid) : Stream.value(null),
+      stream: currentUser != null
+          ? _firestoreService.getUsuarioStream(currentUser.uid)
+          : Stream.value(null),
       builder: (context, userSnapshot) {
         final usuario = userSnapshot.data;
         final temPermissao = usuario?.visualizaTodos ?? false;
 
+        if (!_governancaVersionadaVerificada && usuario != null) {
+          _governancaVersionadaVerificada = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _executarGovernancaPosLogin(usuario);
+          });
+        }
+
         return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.appointmentsTitle),
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-        actions: [
-          const LanguageSelector(),
-          if (temPermissao)
-            IconButton(
-              icon: Icon(_mostrarTodos ? Icons.groups : Icons.person),
-              tooltip: _mostrarTodos ? AppLocalizations.of(context)!.viewingAll : AppLocalizations.of(context)!.viewingMine,
-              onPressed: () {
-                setState(() {
-                  _mostrarTodos = !_mostrarTodos;
-                });
-              },
-            ),
-          IconButton(
-            icon: const Icon(Icons.person),
-            tooltip: AppLocalizations.of(context)!.myProfileTooltip,
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (context) => const PerfilView()));
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.exit_to_app),
-            tooltip: AppLocalizations.of(context)!.logoutTooltip,
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (context) => const LoginView()),
-                );
-              }
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Dica do Dia
-          if (_dicaDoDia != null)
-            Container(
-              width: double.infinity,
-              color: Colors.teal.shade50,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.lightbulb, color: Colors.orange, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(_dicaDoDia!, style: TextStyle(color: Colors.teal.shade900, fontSize: 13, fontStyle: FontStyle.italic)),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 16, color: Colors.grey),
-                    onPressed: () => setState(() => _dicaDoDia = null),
-                  )
-                ],
-              ),
-            ),
-            
-          // Barra de Filtros
-          _buildFilters(context),
-
-          Expanded(
-            child: StreamBuilder<List<Agendamento>>(
-        stream: currentUser == null
-            ? Stream.value(const <Agendamento>[])
-            : (_mostrarTodos && temPermissao)
-                ? _firestoreService.getAgendamentos()
-                : _firestoreService.getAgendamentosDoCliente(currentUser.uid),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text(AppStrings.erroGenerico('${snapshot.error}')));
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            // Efeito Shimmer enquanto carrega
-            return ListView.builder(
-              itemCount: 5,
-              padding: const EdgeInsets.only(top: 8),
-              itemBuilder: (context, index) => const _ShimmerLoadingCard(),
-            );
-          }
-
-          var agendamentos = snapshot.data ?? [];
-
-          // Filtro por Data
-          if (_filtroData != null) {
-            agendamentos = agendamentos.where((a) => 
-              a.dataHora.year == _filtroData!.year &&
-              a.dataHora.month == _filtroData!.month &&
-              a.dataHora.day == _filtroData!.day
-            ).toList();
-          }
-
-          // Filtro por Texto (Tipo)
-          if (_filtroTexto.isNotEmpty) {
-            agendamentos = agendamentos.where((a) {
-              final tipoLocalizado = _tipoLabel(context, a.tipo).toLowerCase();
-              return tipoLocalizado.contains(_filtroTexto.toLowerCase());
-            }).toList();
-          }
-
-          if (agendamentos.isEmpty) {
-            return Center(child: Text(AppLocalizations.of(context)!.noAppointmentsFound, style: const TextStyle(color: Colors.grey)));
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              // Simula um refresh (Firestore é realtime, mas recarregamos configs)
-              await Future.delayed(const Duration(seconds: 1));
-              await _carregarConfig();
-              if (mounted) setState(() {});
-            },
-            child: ListView.builder(
-              physics: const AlwaysScrollableScrollPhysics(), // Garante que o pull-to-refresh funcione mesmo com lista pequena
-              itemCount: agendamentos.length,
-              itemBuilder: (context, index) {
-                final agendamento = agendamentos[index];
-                
-                return _AgendamentoCard(
-                  agendamento: agendamento,
-                  currentUser: currentUser, // Passamos o User do Firebase diretamente ou adaptamos
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => AgendamentoDetalhesView(agendamento: agendamento))),
-                  onToggleWaitList: (entrar) => _toggleListaEspera(agendamento, currentUser!.uid, entrar),
-                  onCancel: () => _iniciarCancelamento(agendamento),
-                  onRate: () => _mostrarDialogoAvaliacao(agendamento),
-                );
-              },
-            ),
-          );
-        },
-      ),
-          ),
-          StreamBuilder<DateTime>(
-            stream: _clockStream,
-            builder: (context, snapshot) {
-              final now = snapshot.data ?? DateTime.now();
-              return Container(
-                width: double.infinity,
-                color: Colors.grey.shade200,
-                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                child: Text(
-                  'Registro de Tela: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(now)}\nID: ${currentUser?.uid ?? "N/A"}',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 10),
+          appBar: AppBar(
+            title: Text(AppLocalizations.of(context)!.appointmentsTitle),
+            backgroundColor: Colors.teal,
+            foregroundColor: Colors.white,
+            actions: [
+              const LanguageSelector(),
+              if (temPermissao)
+                IconButton(
+                  icon: Icon(_mostrarTodos ? Icons.groups : Icons.person),
+                  tooltip: _mostrarTodos
+                      ? AppLocalizations.of(context)!.viewingAll
+                      : AppLocalizations.of(context)!.viewingMine,
+                  onPressed: () {
+                    setState(() {
+                      _mostrarTodos = !_mostrarTodos;
+                    });
+                  },
                 ),
-              );
-            },
+              IconButton(
+                icon: const Icon(Icons.person),
+                tooltip: AppLocalizations.of(context)!.myProfileTooltip,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const PerfilView()),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.exit_to_app),
+                tooltip: AppLocalizations.of(context)!.logoutTooltip,
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (context.mounted) {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => const LoginView(),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          HapticFeedback.selectionClick(); // Vibração leve ao clicar
-          _mostrarDialogoNovoAgendamento();
-        },
-        backgroundColor: Colors.teal,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-    );
-      }
+          body: Column(
+            children: [
+              // Dica do Dia
+              if (_dicaDoDia != null)
+                Container(
+                  width: double.infinity,
+                  color: Colors.teal.shade50,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.lightbulb,
+                        color: Colors.orange,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _dicaDoDia!,
+                          style: TextStyle(
+                            color: Colors.teal.shade900,
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: Colors.grey,
+                        ),
+                        onPressed: () => setState(() => _dicaDoDia = null),
+                      ),
+                    ],
+                  ),
+                ),
+
+              // Barra de Filtros
+              _buildFilters(context),
+
+              Expanded(
+                child: StreamBuilder<List<Agendamento>>(
+                  stream: currentUser == null
+                      ? Stream.value(const <Agendamento>[])
+                      : (_mostrarTodos && temPermissao)
+                      ? _firestoreService.getAgendamentos()
+                      : _firestoreService.getAgendamentosDoCliente(
+                          currentUser.uid,
+                        ),
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Text(
+                          AppStrings.erroGenerico('${snapshot.error}'),
+                        ),
+                      );
+                    }
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      // Efeito Shimmer enquanto carrega
+                      return ListView.builder(
+                        itemCount: 5,
+                        padding: const EdgeInsets.only(top: 8),
+                        itemBuilder: (context, index) =>
+                            const _ShimmerLoadingCard(),
+                      );
+                    }
+
+                    var agendamentos = snapshot.data ?? [];
+
+                    // Filtro por Data
+                    if (_filtroData != null) {
+                      agendamentos = agendamentos
+                          .where(
+                            (a) =>
+                                a.dataHora.year == _filtroData!.year &&
+                                a.dataHora.month == _filtroData!.month &&
+                                a.dataHora.day == _filtroData!.day,
+                          )
+                          .toList();
+                    }
+
+                    // Filtro por Texto (Tipo)
+                    if (_filtroTexto.isNotEmpty) {
+                      agendamentos = agendamentos.where((a) {
+                        final tipoLocalizado = _tipoLabel(
+                          context,
+                          a.tipo,
+                        ).toLowerCase();
+                        return tipoLocalizado.contains(
+                          _filtroTexto.toLowerCase(),
+                        );
+                      }).toList();
+                    }
+
+                    final agendamentosAtivos = agendamentos
+                        .where((a) => !_isStatusCancelado(a.status))
+                        .toList();
+                    final agendamentosCancelados = agendamentos
+                        .where((a) => _isStatusCancelado(a.status))
+                        .toList();
+                    agendamentos = [
+                      ...agendamentosAtivos,
+                      ...agendamentosCancelados,
+                    ];
+
+                    if (agendamentos.isEmpty) {
+                      return Center(
+                        child: Text(
+                          AppLocalizations.of(context)!.noAppointmentsFound,
+                          style: const TextStyle(color: Colors.grey),
+                        ),
+                      );
+                    }
+
+                    return RefreshIndicator(
+                      onRefresh: () async {
+                        // Simula um refresh (Firestore é realtime, mas recarregamos configs)
+                        await Future.delayed(const Duration(seconds: 1));
+                        await _carregarConfig();
+                        if (mounted) setState(() {});
+                      },
+                      child: ListView.builder(
+                        physics:
+                            const AlwaysScrollableScrollPhysics(), // Garante que o pull-to-refresh funcione mesmo com lista pequena
+                        itemCount: agendamentos.length,
+                        itemBuilder: (context, index) {
+                          final agendamento = agendamentos[index];
+
+                          return _AgendamentoCard(
+                            agendamento: agendamento,
+                            currentUser:
+                                currentUser, // Passamos o User do Firebase diretamente ou adaptamos
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AgendamentoDetalhesView(
+                                  agendamento: agendamento,
+                                ),
+                              ),
+                            ),
+                            onToggleWaitList: (entrar) => _toggleListaEspera(
+                              agendamento,
+                              currentUser!.uid,
+                              entrar,
+                            ),
+                            onCancel: () => _iniciarCancelamento(agendamento),
+                            onRate: () => _mostrarDialogoAvaliacao(agendamento),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+              StreamBuilder<DateTime>(
+                stream: _clockStream,
+                builder: (context, snapshot) {
+                  final now = snapshot.data ?? DateTime.now();
+                  return Container(
+                    width: double.infinity,
+                    color: Colors.grey.shade200,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 4,
+                      horizontal: 8,
+                    ),
+                    child: Text(
+                      'Registro de Tela: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(now)}\nID: ${currentUser?.uid ?? "N/A"}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 10,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              HapticFeedback.selectionClick(); // Vibração leve ao clicar
+              _mostrarDialogoNovoAgendamento();
+            },
+            backgroundColor: Colors.teal,
+            child: const Icon(Icons.add, color: Colors.white),
+          ),
+        );
+      },
     );
   }
 
@@ -259,8 +402,14 @@ class _AgendamentoViewState extends State<AgendamentoView> {
               decoration: InputDecoration(
                 hintText: AppStrings.buscarPorTipo,
                 prefixIcon: const Icon(Icons.search, size: 20),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 0,
+                  horizontal: 10,
+                ),
                 filled: true,
                 fillColor: Colors.white.withValues(alpha: 0.7),
               ),
@@ -287,11 +436,15 @@ class _AgendamentoViewState extends State<AgendamentoView> {
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: _filtroData != null ? Colors.teal : Colors.white.withValues(alpha: 0.7),
+                color: _filtroData != null
+                    ? Colors.teal
+                    : Colors.white.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
-                _filtroData != null ? Icons.event_available : Icons.calendar_today,
+                _filtroData != null
+                    ? Icons.event_available
+                    : Icons.calendar_today,
                 color: _filtroData != null ? Colors.white : Colors.grey,
               ),
             ),
@@ -304,7 +457,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
   void _mostrarDialogoNovoAgendamento() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    
+
     // Resetar variáveis do cupom ao abrir o diálogo
     _cupomAplicado = null;
     final TextEditingController cupomController = TextEditingController();
@@ -321,7 +474,9 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   ListTile(
-                    title: Text("${AppLocalizations.of(context)!.dateLabel}: ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}"),
+                    title: Text(
+                      "${AppLocalizations.of(context)!.dateLabel}: ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}",
+                    ),
                     trailing: const Icon(Icons.calendar_month),
                     onTap: () async {
                       final picked = await showDatePicker(
@@ -345,7 +500,9 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                       _firestoreService.getCliente(user.uid),
                     ]),
                     builder: (context, snapshot) {
-                      if (!snapshot.hasData) return const LinearProgressIndicator();
+                      if (!snapshot.hasData) {
+                        return const LinearProgressIndicator();
+                      }
                       final tipos = MassageTypeCatalog.normalizeIds(
                         snapshot.data![0] as List<String>,
                       );
@@ -355,26 +512,46 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                       );
 
                       // Verifica se o tipo selecionado é favorito
-                      final isFavorite = _tipoSelecionado != null && favoritos.contains(_tipoSelecionado);
+                      final isFavorite =
+                          _tipoSelecionado != null &&
+                          favoritos.contains(_tipoSelecionado);
 
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Chips de Favoritos para acesso rápido
                           if (favoritos.isNotEmpty) ...[
-                            Text(AppStrings.favoritos, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                            Text(
+                              AppStrings.favoritos,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
                             Wrap(
                               spacing: 8,
-                              children: favoritos.map((fav) => ActionChip(
-                                label: Text(_tipoLabel(context, fav)),
-                                avatar: const Icon(Icons.star, size: 16, color: Colors.amber),
-                                onPressed: () => setStateDialog(() => _tipoSelecionado = fav),
-                                backgroundColor: _tipoSelecionado == fav ? Colors.teal.shade100 : null,
-                              )).toList(),
+                              children: favoritos
+                                  .map(
+                                    (fav) => ActionChip(
+                                      label: Text(_tipoLabel(context, fav)),
+                                      avatar: const Icon(
+                                        Icons.star,
+                                        size: 16,
+                                        color: Colors.amber,
+                                      ),
+                                      onPressed: () => setStateDialog(
+                                        () => _tipoSelecionado = fav,
+                                      ),
+                                      backgroundColor: _tipoSelecionado == fav
+                                          ? Colors.teal.shade100
+                                          : null,
+                                    ),
+                                  )
+                                  .toList(),
                             ),
                             const SizedBox(height: 8),
                           ],
-                          
+
                           // Dropdown com todos os tipos
                           Row(
                             children: [
@@ -387,19 +564,33 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                                       .map(
                                         (tipoId) => DropdownMenuItem(
                                           value: tipoId,
-                                          child: Text(_tipoLabel(context, tipoId)),
+                                          child: Text(
+                                            _tipoLabel(context, tipoId),
+                                          ),
                                         ),
                                       )
                                       .toList(),
-                                  onChanged: (val) => setStateDialog(() => _tipoSelecionado = val),
+                                  onChanged: (val) => setStateDialog(
+                                    () => _tipoSelecionado = val,
+                                  ),
                                 ),
                               ),
                               if (_tipoSelecionado != null)
                                 IconButton(
-                                  icon: Icon(isFavorite ? Icons.star : Icons.star_border, color: isFavorite ? Colors.amber : Colors.grey),
-                                  tooltip: isFavorite ? AppStrings.removerFavoritos : AppStrings.adicionarFavoritos,
+                                  icon: Icon(
+                                    isFavorite ? Icons.star : Icons.star_border,
+                                    color: isFavorite
+                                        ? Colors.amber
+                                        : Colors.grey,
+                                  ),
+                                  tooltip: isFavorite
+                                      ? AppStrings.removerFavoritos
+                                      : AppStrings.adicionarFavoritos,
                                   onPressed: () async {
-                                    await _firestoreService.toggleFavorito(user.uid, _tipoSelecionado!);
+                                    await _firestoreService.toggleFavorito(
+                                      user.uid,
+                                      _tipoSelecionado!,
+                                    );
                                     setStateDialog(() {}); // Atualiza UI
                                   },
                                 ),
@@ -415,10 +606,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                     value: _horarioSelecionado,
                     isExpanded: true,
                     items: SchedulingService.getSlotsDisponiveis().map((slot) {
-                      return DropdownMenuItem(
-                        value: slot,
-                        child: Text(slot),
-                      );
+                      return DropdownMenuItem(value: slot, child: Text(slot));
                     }).toList(),
                     onChanged: (value) {
                       setStateDialog(() {
@@ -446,15 +634,25 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                         onPressed: () async {
                           if (cupomController.text.isEmpty) return;
                           final messenger = ScaffoldMessenger.of(context);
-                          final cupom = await _firestoreService.validarCupom(cupomController.text);
+                          final cupom = await _firestoreService.validarCupom(
+                            cupomController.text,
+                          );
                           if (!context.mounted) return;
                           setStateDialog(() {
                             if (cupom != null) {
                               _cupomAplicado = cupom;
-                              messenger.showSnackBar(SnackBar(content: Text(AppStrings.cupomAplicado)));
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(AppStrings.cupomAplicado),
+                                ),
+                              );
                             } else {
                               _cupomAplicado = null;
-                              messenger.showSnackBar(SnackBar(content: Text(AppStrings.cupomInvalido)));
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(AppStrings.cupomInvalido),
+                                ),
+                              );
                             }
                           });
                         },
@@ -466,8 +664,15 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                     Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text(
-                        AppStrings.descontoResumo(_cupomAplicado!.tipo == 'porcentagem' ? '${_cupomAplicado!.valor.toStringAsFixed(0)}%' : 'R\$ ${_cupomAplicado!.valor.toStringAsFixed(2)}'),
-                        style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                        AppStrings.descontoResumo(
+                          _cupomAplicado!.tipo == 'porcentagem'
+                              ? '${_cupomAplicado!.valor.toStringAsFixed(0)}%'
+                              : 'R\$ ${_cupomAplicado!.valor.toStringAsFixed(2)}',
+                        ),
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   const SizedBox(height: 10),
@@ -485,7 +690,8 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    if (_horarioSelecionado != null && _tipoSelecionado != null) {
+                    if (_horarioSelecionado != null &&
+                        _tipoSelecionado != null) {
                       final nav = Navigator.of(context);
                       await _salvarAgendamento();
                       if (context.mounted) nav.pop();
@@ -515,8 +721,12 @@ class _AgendamentoViewState extends State<AgendamentoView> {
     _valorFinalSessao = max(0, precoBase - desconto);
 
     return Text(
-      'Total: R\$ ${_valorFinalSessao.toStringAsFixed(2)}',
-      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal),
+      AppStrings.totalResumo('R\$ ${_valorFinalSessao.toStringAsFixed(2)}'),
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Colors.teal,
+      ),
     );
   }
 
@@ -541,31 +751,45 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                     children: List.generate(5, (index) {
                       return IconButton(
                         icon: Icon(
-                          index < notaSelecionada ? Icons.star : Icons.star_border,
+                          index < notaSelecionada
+                              ? Icons.star
+                              : Icons.star_border,
                           color: Colors.amber,
                           size: 30,
                         ),
-                        onPressed: () => setStateDialog(() => notaSelecionada = index + 1),
+                        onPressed: () =>
+                            setStateDialog(() => notaSelecionada = index + 1),
                       );
                     }),
                   ),
                   TextField(
                     controller: comentarioController,
-                    decoration: InputDecoration(hintText: AppStrings.deixeComentario),
+                    decoration: InputDecoration(
+                      hintText: AppStrings.deixeComentario,
+                    ),
                     maxLines: 2,
                   ),
                 ],
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: Text(AppStrings.cancelButton)),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(AppStrings.cancelButton),
+                ),
                 ElevatedButton(
                   onPressed: () async {
                     final nav = Navigator.of(context);
                     final messenger = ScaffoldMessenger.of(context);
-                    await _firestoreService.avaliarAgendamento(agendamento.id!, notaSelecionada, comentarioController.text);
+                    await _firestoreService.avaliarAgendamento(
+                      agendamento.id!,
+                      notaSelecionada,
+                      comentarioController.text,
+                    );
                     if (mounted) {
                       nav.pop();
-                      messenger.showSnackBar(SnackBar(content: Text(AppStrings.obrigadoAvaliacao)));
+                      messenger.showSnackBar(
+                        SnackBar(content: Text(AppStrings.obrigadoAvaliacao)),
+                      );
                     }
                   },
                   child: Text(AppStrings.enviar),
@@ -592,7 +816,9 @@ class _AgendamentoViewState extends State<AgendamentoView> {
 
     final user = FirebaseAuth.instance.currentUser;
     final messenger = ScaffoldMessenger.of(context);
-    final appointmentSuccessMessage = AppLocalizations.of(context)!.appointmentSuccess;
+    final appointmentSuccessMessage = AppLocalizations.of(
+      context,
+    )!.appointmentSuccess;
 
     if (user == null) {
       messenger.showSnackBar(
@@ -601,8 +827,36 @@ class _AgendamentoViewState extends State<AgendamentoView> {
       return;
     }
 
+    final agendamentoExistente = await _firestoreService
+        .buscarAgendamentoAtivoNoHorario(dataHoraFinal);
+    if (agendamentoExistente != null) {
+      if (agendamentoExistente.clienteId == user.uid) {
+        if (mounted) {
+          messenger.showSnackBar(
+            SnackBar(content: Text(AppStrings.jaExisteAgendamentoNoHorario)),
+          );
+        }
+        return;
+      }
+
+      if (agendamentoExistente.id != null) {
+        await _firestoreService.toggleListaEspera(
+          agendamentoExistente.id!,
+          user.uid,
+          true,
+        );
+      }
+
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text(AppStrings.horarioOcupadoListaEspera)),
+        );
+      }
+      return;
+    }
+
     // Recalcula para garantir (caso o UI não tenha atualizado)
-    _buildPriceDisplay(); 
+    _buildPriceDisplay();
 
     final novoAgendamento = Agendamento(
       clienteId: user.uid,
@@ -614,7 +868,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
     );
 
     await _firestoreService.salvarAgendamento(novoAgendamento);
-    
+
     if (mounted) {
       messenger.showSnackBar(
         SnackBar(content: Text(appointmentSuccessMessage)),
@@ -622,14 +876,22 @@ class _AgendamentoViewState extends State<AgendamentoView> {
     }
   }
 
-  Future<void> _toggleListaEspera(Agendamento agendamento, String uid, bool entrar) async {
+  Future<void> _toggleListaEspera(
+    Agendamento agendamento,
+    String uid,
+    bool entrar,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     await _firestoreService.toggleListaEspera(agendamento.id!, uid, entrar);
     if (mounted) {
       messenger.showSnackBar(
-        SnackBar(content: Text(entrar 
-          ? 'Você será notificado se este horário vagar.' 
-          : 'Você saiu da lista de espera.')),
+        SnackBar(
+          content: Text(
+            entrar
+                ? AppStrings.listaEsperaEntradaSucesso
+                : AppStrings.listaEsperaSaidaSucesso,
+          ),
+        ),
       );
     }
   }
@@ -638,7 +900,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
   Future<void> _iniciarCancelamento(Agendamento agendamento) async {
     final messenger = ScaffoldMessenger.of(context);
     if (_config == null) await _carregarConfig();
-    
+
     final agora = DateTime.now();
     final dataAgendamento = agendamento.dataHora;
 
@@ -654,7 +916,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
     // Cálculo de horas válidas (descontando sono)
     int minutosValidos = 0;
     DateTime cursor = agora;
-    
+
     // Itera minuto a minuto (simples e eficaz para intervalos curtos de dias)
     while (cursor.isBefore(dataAgendamento)) {
       final hora = cursor.hour;
@@ -676,19 +938,23 @@ class _AgendamentoViewState extends State<AgendamentoView> {
 
     final horasValidas = minutosValidos / 60.0;
     final horasNecessarias = _config!.horasAntecedenciaCancelamento;
-    
+
     bool foraDoPrazo = horasValidas < horasNecessarias;
 
     if (!mounted) return;
 
     // Exibir diálogo
     final motivoController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(foraDoPrazo ? AppStrings.cancelamentoTardio : AppStrings.cancelarAgendamento),
+          title: Text(
+            foraDoPrazo
+                ? AppStrings.cancelamentoTardio
+                : AppStrings.cancelarAgendamento,
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -698,7 +964,10 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                   padding: const EdgeInsets.all(8),
                   color: Colors.red.shade50,
                   child: Text(
-                    'Atenção: Você está cancelando com menos de $horasNecessarias horas úteis de antecedência (considerando o horário de descanso da administradora).\n\nTempo útil restante: ${horasValidas.toStringAsFixed(1)}h.',
+                    AppStrings.cancelamentoTardioResumo(
+                      horasNecessarias,
+                      horasValidas,
+                    ),
                     style: const TextStyle(color: Colors.red, fontSize: 12),
                   ),
                 ),
@@ -712,16 +981,25 @@ class _AgendamentoViewState extends State<AgendamentoView> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: Text(AppStrings.voltar)),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(AppStrings.voltar),
+            ),
             ElevatedButton(
               onPressed: () async {
                 final nav = Navigator.of(context);
                 if (motivoController.text.isEmpty) return;
-                
-                final status = foraDoPrazo ? 'cancelado_tardio' : 'cancelado';
-                final motivoFinal = foraDoPrazo ? '[FORA DO PRAZO] ${motivoController.text}' : motivoController.text;
 
-                await _firestoreService.cancelarAgendamento(agendamento.id!, motivoFinal, status);
+                final status = foraDoPrazo ? 'cancelado_tardio' : 'cancelado';
+                final motivoFinal = foraDoPrazo
+                    ? '[FORA DO PRAZO] ${motivoController.text}'
+                    : motivoController.text;
+
+                await _firestoreService.cancelarAgendamento(
+                  agendamento.id!,
+                  motivoFinal,
+                  status,
+                );
                 if (context.mounted) nav.pop();
               },
               child: Text(AppStrings.confirmCancellationButton),
@@ -771,8 +1049,16 @@ class AgendamentoDetalhesView extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor.withValues(alpha: 0.85),
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 20, spreadRadius: 5)],
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.3),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
+                    ],
                   ),
                   child: Material(
                     color: Colors.transparent,
@@ -781,43 +1067,127 @@ class AgendamentoDetalhesView extends StatelessWidget {
                       children: [
                         const Icon(Icons.spa, size: 60, color: Colors.teal),
                         const SizedBox(height: 20),
-                        Text(tipoLocalizado, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                        Text(
+                          tipoLocalizado,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         const SizedBox(height: 10),
                         const Divider(),
                         const SizedBox(height: 10),
-                        Text(AppStrings.dataResumo(dateStr), style: const TextStyle(fontSize: 18)),
-                        Text(AppStrings.horarioResumo(timeStr), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.teal)),
+                        Text(
+                          AppStrings.dataResumo(dateStr),
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                        Text(
+                          AppStrings.horarioResumo(timeStr),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal,
+                          ),
+                        ),
+                        if (agendamento.administradoraAtrelada != null &&
+                            agendamento.administradoraAtrelada!.isNotEmpty)
+                          Text(
+                            AppStrings.administradoraResumo(
+                              agendamento.administradoraAtrelada!,
+                            ),
+                            style: const TextStyle(fontSize: 16),
+                          ),
                         if (agendamento.valorFinal != null)
-                          Text(AppStrings.valorResumo('R\$ ${agendamento.valorFinal!.toStringAsFixed(2)}'), style: const TextStyle(fontSize: 16, color: Colors.green)),
+                          Text(
+                            AppStrings.valorResumo(
+                              'R\$ ${agendamento.valorFinal!.toStringAsFixed(2)}',
+                            ),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.green,
+                            ),
+                          ),
                         if (agendamento.cupomAplicado != null)
-                          Text(AppStrings.cupomResumo('${agendamento.cupomAplicado}'), style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                          Text(
+                            AppStrings.cupomResumo(
+                              '${agendamento.cupomAplicado}',
+                            ),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
                         const SizedBox(height: 20),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
-                            color: _getStatusColor(agendamento.status).withValues(alpha: 0.2),
+                            color: _getStatusColor(
+                              agendamento.status,
+                            ).withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: _getStatusColor(agendamento.status)),
+                            border: Border.all(
+                              color: _getStatusColor(agendamento.status),
+                            ),
                           ),
                           child: Text(
                             agendamento.status.toUpperCase(),
-                            style: TextStyle(color: _getStatusColor(agendamento.status), fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: _getStatusColor(agendamento.status),
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         if (agendamento.motivoCancelamento != null) ...[
                           const SizedBox(height: 20),
-                          Text(AppStrings.motivoCancelamento, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-                          Text(agendamento.motivoCancelamento!, textAlign: TextAlign.center),
+                          Text(
+                            AppStrings.motivoCancelamento,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
+                          ),
+                          Text(
+                            agendamento.motivoCancelamento!,
+                            textAlign: TextAlign.center,
+                          ),
                         ],
                         const SizedBox(height: 30),
                         if (agendamento.listaEspera.isNotEmpty)
-                          Text(AppStrings.filaEsperaResumo(agendamento.listaEspera.length), style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          Text(
+                            AppStrings.filaEsperaResumo(
+                              agendamento.listaEspera.length,
+                            ),
+                            style: const TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
                         if (agendamento.avaliacao != null) ...[
                           const SizedBox(height: 20),
                           const Divider(),
-                          Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(5, (i) => Icon(i < agendamento.avaliacao! ? Icons.star : Icons.star_border, color: Colors.amber))),
-                          if (agendamento.comentarioAvaliacao != null && agendamento.comentarioAvaliacao!.isNotEmpty)
-                            Text('"${agendamento.comentarioAvaliacao}"', style: const TextStyle(fontStyle: FontStyle.italic)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(
+                              5,
+                              (i) => Icon(
+                                i < agendamento.avaliacao!
+                                    ? Icons.star
+                                    : Icons.star_border,
+                                color: Colors.amber,
+                              ),
+                            ),
+                          ),
+                          if (agendamento.comentarioAvaliacao != null &&
+                              agendamento.comentarioAvaliacao!.isNotEmpty)
+                            Text(
+                              '"${agendamento.comentarioAvaliacao}"',
+                              style: const TextStyle(
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
                         ],
                       ],
                     ),
@@ -833,11 +1203,16 @@ class AgendamentoDetalhesView extends StatelessWidget {
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'aprovado': return Colors.green;
-      case 'recusado': return Colors.red;
-      case 'cancelado': return Colors.red;
-      case 'cancelado_tardio': return Colors.deepOrange;
-      default: return Colors.orange;
+      case 'aprovado':
+        return Colors.green;
+      case 'recusado':
+        return Colors.red;
+      case 'cancelado':
+        return Colors.red;
+      case 'cancelado_tardio':
+        return Colors.deepOrange;
+      default:
+        return Colors.orange;
     }
   }
 }
@@ -864,7 +1239,8 @@ class _AgendamentoCard extends StatefulWidget {
   State<_AgendamentoCard> createState() => _AgendamentoCardState();
 }
 
-class _AgendamentoCardState extends State<_AgendamentoCard> with SingleTickerProviderStateMixin {
+class _AgendamentoCardState extends State<_AgendamentoCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _checkController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
@@ -872,14 +1248,20 @@ class _AgendamentoCardState extends State<_AgendamentoCard> with SingleTickerPro
   @override
   void initState() {
     super.initState();
-    _checkController = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500));
-    
+    _checkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.2).animate(
       CurvedAnimation(parent: _checkController, curve: Curves.elasticOut),
     );
-    
+
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _checkController, curve: const Interval(0.0, 0.3, curve: Curves.easeIn)),
+      CurvedAnimation(
+        parent: _checkController,
+        curve: const Interval(0.0, 0.3, curve: Curves.easeIn),
+      ),
     );
 
     _checkController.addStatusListener((status) {
@@ -906,7 +1288,8 @@ class _AgendamentoCardState extends State<_AgendamentoCard> with SingleTickerPro
   Widget build(BuildContext context) {
     final agendamento = widget.agendamento;
     final currentUser = widget.currentUser;
-    final isMyAppointment = currentUser != null && agendamento.clienteId == currentUser.uid;
+    final isMyAppointment =
+        currentUser != null && agendamento.clienteId == currentUser.uid;
     final tipoLocalizado = MassageTypeCatalog.localize(
       AppLocalizations.of(context)!,
       agendamento.tipo,
@@ -923,27 +1306,48 @@ class _AgendamentoCardState extends State<_AgendamentoCard> with SingleTickerPro
         statusIcon = Icons.cancel;
         statusColor = Colors.red;
         break;
+      case 'cancelado':
+      case 'cancelado_tardio':
+        statusIcon = Icons.event_busy;
+        statusColor = Colors.deepOrange;
+        break;
       default:
         statusIcon = Icons.hourglass_empty;
         statusColor = Colors.orange;
     }
 
-    final bool podeCancelar = agendamento.status != 'recusado' && 
-                              agendamento.status != 'cancelado' && 
-                              agendamento.status != 'cancelado_tardio';
+    final bool podeCancelar =
+        agendamento.status != 'recusado' &&
+        agendamento.status != 'cancelado' &&
+        agendamento.status != 'cancelado_tardio';
 
-    final bool isCancelado = agendamento.status == 'cancelado' || agendamento.status == 'cancelado_tardio';
-    final String motivoTexto = isCancelado && agendamento.motivoCancelamento != null 
-      ? AppStrings.motivoInline(agendamento.motivoCancelamento!) : '';
+    final bool isCancelado =
+        agendamento.status == 'cancelado' ||
+        agendamento.status == 'cancelado_tardio';
+    final bool cardCompacto = isCancelado;
+    final String motivoTexto =
+        isCancelado && agendamento.motivoCancelamento != null
+        ? AppStrings.motivoInline(agendamento.motivoCancelamento!)
+        : '';
+    final String administradoraTexto =
+        agendamento.administradoraAtrelada != null &&
+            agendamento.administradoraAtrelada!.isNotEmpty
+        ? AppStrings.administradoraInline(agendamento.administradoraAtrelada!)
+        : '';
 
-    final bool isOccupied = agendamento.status == 'aprovado';
-    final bool isInWaitList = currentUser != null && agendamento.listaEspera.contains(currentUser.uid);
+    final bool isOccupied = !isCancelado && agendamento.status != 'recusado';
+    final bool isInWaitList =
+        currentUser != null &&
+        agendamento.listaEspera.contains(currentUser.uid);
 
     return Stack(
       alignment: Alignment.center,
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: cardCompacto ? 4 : 8,
+          ),
           child: GestureDetector(
             onTap: widget.onTap,
             child: Hero(
@@ -953,54 +1357,111 @@ class _AgendamentoCardState extends State<_AgendamentoCard> with SingleTickerPro
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
-                    decoration: BoxDecoration( 
-                      color: Theme.of(context).cardColor.withValues(alpha: 0.6),
+                    decoration: BoxDecoration(
+                      color: Theme.of(
+                        context,
+                      ).cardColor.withValues(alpha: cardCompacto ? 0.4 : 0.6),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                      border: Border.all(
+                        color: (cardCompacto ? statusColor : Colors.white)
+                            .withValues(alpha: 0.25),
+                      ),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, spreadRadius: 0)
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 10,
+                          spreadRadius: 0,
+                        ),
                       ],
                     ),
                     child: Material(
                       color: Colors.transparent,
                       child: ListTile(
-                        leading: const Icon(Icons.calendar_today, color: Colors.teal),
-                        title: Text(
-                          DateFormat('dd/MM/yyyy HH:mm').format(agendamento.dataHora),
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        dense: cardCompacto,
+                        visualDensity: cardCompacto
+                            ? const VisualDensity(vertical: -2)
+                            : VisualDensity.standard,
+                        minVerticalPadding: cardCompacto ? 2 : 8,
+                        leading: Icon(
+                          isCancelado ? Icons.event_busy : Icons.calendar_today,
+                          color: isCancelado ? statusColor : Colors.teal,
+                          size: cardCompacto ? 20 : 24,
                         ),
-                        subtitle: Text(AppStrings.tipoStatusResumo(tipoLocalizado, agendamento.status, motivoTexto)),
+                        title: Text(
+                          DateFormat(
+                            'dd/MM/yyyy HH:mm',
+                          ).format(agendamento.dataHora),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: cardCompacto ? 14 : 16,
+                          ),
+                        ),
+                        subtitle: Text(
+                          AppStrings.tipoStatusResumo(
+                            tipoLocalizado,
+                            agendamento.status,
+                            '$administradoraTexto$motivoTexto',
+                          ),
+                          maxLines: cardCompacto ? 4 : null,
+                          overflow: cardCompacto
+                              ? TextOverflow.ellipsis
+                              : TextOverflow.visible,
+                        ),
                         isThreeLine: true,
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             // Botão de Check-in (Novo)
-                            if (isMyAppointment && agendamento.status == 'aprovado')
+                            if (isMyAppointment &&
+                                agendamento.status == 'aprovado')
                               IconButton(
-                                icon: const Icon(Icons.verified_user, color: Colors.blue),
+                                icon: const Icon(
+                                  Icons.verified_user,
+                                  color: Colors.blue,
+                                ),
                                 tooltip: AppStrings.fazerCheckIn,
                                 onPressed: _handleCheckIn,
                               ),
-                            
+
                             // Botão de Avaliar (Se aprovado e ainda não avaliado)
-                            if (isMyAppointment && agendamento.status == 'aprovado' && agendamento.avaliacao == null)
+                            if (isMyAppointment &&
+                                agendamento.status == 'aprovado' &&
+                                agendamento.avaliacao == null)
                               IconButton(
-                                icon: const Icon(Icons.star_rate, color: Colors.amber),
+                                icon: const Icon(
+                                  Icons.star_rate,
+                                  color: Colors.amber,
+                                ),
                                 tooltip: AppStrings.avaliarAtendimento,
                                 onPressed: widget.onRate,
                               ),
 
-                            if (!isMyAppointment && isOccupied && currentUser != null)
+                            if (!isMyAppointment &&
+                                isOccupied &&
+                                currentUser != null)
                               IconButton(
-                                icon: Icon(isInWaitList ? Icons.notifications_active : Icons.notifications_none, color: isInWaitList ? Colors.amber : Colors.grey),
-                                onPressed: () => widget.onToggleWaitList(!isInWaitList),
+                                icon: Icon(
+                                  isInWaitList
+                                      ? Icons.notifications_active
+                                      : Icons.notifications_none,
+                                  color: isInWaitList
+                                      ? Colors.amber
+                                      : Colors.grey,
+                                ),
+                                onPressed: () =>
+                                    widget.onToggleWaitList(!isInWaitList),
                               ),
                             if (isMyAppointment && podeCancelar)
                               IconButton(
-                                icon: const Icon(Icons.delete_forever, color: Colors.red),
+                                icon: const Icon(
+                                  Icons.delete_forever,
+                                  color: Colors.red,
+                                ),
                                 onPressed: widget.onCancel,
                               )
-                            else if (!(!isMyAppointment && isOccupied) && !(isMyAppointment && agendamento.status == 'aprovado'))
+                            else if (!(!isMyAppointment && isOccupied) &&
+                                !(isMyAppointment &&
+                                    agendamento.status == 'aprovado'))
                               Icon(statusIcon, color: statusColor),
                           ],
                         ),
@@ -1022,13 +1483,19 @@ class _AgendamentoCardState extends State<_AgendamentoCard> with SingleTickerPro
                 child: Transform.scale(
                   scale: _scaleAnimation.value,
                   child: Container(
-                    padding: const EdgeInsets.all(20), 
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.95),
                       shape: BoxShape.circle,
-                      boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 15)],
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black26, blurRadius: 15),
+                      ],
                     ),
-                    child: const Icon(Icons.check_circle, color: Colors.green, size: 60),
+                    child: const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 60,
+                    ),
                   ),
                 ),
               );
@@ -1048,13 +1515,17 @@ class _ShimmerLoadingCard extends StatefulWidget {
   State<_ShimmerLoadingCard> createState() => _ShimmerLoadingCardState();
 }
 
-class _ShimmerLoadingCardState extends State<_ShimmerLoadingCard> with SingleTickerProviderStateMixin {
+class _ShimmerLoadingCardState extends State<_ShimmerLoadingCard>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
   }
 
   @override
@@ -1074,8 +1545,12 @@ class _ShimmerLoadingCardState extends State<_ShimmerLoadingCard> with SingleTic
             height: 100,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient( 
-                colors: [Colors.white.withValues(alpha: 0.1), Colors.white.withValues(alpha: 0.4), Colors.white.withValues(alpha: 0.1)],
+              gradient: LinearGradient(
+                colors: [
+                  Colors.white.withValues(alpha: 0.1),
+                  Colors.white.withValues(alpha: 0.4),
+                  Colors.white.withValues(alpha: 0.1),
+                ],
                 stops: const [0.1, 0.5, 0.9],
                 begin: Alignment(-1.0 + (_controller.value * 2.5), -0.3),
                 end: Alignment(1.0 + (_controller.value * 2.5), 0.3),

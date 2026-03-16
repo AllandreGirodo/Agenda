@@ -10,7 +10,8 @@ class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations);
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   static const Map<String, Map<String, String>> _localizedValues = {
     'pt': {
@@ -40,7 +41,20 @@ class AppLocalizations {
       'signupPasswordRuleLowercase': 'Pelo menos 1 letra minúscula',
       'signupPasswordRuleNumber': 'Pelo menos 1 número',
       'signupPasswordRuleSpecial': 'Pelo menos 1 caractere especial',
-      'signupPasswordWeakMessage': 'A senha ainda não atende ao padrão sugerido.',
+      'signupPasswordWeakMessage':
+          'A senha ainda não atende ao padrão sugerido.',
+      'signupPasswordReadyMessage': 'Senha válida. Você já pode se cadastrar.',
+      'signupNameRequiredMessage': 'Informe seu nome completo.',
+      'signupPhoneMinDigitsSubmitMessage': '{label} com no mínimo 10 dígitos.',
+      'signupLgpdConsentLabel':
+          'Li e aceito os Termos de Uso e Política de Privacidade.',
+      'signupLgpdConsentPendingMessage':
+          'Aceite os Termos de Uso e Política de Privacidade para continuar.',
+      'signupLgpdConsentAcceptedMessage':
+          'Termos aceitos. Você já pode concluir o cadastro.',
+      'signupLgpdConsentError':
+          'É obrigatório ler e aceitar os Termos de Uso e Política de Privacidade para continuar.',
+      'signupTermsReadButton': 'Ler Termos de Uso e Política de Privacidade',
       'registerButton': 'CADASTRAR',
       'registrationError': 'Erro ao cadastrar',
       // Agendamento
@@ -81,7 +95,8 @@ class AppLocalizations {
       // Aguardando Aprovação
       'waitingApprovalTitle': 'Aguardando Aprovação',
       'analysisTitle': 'Cadastro em Análise',
-      'analysisMessage': 'Seu cadastro realizado em\n{date}\nestá aguardando aprovação da administradora.',
+      'analysisMessage':
+          'Seu cadastro realizado em\n{date}\nestá aguardando aprovação da administradora.',
       'contactAdminButton': 'Falar com a Administradora',
       'backToLoginButton': 'Voltar para Login',
     },
@@ -112,7 +127,21 @@ class AppLocalizations {
       'signupPasswordRuleLowercase': 'At least 1 lowercase letter',
       'signupPasswordRuleNumber': 'At least 1 number',
       'signupPasswordRuleSpecial': 'At least 1 special character',
-      'signupPasswordWeakMessage': 'Password does not meet the suggested pattern yet.',
+      'signupPasswordWeakMessage':
+          'Password does not meet the suggested pattern yet.',
+      'signupPasswordReadyMessage':
+          'Password looks good. You can register now.',
+      'signupNameRequiredMessage': 'Please enter your full name.',
+      'signupPhoneMinDigitsSubmitMessage': '{label} with at least 10 digits.',
+      'signupLgpdConsentLabel':
+          'I have read and agree to the Terms of Use and Privacy Policy.',
+      'signupLgpdConsentPendingMessage':
+          'Please accept the Terms of Use and Privacy Policy to continue.',
+      'signupLgpdConsentAcceptedMessage':
+          'Terms accepted. You can complete your registration.',
+      'signupLgpdConsentError':
+          'You must read and accept the Terms of Use and Privacy Policy to continue.',
+      'signupTermsReadButton': 'Read Terms of Use and Privacy Policy',
       'registerButton': 'REGISTER',
       'registrationError': 'Error registering',
       // Appointment
@@ -153,7 +182,8 @@ class AppLocalizations {
       // Waiting Approval
       'waitingApprovalTitle': 'Waiting Approval',
       'analysisTitle': 'Registration Under Review',
-      'analysisMessage': 'Your registration made on\n{date}\nis awaiting administrator approval.',
+      'analysisMessage':
+          'Your registration made on\n{date}\nis awaiting administrator approval.',
       'contactAdminButton': 'Contact Administrator',
       'backToLoginButton': 'Back to Login',
     },
@@ -177,14 +207,28 @@ class AppLocalizations {
       'signupInvalidEmailTyping': 'El correo aún no es válido.',
       'signupPhoneOnlyDigitsMessage': 'Complete solo con números del 0 al 9.',
       'signupPhoneMinDigitsMessage': 'Se requieren mínimo 10 dígitos.',
-      'signupPhoneDigitsLimitReached': 'Se alcanzó el límite de dígitos del celular.',
+      'signupPhoneDigitsLimitReached':
+          'Se alcanzó el límite de dígitos del celular.',
       'signupPasswordCriteriaTitle': 'Contraseña sugerida:',
       'signupPasswordRuleLength': 'Entre 6 y 20 caracteres',
       'signupPasswordRuleUppercase': 'Al menos 1 letra mayúscula',
       'signupPasswordRuleLowercase': 'Al menos 1 letra minúscula',
       'signupPasswordRuleNumber': 'Al menos 1 número',
       'signupPasswordRuleSpecial': 'Al menos 1 carácter especial',
-      'signupPasswordWeakMessage': 'La contraseña aún no cumple el patrón sugerido.',
+      'signupPasswordWeakMessage':
+          'La contraseña aún no cumple el patrón sugerido.',
+      'signupPasswordReadyMessage': 'Contraseña válida. Ya puede registrarse.',
+      'signupNameRequiredMessage': 'Informe su nombre completo.',
+      'signupPhoneMinDigitsSubmitMessage': '{label} con al menos 10 dígitos.',
+      'signupLgpdConsentLabel':
+          'He leído y acepto los Términos de Uso y la Política de Privacidad.',
+      'signupLgpdConsentPendingMessage':
+          'Acepte los Términos de Uso y la Política de Privacidad para continuar.',
+      'signupLgpdConsentAcceptedMessage':
+          'Términos aceptados. Ya puede completar su registro.',
+      'signupLgpdConsentError':
+          'Debe leer y aceptar los Términos de Uso y la Política de Privacidad para continuar.',
+      'signupTermsReadButton': 'Leer Términos de Uso y Política de Privacidad',
       'registerButton': 'REGISTRAR',
       'registrationError': 'Error al registrar',
       // Appointment
@@ -225,7 +269,8 @@ class AppLocalizations {
       // Waiting Approval
       'waitingApprovalTitle': 'Esperando Aprobación',
       'analysisTitle': 'Registro en Revisión',
-      'analysisMessage': 'Su registro realizado el\n{date}\nestá esperando aprobación del administrador.',
+      'analysisMessage':
+          'Su registro realizado el\n{date}\nestá esperando aprobación del administrador.',
       'contactAdminButton': 'Contactar Administrador',
       'backToLoginButton': 'Volver al Login',
     },
@@ -257,6 +302,14 @@ class AppLocalizations {
       'signupPasswordRuleNumber': '数字を1文字以上',
       'signupPasswordRuleSpecial': '記号を1文字以上',
       'signupPasswordWeakMessage': 'パスワードが推奨パターンをまだ満たしていません。',
+      'signupPasswordReadyMessage': 'パスワードは有効です。登録できます。',
+      'signupNameRequiredMessage': '氏名を入力してください。',
+      'signupPhoneMinDigitsSubmitMessage': '{label}は10桁以上で入力してください。',
+      'signupLgpdConsentLabel': '利用規約とプライバシーポリシーを読み、同意します。',
+      'signupLgpdConsentPendingMessage': '続行するには利用規約とプライバシーポリシーに同意してください。',
+      'signupLgpdConsentAcceptedMessage': '利用規約への同意が完了しました。登録を完了できます。',
+      'signupLgpdConsentError': '続行するには利用規約とプライバシーポリシーの確認と同意が必要です。',
+      'signupTermsReadButton': '利用規約とプライバシーポリシーを読む',
       'registerButton': '登録',
       'registrationError': '登録エラー',
       // Appointment
@@ -319,16 +372,33 @@ class AppLocalizations {
       'isWhatsappNumber': 'Ce numéro est WhatsApp',
       'isNotWhatsappNumber': 'Ce numéro n\'est pas WhatsApp',
       'signupInvalidEmailTyping': 'L\'email n\'est pas encore valide.',
-      'signupPhoneOnlyDigitsMessage': 'Complétez uniquement avec les chiffres de 0 à 9.',
+      'signupPhoneOnlyDigitsMessage':
+          'Complétez uniquement avec les chiffres de 0 à 9.',
       'signupPhoneMinDigitsMessage': 'Minimum de 10 chiffres requis.',
-      'signupPhoneDigitsLimitReached': 'Limite de chiffres du téléphone atteinte.',
+      'signupPhoneDigitsLimitReached':
+          'Limite de chiffres du téléphone atteinte.',
       'signupPasswordCriteriaTitle': 'Mot de passe suggéré:',
       'signupPasswordRuleLength': 'Entre 6 et 20 caractères',
       'signupPasswordRuleUppercase': 'Au moins 1 lettre majuscule',
       'signupPasswordRuleLowercase': 'Au moins 1 lettre minuscule',
       'signupPasswordRuleNumber': 'Au moins 1 chiffre',
       'signupPasswordRuleSpecial': 'Au moins 1 caractère spécial',
-      'signupPasswordWeakMessage': 'Le mot de passe n\'a pas encore respecté le modèle suggéré.',
+      'signupPasswordWeakMessage':
+          'Le mot de passe n\'a pas encore respecté le modèle suggéré.',
+      'signupPasswordReadyMessage':
+          'Mot de passe valide. Vous pouvez maintenant vous enregistrer.',
+      'signupNameRequiredMessage': 'Veuillez saisir votre nom complet.',
+      'signupPhoneMinDigitsSubmitMessage': '{label} avec au moins 10 chiffres.',
+      'signupLgpdConsentLabel':
+          'J\'ai lu et j\'accepte les conditions d\'utilisation et la politique de confidentialité.',
+      'signupLgpdConsentPendingMessage':
+          'Veuillez accepter les conditions d\'utilisation et la politique de confidentialité pour continuer.',
+      'signupLgpdConsentAcceptedMessage':
+          'Conditions acceptées. Vous pouvez finaliser votre inscription.',
+      'signupLgpdConsentError':
+          'Vous devez lire et accepter les conditions d\'utilisation et la politique de confidentialité pour continuer.',
+      'signupTermsReadButton':
+          'Lire les conditions d\'utilisation et la politique de confidentialité',
       'registerButton': 'ENREGISTRER',
       'registrationError': 'Erreur d\'enregistrement',
       // Appointment
@@ -369,7 +439,8 @@ class AppLocalizations {
       // Waiting Approval
       'waitingApprovalTitle': 'En attente d\'approbation',
       'analysisTitle': 'Enregistrement en révision',
-      'analysisMessage': 'Votre enregistrement effectué le\n{date}\nattend l\'approbation de l\'administrateur.',
+      'analysisMessage':
+          'Votre enregistrement effectué le\n{date}\nattend l\'approbation de l\'administrateur.',
       'contactAdminButton': 'Contacter l\'administrateur',
       'backToLoginButton': 'Retour à la connexion',
     },
@@ -377,9 +448,9 @@ class AppLocalizations {
 
   // Método auxiliar para buscar a tradução com fallback para PT
   String _t(String key) {
-    return _localizedValues[locale.languageCode]?[key] ?? 
-           _localizedValues['pt']![key] ?? 
-           key;
+    return _localizedValues[locale.languageCode]?[key] ??
+        _localizedValues['pt']![key] ??
+        key;
   }
 
   String get appTitle => _t('appTitle');
@@ -391,7 +462,7 @@ class AppLocalizations {
   String get fillFieldsError => _t('fillFieldsError');
   String get loginSuccess => _t('loginSuccess');
   String get forgotPasswordButton => _t('forgotPasswordButton');
-  
+
   // Signup
   String get signupTitle => _t('signupTitle');
   String get fullNameLabel => _t('fullNameLabel');
@@ -402,7 +473,8 @@ class AppLocalizations {
   String get signupInvalidEmailTyping => _t('signupInvalidEmailTyping');
   String get signupPhoneOnlyDigitsMessage => _t('signupPhoneOnlyDigitsMessage');
   String get signupPhoneMinDigitsMessage => _t('signupPhoneMinDigitsMessage');
-  String get signupPhoneDigitsLimitReached => _t('signupPhoneDigitsLimitReached');
+  String get signupPhoneDigitsLimitReached =>
+      _t('signupPhoneDigitsLimitReached');
   String get signupPasswordCriteriaTitle => _t('signupPasswordCriteriaTitle');
   String get signupPasswordRuleLength => _t('signupPasswordRuleLength');
   String get signupPasswordRuleUppercase => _t('signupPasswordRuleUppercase');
@@ -410,6 +482,17 @@ class AppLocalizations {
   String get signupPasswordRuleNumber => _t('signupPasswordRuleNumber');
   String get signupPasswordRuleSpecial => _t('signupPasswordRuleSpecial');
   String get signupPasswordWeakMessage => _t('signupPasswordWeakMessage');
+  String get signupPasswordReadyMessage => _t('signupPasswordReadyMessage');
+  String get signupNameRequiredMessage => _t('signupNameRequiredMessage');
+  String signupPhoneMinDigitsSubmitMessage(String label) =>
+      _t('signupPhoneMinDigitsSubmitMessage').replaceAll('{label}', label);
+  String get signupLgpdConsentLabel => _t('signupLgpdConsentLabel');
+  String get signupLgpdConsentPendingMessage =>
+      _t('signupLgpdConsentPendingMessage');
+  String get signupLgpdConsentAcceptedMessage =>
+      _t('signupLgpdConsentAcceptedMessage');
+  String get signupLgpdConsentError => _t('signupLgpdConsentError');
+  String get signupTermsReadButton => _t('signupTermsReadButton');
   String get registerButton => _t('registerButton');
   String get registrationError => _t('registrationError');
   // Appointment
@@ -452,14 +535,17 @@ class AppLocalizations {
   String get analysisTitle => _t('analysisTitle');
   String get contactAdminButton => _t('contactAdminButton');
   String get backToLoginButton => _t('backToLoginButton');
-  String analysisMessage(String date) => _t('analysisMessage').replaceAll('{date}', date);
+  String analysisMessage(String date) =>
+      _t('analysisMessage').replaceAll('{date}', date);
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
-  bool isSupported(Locale locale) => ['pt', 'en', 'es', 'ja', 'fr'].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      ['pt', 'en', 'es', 'ja', 'fr'].contains(locale.languageCode);
 
   @override
   Future<AppLocalizations> load(Locale locale) {

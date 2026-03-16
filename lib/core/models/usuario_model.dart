@@ -3,7 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class UsuarioModel {
   final String id;
   final String nome;
+  final String? nomeCliente;
   final String email;
+  final String? emailNormalizado;
+  final String? nomeClienteNormalizado;
   final String tipo; // 'admin' ou 'cliente'
   final bool aprovado;
   final DateTime? dataCadastro;
@@ -13,11 +16,20 @@ class UsuarioModel {
   final String? whatsapp;
   final bool numeroEhWhatsapp;
   final String? locale;
+  final String? adminAtreladaId;
+  final bool devMaster;
+  final bool lgpdConsentido;
+  final DateTime? lgpdConsentimentoEm;
+  final String? lastChangelogSeen;
+  final bool showChangelogAuto;
 
   UsuarioModel({
     required this.id,
     required this.nome,
+    this.nomeCliente,
     required this.email,
+    this.emailNormalizado,
+    this.nomeClienteNormalizado,
     required this.tipo,
     this.aprovado = false,
     this.dataCadastro,
@@ -27,6 +39,12 @@ class UsuarioModel {
     this.whatsapp,
     this.numeroEhWhatsapp = true,
     this.locale,
+    this.adminAtreladaId,
+    this.devMaster = false,
+    this.lgpdConsentido = false,
+    this.lgpdConsentimentoEm,
+    this.lastChangelogSeen,
+    this.showChangelogAuto = true,
   });
 
   // Converter para Map (para salvar no Firestore)
@@ -34,16 +52,30 @@ class UsuarioModel {
     return {
       'id': id,
       'nome': nome,
+      'nome_cliente': nomeCliente ?? nome,
       'email': email,
+      'email_normalizado': emailNormalizado ?? email.trim().toLowerCase(),
+      'nome_cliente_normalizado':
+          nomeClienteNormalizado ?? (nomeCliente ?? nome).trim().toLowerCase(),
       'tipo': tipo,
       'aprovado': aprovado,
-      'data_cadastro': dataCadastro != null ? Timestamp.fromDate(dataCadastro!) : FieldValue.serverTimestamp(),
+      'data_cadastro': dataCadastro != null
+          ? Timestamp.fromDate(dataCadastro!)
+          : FieldValue.serverTimestamp(),
       'fcm_token': fcmToken,
       'visualiza_todos': visualizaTodos,
       'theme': theme,
       'whatsapp': whatsapp,
       'numero_e_whatsapp': numeroEhWhatsapp,
       'locale': locale,
+      'admin_atrelada_id': adminAtreladaId,
+      'dev_master': devMaster,
+      'lgpd_consentido': lgpdConsentido,
+      'lgpd_consentimento_em': lgpdConsentimentoEm != null
+          ? Timestamp.fromDate(lgpdConsentimentoEm!)
+          : (lgpdConsentido ? FieldValue.serverTimestamp() : null),
+      'last_changelog_seen': lastChangelogSeen,
+      'show_changelog_auto': showChangelogAuto,
     };
   }
 
@@ -52,11 +84,14 @@ class UsuarioModel {
     return UsuarioModel(
       id: map['id'] ?? '',
       nome: map['nome'] ?? '',
+      nomeCliente: map['nome_cliente'] ?? map['nome'],
       email: map['email'] ?? '',
+      emailNormalizado: map['email_normalizado'] as String?,
+      nomeClienteNormalizado: map['nome_cliente_normalizado'] as String?,
       tipo: map['tipo'] ?? 'cliente',
       aprovado: map['aprovado'] ?? false,
-      dataCadastro: map['data_cadastro'] != null 
-          ? (map['data_cadastro'] as Timestamp).toDate() 
+      dataCadastro: map['data_cadastro'] != null
+          ? (map['data_cadastro'] as Timestamp).toDate()
           : null,
       fcmToken: map['fcm_token'],
       visualizaTodos: map['visualiza_todos'] ?? false,
@@ -64,6 +99,14 @@ class UsuarioModel {
       whatsapp: map['whatsapp'] as String?,
       numeroEhWhatsapp: map['numero_e_whatsapp'] as bool? ?? true,
       locale: map['locale'] as String?,
+      adminAtreladaId: map['admin_atrelada_id'] as String?,
+      devMaster: map['dev_master'] as bool? ?? false,
+      lgpdConsentido: map['lgpd_consentido'] as bool? ?? false,
+      lgpdConsentimentoEm: map['lgpd_consentimento_em'] != null
+          ? (map['lgpd_consentimento_em'] as Timestamp).toDate()
+          : null,
+      lastChangelogSeen: map['last_changelog_seen'] as String?,
+      showChangelogAuto: map['show_changelog_auto'] as bool? ?? true,
     );
   }
 }

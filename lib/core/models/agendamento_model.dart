@@ -18,6 +18,7 @@ class Agendamento {
   final String? cupomAplicado;
   final double? valorOriginal;
   final double? valorFinal;
+  final String? administradoraAtrelada;
 
   // Getters de compatibilidade para evitar erros no FirestoreService
   String get idCliente => clienteId;
@@ -39,6 +40,7 @@ class Agendamento {
     this.cupomAplicado,
     this.valorOriginal,
     this.valorFinal,
+    this.administradoraAtrelada,
   });
 
   Map<String, dynamic> toMap() {
@@ -62,6 +64,7 @@ class Agendamento {
       'valor_original': valorOriginal,
       'valor_final': valorFinal,
       'preco': valorFinal ?? valorOriginal,
+      'administradora_atrelada': administradoraAtrelada,
     };
   }
 
@@ -88,6 +91,7 @@ class Agendamento {
       cupomAplicado: map['cupom_aplicado'],
       valorOriginal: (map['valor_original'] ?? map['preco'] ?? 0.0).toDouble(),
       valorFinal: (map['valor_final'] ?? map['preco'] ?? 0.0).toDouble(),
+      administradoraAtrelada: map['administradora_atrelada'] as String?,
     );
   }
 }

@@ -57,7 +57,7 @@ dependencies:
   share_plus: ^7.2.0
   csv: ^5.1.1
   excel: ^4.0.2
-  file_picker: ^6.1.1
+  file_picker: ^10.3.10
   audioplayers: ^6.0.0
   dynamic_color: ^1.6.0
   sensors_plus: ^6.1.0
@@ -67,12 +67,15 @@ dependencies:
   lottie: ^3.1.0
   universal_html: ^2.2.4
   device_preview: ^1.2.0
+  crypto: ^3.0.7
+  package_info_plus: ^9.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   integration_test:
     sdk: flutter
+  firebase_core_platform_interface: ^6.0.2
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is

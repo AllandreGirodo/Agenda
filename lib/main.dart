@@ -47,6 +47,27 @@ String _normalizeAppCheckDebugToken(String? raw) {
   return placeholderTokens.contains(lower) ? '' : token;
 }
 
+List<String> _requiredFirebaseEnvKeysForCurrentPlatform() {
+  final keys = <String>[
+    'FIREBASE_PROJECT_ID',
+    'FIREBASE_MESSAGING_SENDER_ID',
+    'FIREBASE_STORAGE_BUCKET',
+  ];
+
+  if (kIsWeb) {
+    return [...keys, 'FIREBASE_WEB_API_KEY', 'FIREBASE_WEB_APP_ID'];
+  }
+
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+      return [...keys, 'FIREBASE_ANDROID_API_KEY', 'FIREBASE_ANDROID_APP_ID'];
+    case TargetPlatform.iOS:
+      return [...keys, 'FIREBASE_IOS_API_KEY', 'FIREBASE_IOS_APP_ID'];
+    default:
+      return keys;
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -90,9 +111,15 @@ void main() async {
         );
       }
 
-      // Verificação de chaves críticas
-      final missingKeys = ['DB_ADMIN_PASSWORD', 'ADMIN_EMAIL', 'FCM_SERVER_KEY']
+      // Verificacao das chaves obrigatorias do cliente atual.
+      final requiredKeys = <String>[
+        'DB_ADMIN_PASSWORD',
+        'ADMIN_EMAIL',
+        ..._requiredFirebaseEnvKeysForCurrentPlatform(),
+      ];
+      final missingKeys = requiredKeys
           .where((key) => dotenv.env[key] == null || dotenv.env[key]!.isEmpty)
+          .toSet()
           .toList();
 
       if (missingKeys.isNotEmpty) {

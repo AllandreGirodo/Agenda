@@ -51,15 +51,8 @@ jobs:
           FIREBASE_IOS_APP_ID=${{ secrets.FIREBASE_IOS_APP_ID }}
           FIREBASE_IOS_CLIENT_ID=${{ secrets.FIREBASE_IOS_CLIENT_ID }}
           FIREBASE_IOS_BUNDLE_ID=${{ secrets.FIREBASE_IOS_BUNDLE_ID }}
-          FCM_SERVER_KEY=${{ secrets.FCM_SERVER_KEY }}
-          X_ACCESS_API_KEY=${{ secrets.X_ACCESS_API_KEY }}
-          X_MASTER_API_KEY=${{ secrets.X_MASTER_API_KEY }}
-          ACCESS_KEY_ID=${{ secrets.ACCESS_KEY_ID }}
-          PG_PASSWORD=${{ secrets.PG_PASSWORD }}
-          DB_NAME=${{ secrets.DB_NAME }}
-          DB_USER=${{ secrets.DB_USER }}
-          DB_HOST=${{ secrets.DB_HOST }}
-          DB_PORT=${{ secrets.DB_PORT }}
+          PUSH_NOTIFICATION_FUNCTION_NAME=${{ secrets.PUSH_NOTIFICATION_FUNCTION_NAME }}
+          EXPORT_JSONBIN_FUNCTION_NAME=${{ secrets.EXPORT_JSONBIN_FUNCTION_NAME }}
           EOF
 
       - name: 🧪 Executar Testes com Verificação de Cobertura
@@ -125,15 +118,8 @@ jobs:
           FIREBASE_IOS_APP_ID=${{ secrets.FIREBASE_IOS_APP_ID }}
           FIREBASE_IOS_CLIENT_ID=${{ secrets.FIREBASE_IOS_CLIENT_ID }}
           FIREBASE_IOS_BUNDLE_ID=${{ secrets.FIREBASE_IOS_BUNDLE_ID }}
-          FCM_SERVER_KEY=${{ secrets.FCM_SERVER_KEY }}
-          X_ACCESS_API_KEY=${{ secrets.X_ACCESS_API_KEY }}
-          X_MASTER_API_KEY=${{ secrets.X_MASTER_API_KEY }}
-          ACCESS_KEY_ID=${{ secrets.ACCESS_KEY_ID }}
-          PG_PASSWORD=${{ secrets.PG_PASSWORD }}
-          DB_NAME=${{ secrets.DB_NAME }}
-          DB_USER=${{ secrets.DB_USER }}
-          DB_HOST=${{ secrets.DB_HOST }}
-          DB_PORT=${{ secrets.DB_PORT }}
+          PUSH_NOTIFICATION_FUNCTION_NAME=${{ secrets.PUSH_NOTIFICATION_FUNCTION_NAME }}
+          EXPORT_JSONBIN_FUNCTION_NAME=${{ secrets.EXPORT_JSONBIN_FUNCTION_NAME }}
           EOF
 
       - name: 🚀 Build APK (Produção)

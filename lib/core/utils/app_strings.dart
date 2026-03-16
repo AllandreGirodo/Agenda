@@ -17,45 +17,53 @@ class AppStrings {
       : 'You must be at least $idade years old to register.';
 
   // Termos de Uso
-  static String get termosUsoTitulo => _isPt ? 'Termos de Uso' : 'Terms of Use';
+  static String get termosUsoTitulo => _isPt
+      ? 'Termos de Uso e Política de Privacidade'
+      : 'Terms of Use and Privacy Policy';
   static String get termosUsoTexto => _isPt
       ? """
-1. Aceitação dos Termos
+**1. Aceitação dos Termos**
 Ao utilizar este aplicativo para agendamento de serviços de massoterapia, você concorda com os termos descritos abaixo.
 
-2. Agendamentos e Cancelamentos
+**2. Agendamentos e Cancelamentos**
 Os cancelamentos devem ser feitos respeitando a antecedência mínima configurada no sistema. Cancelamentos tardios ou não comparecimento podem estar sujeitos a restrições em agendamentos futuros.
 
-3. Saúde e Anamnese
+**3. Saúde e Anamnese**
 É responsabilidade do cliente informar condições de saúde, alergias, cirurgias recentes e uso de medicamentos na ficha de anamnese. A omissão de dados pode acarretar riscos à saúde durante o procedimento.
+Exemplo: Se um cliente tem alergia a um óleo essencial utilizado na massagem e não informa isso, pode ter uma reação alérgica durante a sessão.
+Outros exemplos de informações críticas incluem: condições cardíacas, pressão alta, gravidez, uso de anticoagulantes, entre outros. Essas informações ajudam a profissional a adaptar a massagem e garantir a segurança do cliente durante o procedimento.
+Cirurgias recentes também são importantes, pois podem indicar áreas a evitar ou cuidados especiais. Por exemplo, se um cliente fez uma cirurgia no ombro há 3 meses, a massagem nessa região deve ser evitada ou realizada com técnicas específicas para não prejudicar a recuperação e também previamente comunicadas a profissional de saúde.
 
-4. Privacidade e Dados (LGPD)
+**4. Privacidade e Dados (LGPD)**
 Seus dados pessoais são coletados para fins de cadastro e histórico de atendimento. Você tem o direito de solicitar a anonimização da sua conta a qualquer momento através das configurações do perfil.
 
-5. Pagamentos
+**5. Pagamentos**
 Os valores dos serviços e pacotes estão sujeitos a alteração. O pagamento deve ser realizado conforme combinado com a profissional.
 """
       : """
-1. Acceptance of Terms
+**1. Acceptance of Terms**
 By using this application for scheduling massage therapy services, you agree to the terms described below.
 
-2. Scheduling and Cancellations
+**2. Scheduling and Cancellations**
 Cancellations must be made respecting the minimum notice period configured in the system. Late cancellations or no-shows may be subject to restrictions on future appointments.
 
-3. Health and Anamnesis
+**3. Health and Anamnesis**
 It is the client's responsibility to inform health conditions, allergies, recent surgeries, and medication use in the anamnesis form. Omission of data may entail health risks during the procedure.
+Example: If a client is allergic to an essential oil used in the massage and does not inform this, they may have an allergic reaction during the session.
+Other examples of critical information include: heart conditions, high blood pressure, pregnancy, use of blood thinners, among others. This information helps the professional to adapt the massage and ensure the client's safety during the procedure.
+Concerning recent surgeries, they are also important as they may indicate areas to avoid or special care. For example, if a client had shoulder surgery 3 months ago, massage in that area should be avoided or performed with specific techniques to not harm the recovery and also previously communicated to the health professional.
 
-4. Privacy and Data (GDPR)
+**4. Privacy and Data (GDPR)**
 Your personal data is collected for registration and service history purposes. You have the right to request the anonymization of your account at any time through profile settings.
 
-5. Payments
+**5. Payments**
 Service and package prices are subject to change. Payment must be made as agreed with the professional.
 """;
   static String get termosUsoAceite => _isPt
       ? 'Li e concordo com os Termos de Uso e Política de Privacidade.'
       : 'I have read and agree to the Terms of Use and Privacy Policy.';
   static String get termosUsoBotao =>
-      _isPt ? 'Confirmar e Continuar' : 'Confirm and Continue';
+      _isPt ? 'Aceitar e Continuar' : 'Accept and Continue';
 
   // Admin Config
   static String get configTitulo =>
@@ -206,15 +214,17 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get biometriaErro => _isPt
       ? 'Erro na autenticação biométrica'
       : 'Biometric authentication error';
-  static String get testeBooleanoBancoBtn => _isPt
-      ? 'Alternar booleano no banco'
-      : 'Toggle database boolean';
+  static String get testeBooleanoBancoBtn =>
+      _isPt ? 'Conferir/Criar campos do usuário' : 'Check/Create user fields';
   static String testeBooleanoBancoSucesso(bool valor) => _isPt
-      ? 'Documento criado na coleção teste. ativo = $valor'
-      : 'Document created in test collection. active = $valor';
+      ? 'Conferência concluída. Flag de teste ativa = $valor e campos do usuário foram verificados.'
+      : 'Check completed. Test flag active = $valor and user fields were verified.';
   static String testeBooleanoBancoErro(String erro) => _isPt
-      ? 'Falha ao alternar booleano no banco: $erro'
-      : 'Failed to toggle database boolean: $erro';
+      ? 'Falha ao conferir/criar campos no banco: $erro'
+      : 'Failed to check/create fields in database: $erro';
+  static String get testeBooleanoRequerLogin => _isPt
+      ? 'Faça login para conferir/criar os campos do usuário no banco.'
+      : 'Sign in to check/create user fields in the database.';
 
   // Onboarding
   static String get onboardingTitulo1 => _isPt ? 'Bem-vindo(a)' : 'Welcome';
@@ -402,6 +412,10 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String filaEsperaResumo(int quantidade) => _isPt
       ? '$quantidade pessoas na fila de espera'
       : '$quantidade people in waitlist';
+  static String administradoraResumo(String nome) =>
+      _isPt ? 'Administradora: $nome' : 'Administrator: $nome';
+  static String administradoraInline(String nome) =>
+      _isPt ? '\nAdministradora: $nome' : '\nAdministrator: $nome';
   static String tipoStatusResumo(
     String tipo,
     String status,
@@ -411,6 +425,25 @@ Service and package prices are subject to change. Payment must be made as agreed
       : 'Type: $tipo\nStatus: $status$motivoTexto';
   static String motivoInline(String motivo) =>
       _isPt ? '\nMotivo: $motivo' : '\nReason: $motivo';
+  static String get horarioOcupadoListaEspera => _isPt
+      ? 'Horário ocupado. Você entrou na fila de espera deste atendimento.'
+      : 'This slot is occupied. You were added to the waitlist for this appointment.';
+  static String get jaExisteAgendamentoNoHorario => _isPt
+      ? 'Você já possui um agendamento ativo neste horário.'
+      : 'You already have an active appointment in this time slot.';
+  static String get listaEsperaEntradaSucesso => _isPt
+      ? 'Você será notificado se este horário vagar.'
+      : 'You will be notified if this slot becomes available.';
+  static String get listaEsperaSaidaSucesso =>
+      _isPt ? 'Você saiu da lista de espera.' : 'You left the waitlist.';
+  static String totalResumo(String valor) =>
+      _isPt ? 'Total: $valor' : 'Total: $valor';
+  static String cancelamentoTardioResumo(
+    double horasNecessarias,
+    double horasValidas,
+  ) => _isPt
+      ? 'Atenção: Você está cancelando com menos de ${horasNecessarias.toStringAsFixed(0)} horas úteis de antecedência (considerando o horário de descanso da administradora).\n\nTempo útil restante: ${horasValidas.toStringAsFixed(1)}h.'
+      : 'Warning: You are cancelling with less than ${horasNecessarias.toStringAsFixed(0)} business hours of notice (considering the administrator\'s rest period).\n\nRemaining business time: ${horasValidas.toStringAsFixed(1)}h.';
   static String get fazerCheckIn => _isPt ? 'Fazer Check-in' : 'Check in';
   static String get avaliarAtendimento =>
       _isPt ? 'Avaliar Atendimento' : 'Rate Service';
@@ -567,6 +600,21 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get senhaConfiguradaSucesso => _isPt
       ? 'Senha configurada com sucesso!'
       : 'Password configured successfully!';
+  static String erroVerificarConfiguracao(String erro) => _isPt
+      ? 'Erro ao verificar configuração: $erro'
+      : 'Error checking configuration: $erro';
+  static String get senhaAdminConfiguradaTitulo =>
+      _isPt ? 'Senha de Admin\nConfigurada ✓' : 'Admin Password\nConfigured ✓';
+  static String get acesseFerramentasBancoAbaixo => _isPt
+      ? 'Acesse as ferramentas de configuração do banco de dados abaixo'
+      : 'Access database configuration tools below';
+  static String get conferirPrepararBanco =>
+      _isPt ? 'Conferir e Preparar Banco' : 'Check and Prepare Database';
+  static String get cliqueIconeConfigurarSenhaFerramentas => _isPt
+      ? 'Clique no ícone acima\npara configurar a senha\nde administrador das ferramentas'
+      : 'Tap the icon above\nto configure the tools\nadmin password';
+  static String get novaSenhaAdminTitulo =>
+      _isPt ? 'Nova Senha de Admin' : 'New Admin Password';
   static String get configuracaoFerramentas =>
       _isPt ? 'Configuração de Ferramentas' : 'Tools Configuration';
   static String get databaseSetup =>
@@ -585,6 +633,151 @@ Service and package prices are subject to change. Payment must be made as agreed
       _isPt ? 'Ferramentas - Database Setup' : 'Tools - Database Setup';
   static String get salvarAlteracoes =>
       _isPt ? 'Salvar Alterações' : 'Save Changes';
+  static String get acessoFerramentasBancoTitulo =>
+      _isPt ? 'Acesso às Ferramentas do Banco' : 'Database Tools Access';
+  static String get informeCredenciaisContinuar => _isPt
+      ? 'Informe as credenciais para continuar'
+      : 'Enter credentials to continue';
+  static String get usuarioLabel => _isPt ? 'Usuário' : 'User';
+  static String get lembrarMinhasCredenciais =>
+      _isPt ? 'Lembrar minhas credenciais' : 'Remember my credentials';
+  static String usuarioConfiguradoAcesso(String usuario) =>
+      _isPt ? 'Usuário cadastrado: $usuario' : 'Registered user: $usuario';
+  static String get preenchaEmailSenhaLogin => _isPt
+      ? 'Preencha e-mail e senha para continuar.'
+      : 'Enter email and password to continue.';
+  static String get emailInvalidoLogin => _isPt
+      ? 'Digite um e-mail válido para entrar.'
+      : 'Enter a valid email to sign in.';
+  static String get senhaMinimaLogin => _isPt
+      ? 'A senha precisa ter pelo menos 6 caracteres.'
+      : 'Password must have at least 6 characters.';
+  static String get atualizacaoObrigatoriaTitulo =>
+      _isPt ? 'Atualização obrigatória' : 'Mandatory update';
+  static String atualizacaoObrigatoriaMensagem(
+    String versaoLocal,
+    String versaoMinima,
+  ) => _isPt
+      ? 'Sua versão atual ($versaoLocal) está desatualizada. Para continuar, atualize para uma versão igual ou superior a $versaoMinima.'
+      : 'Your current version ($versaoLocal) is outdated. To continue, update to version $versaoMinima or newer.';
+  static String versaoAtualInstalada(String versao) =>
+      _isPt ? 'Versão instalada: $versao' : 'Installed version: $versao';
+  static String versaoMinimaExigida(String versao) => _isPt
+      ? 'Versão mínima exigida: $versao'
+      : 'Minimum required version: $versao';
+  static String versaoSistemaDisponivel(String versao) => _isPt
+      ? 'Versão atual do sistema: $versao'
+      : 'Current system version: $versao';
+  static String get novidadesSistemaTitulo =>
+      _isPt ? 'Novidades do sistema' : 'System updates';
+  static String get changelogCritico =>
+      _isPt ? 'Atualização crítica' : 'Critical update';
+  static String get semNovidadesRegistradas => _isPt
+      ? 'Sem novidades registradas para esta versão.'
+      : 'No updates listed for this version.';
+  static String get exibirNovidadesAutomaticamente => _isPt
+      ? 'Exibir novidades automaticamente ao entrar'
+      : 'Show updates automatically on login';
+  static String get entendiBtn => _isPt ? 'Entendi' : 'Got it';
+  static String get credenciaisInvalidas => _isPt
+      ? 'Credenciais inválidas. Verifique usuário e senha.'
+      : 'Invalid credentials. Check user and password.';
+  static String get credenciaisInvalidasPadrao => _isPt
+      ? 'Credenciais inválidas. Use as credenciais configuradas localmente.'
+      : 'Invalid credentials. Use the locally configured credentials.';
+  static String get conferenciaConcluidaSemSobrescrever => _isPt
+      ? 'Conferência concluída. Registros faltantes foram criados sem sobrescrever existentes.'
+      : 'Check completed. Missing records were created without overriding existing ones.';
+  static String erroConferirRegistros(String erro) => _isPt
+      ? 'Erro ao conferir registros: $erro'
+      : 'Error checking records: $erro';
+  static String registroDocumentoCriado(int quantidadeCampos) => _isPt
+      ? 'Documento inexistente. Criado com $quantidadeCampos campos padrão.'
+      : 'Document did not exist. Created with $quantidadeCampos default fields.';
+  static String registroCamposCriados(String campos) =>
+      _isPt ? 'Campos criados: $campos' : 'Created fields: $campos';
+  static String get registroSemCamposFaltantes =>
+      _isPt ? 'Sem campos faltantes.' : 'No missing fields.';
+  static String registroCredenciaisCriadas(String campos) => _isPt
+      ? 'Credenciais criadas sem sobrescrever existentes: $campos'
+      : 'Credentials created without overriding existing ones: $campos';
+  static String get registroCredenciaisJaExistentes => _isPt
+      ? 'Credenciais de acesso já existentes. Nada sobrescrito.'
+      : 'Access credentials already exist. Nothing was overwritten.';
+  static String get secaoConfiguracoesGerais =>
+      _isPt ? 'Configurações Gerais' : 'General Settings';
+  static String get secaoConfiguracoesSeguranca =>
+      _isPt ? 'Configurações de Segurança' : 'Security Settings';
+  static String get secaoConfiguracoesServicos =>
+      _isPt ? 'Configurações de Serviços' : 'Service Settings';
+  static String get secaoConfiguracoesNotificacoes =>
+      _isPt ? 'Configurações de Notificações' : 'Notification Settings';
+  static String get secaoConfiguracoesPagamento =>
+      _isPt ? 'Configurações de Pagamento' : 'Payment Settings';
+  static String get secaoVariaveisAmbiente =>
+      _isPt ? 'Variáveis de Ambiente (.env)' : 'Environment Variables (.env)';
+  static String get secaoRegistrosConferidosCriados =>
+      _isPt ? 'Registros Conferidos/Criados' : 'Checked/Created Records';
+  static String get whatsappAdminCampo =>
+      _isPt ? 'WhatsApp Admin' : 'Admin WhatsApp';
+  static String get administradoraPadraoAtreladaCampo =>
+      _isPt ? 'Administradora Padrão Atrelada' : 'Default Linked Administrator';
+  static String get precoSessaoCampo =>
+      _isPt ? 'Preço Sessão (R\$)' : 'Session Price (R\$)';
+  static String get horasAntecedenciaCancelamentoCampo => _isPt
+      ? 'Horas Antecedência Cancelamento'
+      : 'Cancellation Lead Time (Hours)';
+  static String get horarioPadraoInicioCampo =>
+      _isPt ? 'Horário Padrão Início' : 'Default Start Time';
+  static String get horarioPadraoFimCampo =>
+      _isPt ? 'Horário Padrão Fim' : 'Default End Time';
+  static String get intervaloAgendamentosMinCampo =>
+      _isPt ? 'Intervalo Agendamentos (min)' : 'Appointment Interval (min)';
+  static String get inicioSonoHoraCampo =>
+      _isPt ? 'Início Sono (hora)' : 'Sleep Start (hour)';
+  static String get fimSonoHoraCampo =>
+      _isPt ? 'Fim Sono (hora)' : 'Sleep End (hour)';
+  static String get biometriaAtivaCampo =>
+      _isPt ? 'Biometria Ativa' : 'Biometrics Active';
+  static String get tentativasLoginMaxCampo =>
+      _isPt ? 'Tentativas Login Máx' : 'Max Login Attempts';
+  static String get tempoBloqueioMinCampo =>
+      _isPt ? 'Tempo Bloqueio (min)' : 'Block Time (min)';
+  static String get senhaAdminFerramentasCampo =>
+      _isPt ? 'Senha Admin Ferramentas' : 'Tools Admin Password';
+  static String get tiposMassagemCampo =>
+      _isPt ? 'Tipos de Massagem' : 'Massage Types';
+  static String get duracaoPadraoMinCampo =>
+      _isPt ? 'Duração Padrão (min)' : 'Default Duration (min)';
+  static String get precoPadraoCampo =>
+      _isPt ? 'Preço Padrão (R\$)' : 'Default Price (R\$)';
+  static String get lembreteAntecedenciaHorasCampo =>
+      _isPt ? 'Lembrete Antecedência (h)' : 'Reminder Lead Time (h)';
+  static String get enviarConfirmacaoCampo =>
+      _isPt ? 'Enviar Confirmação' : 'Send Confirmation';
+  static String get lembreteAutomaticoCampo =>
+      _isPt ? 'Lembrete Automático' : 'Automatic Reminder';
+  static String get aceitaPixCampo => _isPt ? 'Aceita PIX' : 'Accepts PIX';
+  static String get aceitaDinheiroCampo =>
+      _isPt ? 'Aceita Dinheiro' : 'Accepts Cash';
+  static String get aceitaCartaoCampo =>
+      _isPt ? 'Aceita Cartão' : 'Accepts Card';
+  static String get taxaCancelamentoPercentCampo =>
+      _isPt ? 'Taxa Cancelamento (%)' : 'Cancellation Fee (%)';
+  static String get conferirCriarRegistrosFaltantes => _isPt
+      ? 'Conferir e Criar Registros Faltantes'
+      : 'Check and Create Missing Records';
+  static String get valorAtivo => _isPt ? 'ATIVO' : 'ACTIVE';
+  static String get valorInativo => _isPt ? 'INATIVO' : 'INACTIVE';
+  static String get naoConfiguradaComParenteses =>
+      _isPt ? '(não configurada)' : '(not configured)';
+  static String rotuloFixo(String label) =>
+      _isPt ? '$label (fixo)' : '$label (fixed)';
+  static String rotuloAmbiente(String chave) =>
+      _isPt ? '$chave (ambiente)' : '$chave (environment)';
+  static String get statusCriado => _isPt ? 'CRIADO' : 'CREATED';
+  static String get statusAtualizado => _isPt ? 'ATUALIZADO' : 'UPDATED';
+  static String get statusConferido => _isPt ? 'CONFERIDO' : 'CHECKED';
 
   // Admin - Config
   static String erroExportar(String erro) =>
@@ -773,6 +966,9 @@ Service and package prices are subject to change. Payment must be made as agreed
       : 'Incorrect collection password.';
   static String get senhaDevIncorreta =>
       _isPt ? 'Senha dev incorreta.' : 'Incorrect dev password.';
+  static String get senhaDevNaoConfigurada => _isPt
+      ? 'DB_ADMIN_PASSWORD nao configurada no .env local.'
+      : 'DB_ADMIN_PASSWORD is not configured in the local .env.';
   static String semScriptSeed(String collection) => _isPt
       ? 'Sem script de seed para $collection'
       : 'No seed script for $collection';
@@ -804,6 +1000,15 @@ Service and package prices are subject to change. Payment must be made as agreed
       : 'Excel available only for Appointments.';
   static String get enviandoParaJsonBin =>
       _isPt ? 'Enviando para JSONBin...' : 'Uploading to JSONBin...';
+  static String get exportacaoBackendNaoConfigurada => _isPt
+      ? 'Configure EXPORT_JSONBIN_FUNCTION_NAME ou EXPORT_JSONBIN_PROXY_URL no .env. As chaves do JSONBin devem ficar apenas no backend.'
+      : 'Configure EXPORT_JSONBIN_FUNCTION_NAME or EXPORT_JSONBIN_PROXY_URL in .env. JSONBin keys must stay only in the backend.';
+  static String get exportacaoBackendRespostaInvalida => _isPt
+      ? 'O backend de exportacao nao retornou um binId/url valido.'
+      : 'The export backend did not return a valid binId/url.';
+  static String erroExportacaoBackendStatus(int statusCode) => _isPt
+      ? 'Backend de exportacao respondeu com status $statusCode.'
+      : 'Export backend responded with status $statusCode.';
   static String get exportacaoConcluida =>
       _isPt ? 'Exportação Concluída ☁️' : 'Export Completed ☁️';
   static String get dadosSalvosNuvem => _isPt

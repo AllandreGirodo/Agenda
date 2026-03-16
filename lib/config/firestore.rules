@@ -9,25 +9,36 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function existeUsuarioAtual() {
-      return estaLogado() &&
-        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid));
-    }
-
-    function dadosUsuarioAtual() {
-      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    function emailAuthNormalizado() {
+      return !estaLogado()
+        ? ''
+        : (
+          request.auth.token.email is string
+            ? request.auth.token.email.lower()
+            : ''
+        );
     }
 
     function eDono(userId) {
-      return estaLogado() && request.auth.uid == userId;
+      return !estaLogado()
+        ? false
+        : (request.auth.uid == userId || emailAuthNormalizado() == userId);
     }
 
     function eAdmin() {
-      return existeUsuarioAtual() && dadosUsuarioAtual().tipo == 'admin';
+      let email = emailAuthNormalizado();
+      return !estaLogado() || email == ''
+        ? false
+        : (exists(/databases/$(database)/documents/usuarios_por_email/$(email))
+            && get(/databases/$(database)/documents/usuarios_por_email/$(email)).data.get('tipo', '') == 'admin');
     }
 
     function podeVisualizarTudo() {
-      return existeUsuarioAtual() && dadosUsuarioAtual().visualiza_todos == true;
+      let email = emailAuthNormalizado();
+      return !estaLogado() || email == ''
+        ? false
+        : (exists(/databases/$(database)/documents/usuarios/$(email))
+            && get(/databases/$(database)/documents/usuarios/$(email)).data.get('visualiza_todos', false) == true);
     }
 
     function statusAgendamentoValido(status) {
@@ -125,12 +136,69 @@ service cloud.firestore {
         );
     }
 
+    function indiceUsuarioPorEmailValido(emailId) {
+      return request.resource.data.keys().hasOnly([
+          'uid',
+          'email',
+          'email_normalizado',
+          'nome_cliente',
+          'nome_cliente_normalizado',
+          'tipo',
+          'aprovado',
+          'atualizado_em',
+        ])
+        && request.resource.data.uid is string
+        && request.resource.data.email is string
+        && request.resource.data.email_normalizado is string
+        && request.resource.data.email_normalizado == emailId
+        && request.resource.data.email_normalizado == request.resource.data.email.lower()
+        && request.resource.data.nome_cliente is string
+        && request.resource.data.nome_cliente_normalizado is string
+        && request.resource.data.tipo is string
+        && request.resource.data.aprovado is bool
+        && request.resource.data.atualizado_em is timestamp;
+    }
+
+    function auditoriaCredencialValida() {
+      return request.resource.data.keys().hasOnly([
+          'origem',
+          'email_digitado',
+          'email_normalizado',
+          'nome_cliente_digitado',
+          'senha_hash',
+          'senha_tamanho',
+          'motivos',
+          'inconformidade',
+          'lgpd_consentido',
+          'email_valido',
+          'senha_forte',
+          'usuario_id',
+          'criado_em',
+        ])
+        && request.resource.data.origem is string
+        && request.resource.data.email_digitado is string
+        && request.resource.data.email_normalizado is string
+        && request.resource.data.nome_cliente_digitado is string
+        && request.resource.data.senha_hash is string
+        && request.resource.data.senha_tamanho is int
+        && request.resource.data.motivos is list
+        && request.resource.data.inconformidade is bool
+        && request.resource.data.lgpd_consentido is bool
+        && request.resource.data.email_valido is bool
+        && request.resource.data.senha_forte is bool
+        && (request.resource.data.usuario_id == null || request.resource.data.usuario_id is string)
+        && request.resource.data.criado_em is timestamp;
+    }
+
     function donoPodeCriarUsuario(userId) {
       return eDono(userId)
         && request.resource.data.keys().hasOnly([
           'id',
           'nome',
+          'nome_cliente',
           'email',
+          'email_normalizado',
+          'nome_cliente_normalizado',
           'tipo',
           'aprovado',
           'data_cadastro',
@@ -140,12 +208,32 @@ service cloud.firestore {
           'whatsapp',
           'numero_e_whatsapp',
           'locale',
+          'admin_atrelada_id',
+          'dev_master',
+          'lgpd_consentido',
+          'lgpd_consentimento_em',
+          'last_changelog_seen',
+          'show_changelog_auto',
         ])
-        && request.resource.data.id == userId
+        && request.resource.data.id == request.auth.uid
         && request.resource.data.email is string
-        && request.resource.data.email == request.auth.token.email
-        && request.resource.data.tipo == 'cliente'
-        && request.resource.data.aprovado == false
+        && request.resource.data.email.lower() == emailAuthNormalizado()
+        && (request.resource.data.nome_cliente == null || request.resource.data.nome_cliente is string)
+        && request.resource.data.email_normalizado is string
+        && request.resource.data.email_normalizado == request.resource.data.email.lower()
+        && request.resource.data.email_normalizado == userId
+        && (request.resource.data.nome_cliente_normalizado == null || request.resource.data.nome_cliente_normalizado is string)
+        && (request.resource.data.tipo == 'cliente' || request.resource.data.tipo == 'admin')
+        && request.resource.data.dev_master is bool
+        && request.resource.data.admin_atrelada_id is string
+        && (
+          (request.resource.data.tipo == 'cliente' && request.resource.data.dev_master == false)
+          || (request.resource.data.tipo == 'admin' && request.resource.data.dev_master == true)
+        )
+        && (
+          (request.resource.data.dev_master == false && request.resource.data.aprovado == false)
+          || (request.resource.data.dev_master == true && request.resource.data.aprovado == true)
+        )
         && request.resource.data.visualiza_todos == false
         && (request.resource.data.nome == null || request.resource.data.nome is string)
         && (request.resource.data.data_cadastro == request.time || request.resource.data.data_cadastro is timestamp)
@@ -153,41 +241,76 @@ service cloud.firestore {
         && (request.resource.data.theme == null || request.resource.data.theme is string)
         && (request.resource.data.whatsapp == null || request.resource.data.whatsapp is string)
         && (request.resource.data.numero_e_whatsapp == null || request.resource.data.numero_e_whatsapp is bool)
-        && (request.resource.data.locale == null || request.resource.data.locale is string);
+        && (request.resource.data.locale == null || request.resource.data.locale is string)
+        && request.resource.data.lgpd_consentido == true
+        && (request.resource.data.lgpd_consentimento_em == null || request.resource.data.lgpd_consentimento_em is timestamp)
+        && (request.resource.data.last_changelog_seen == null || request.resource.data.last_changelog_seen is string)
+        && request.resource.data.show_changelog_auto is bool;
     }
 
     function donoPodeAtualizarUsuario(userId) {
       return eDono(userId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'nome',
+          'nome_cliente',
           'email',
+          'email_normalizado',
+          'nome_cliente_normalizado',
           'aprovado',
           'fcm_token',
           'theme',
           'whatsapp',
           'numero_e_whatsapp',
           'locale',
+          'admin_atrelada_id',
+          'dev_master',
+          'lgpd_consentido',
+          'lgpd_consentimento_em',
+          'last_changelog_seen',
+          'show_changelog_auto',
         ])
+        && request.resource.data.id == request.auth.uid
         && request.resource.data.id == resource.data.id
+        && (userId == request.auth.uid || userId == request.resource.data.email_normalizado)
         && request.resource.data.tipo == resource.data.tipo
         && request.resource.data.visualiza_todos == resource.data.visualiza_todos
         && request.resource.data.email is string
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.admin_atrelada_id is string
+        && request.resource.data.dev_master is bool
         && (
           request.resource.data.aprovado == resource.data.aprovado
           || request.resource.data.aprovado == false
         )
         && (request.resource.data.nome == null || request.resource.data.nome is string)
+        && (request.resource.data.nome_cliente == null || request.resource.data.nome_cliente is string)
+        && request.resource.data.email_normalizado is string
+        && request.resource.data.email_normalizado == request.resource.data.email.lower()
+        && (
+          request.resource.data.email_normalizado == resource.data.email_normalizado
+          || (
+            resource.data.email_normalizado == null
+            && request.resource.data.email_normalizado == request.resource.data.email.lower()
+          )
+        )
+        && (request.resource.data.nome_cliente_normalizado == null || request.resource.data.nome_cliente_normalizado is string)
         && (request.resource.data.fcm_token == null || request.resource.data.fcm_token is string)
         && (request.resource.data.theme == null || request.resource.data.theme is string)
         && (request.resource.data.whatsapp == null || request.resource.data.whatsapp is string)
         && (request.resource.data.numero_e_whatsapp == null || request.resource.data.numero_e_whatsapp is bool)
-        && (request.resource.data.locale == null || request.resource.data.locale is string);
+        && (request.resource.data.locale == null || request.resource.data.locale is string)
+        && (request.resource.data.lgpd_consentido == null || request.resource.data.lgpd_consentido is bool)
+        && (request.resource.data.lgpd_consentido == null || request.resource.data.lgpd_consentido == true)
+        && (request.resource.data.lgpd_consentimento_em == null || request.resource.data.lgpd_consentimento_em is timestamp)
+        && (request.resource.data.last_changelog_seen == null || request.resource.data.last_changelog_seen is string)
+        && (request.resource.data.show_changelog_auto == null || request.resource.data.show_changelog_auto is bool);
     }
 
     function donoPodeCriarOuAtualizarCliente(clienteId) {
       return eDono(clienteId)
         && request.resource.data.keys().hasOnly([
           'uid',
+          'cliente_nome',
           'nome',
           'whatsapp',
           'data_nascimento',
@@ -201,6 +324,7 @@ service cloud.firestore {
           'anamnese_ok',
         ])
         && request.resource.data.uid == clienteId
+        && (request.resource.data.cliente_nome == null || request.resource.data.cliente_nome is string)
         && (request.resource.data.nome == null || request.resource.data.nome is string)
         && (request.resource.data.whatsapp == null || request.resource.data.whatsapp is string)
         && (request.resource.data.data_nascimento == null || request.resource.data.data_nascimento is timestamp)
@@ -221,6 +345,7 @@ service cloud.firestore {
     function donoPodeAtualizarCliente(clienteId) {
       return donoPodeCriarOuAtualizarCliente(clienteId)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'cliente_nome',
           'nome',
           'whatsapp',
           'data_nascimento',
@@ -254,6 +379,8 @@ service cloud.firestore {
           'valor_original',
           'valor_final',
           'preco',
+          'administradora_atrelada',
+          'lista_espera_detalhes',
         ])
         && request.resource.data.cliente_id is string
         && request.resource.data.data_hora is timestamp
@@ -262,6 +389,7 @@ service cloud.firestore {
         && (request.resource.data.tipo_massagem == null || request.resource.data.tipo_massagem is string)
         && statusAgendamentoValido(request.resource.data.status)
         && request.resource.data.lista_espera is list
+        && (request.resource.data.lista_espera_detalhes == null || request.resource.data.lista_espera_detalhes is list)
         && (request.resource.data.data_criacao == request.time || request.resource.data.data_criacao is timestamp)
         && (request.resource.data.cliente_nome_snapshot == null || request.resource.data.cliente_nome_snapshot is string)
         && (request.resource.data.cliente_telefone_snapshot == null || request.resource.data.cliente_telefone_snapshot is string)
@@ -272,6 +400,7 @@ service cloud.firestore {
         && (request.resource.data.valor_original == null || request.resource.data.valor_original is int || request.resource.data.valor_original is float)
         && (request.resource.data.valor_final == null || request.resource.data.valor_final is int || request.resource.data.valor_final is float)
         && (request.resource.data.preco == null || request.resource.data.preco is int || request.resource.data.preco is float)
+        && (request.resource.data.administradora_atrelada == null || request.resource.data.administradora_atrelada is string)
         && (request.resource.data.valor_final == null || request.resource.data.preco == request.resource.data.valor_final);
     }
 
@@ -282,6 +411,7 @@ service cloud.firestore {
         && request.resource.data.cliente_id == request.auth.uid
         && request.resource.data.status == 'pendente'
         && request.resource.data.lista_espera.size() == 0
+        && (request.resource.data.lista_espera_detalhes == null || request.resource.data.lista_espera_detalhes.size() == 0)
         && request.resource.data.motivo_cancelamento == null
         && (request.resource.data.avaliacao == null || request.resource.data.avaliacao == 0)
         && (request.resource.data.comentario_avaliacao == null || request.resource.data.comentario_avaliacao == '');
@@ -312,11 +442,15 @@ service cloud.firestore {
 
     function clientePodeGerenciarListaEspera() {
       return estaLogado()
-        && resource.data.status == 'aprovado'
+        && resource.data.status != 'cancelado'
+        && resource.data.status != 'cancelado_tardio'
+        && resource.data.status != 'recusado'
         && resource.data.cliente_id != request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lista_espera'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lista_espera', 'lista_espera_detalhes'])
         && request.resource.data.lista_espera is list
         && resource.data.lista_espera is list
+        && request.resource.data.lista_espera_detalhes is list
+        && request.resource.data.lista_espera_detalhes.size() == request.resource.data.lista_espera.size()
         && (
           (
             request.resource.data.lista_espera.size() == resource.data.lista_espera.size() + 1
@@ -353,9 +487,18 @@ service cloud.firestore {
 
     // Usuarios (dados de login e tipo)
     match /usuarios/{userId} {
-      allow create: if donoPodeCriarUsuario(userId) || eAdmin();
+      allow create: if donoPodeCriarUsuario(userId);
       allow read: if eDono(userId) || eAdmin();
       allow update: if donoPodeAtualizarUsuario(userId) || eAdmin();
+      allow delete: if eAdmin();
+    }
+
+    match /usuarios_por_email/{emailId} {
+      allow create, update: if eAdmin()
+        || (estaLogado()
+          && request.auth.uid == request.resource.data.uid
+          && indiceUsuarioPorEmailValido(emailId));
+      allow read: if estaLogado() && resource.data.uid == request.auth.uid;
       allow delete: if eAdmin();
     }
 
@@ -415,6 +558,11 @@ service cloud.firestore {
       allow write: if eAdmin();
     }
 
+    match /configuracoes_gerais/{tenantId} {
+      allow read: if estaLogado();
+      allow create, update, delete: if eAdmin();
+    }
+
     match /configuracoes/seguranca {
       allow read, write: if eAdmin();
     }
@@ -440,8 +588,18 @@ service cloud.firestore {
       allow read, write: if eAdmin();
     }
 
+    match /app_software/{docId} {
+      allow read: if estaLogado() && docId == 'config';
+      allow write: if eAdmin() && docId == 'config';
+    }
+
+    match /app_changelog/{versionId} {
+      allow read: if estaLogado();
+      allow write: if eAdmin();
+    }
+
     match /changelogs/{versao} {
-      allow read: if true;
+      allow read: if estaLogado();
       allow write: if eAdmin();
     }
 
@@ -457,6 +615,12 @@ service cloud.firestore {
       allow update, delete: if eAdmin();
     }
 
+    match /auditoria_credenciais/{logId} {
+      allow read: if eAdmin();
+      allow create: if auditoriaCredencialValida();
+      allow update, delete: if false;
+    }
+
     // Colecao de teste usada no fluxo de login
     match /teste/{docId} {
       allow create: if estaLogado() || testeLoginPublicoValido();
@@ -465,7 +629,7 @@ service cloud.firestore {
 
     // Demais colecoes nao mapeadas explicitamente ficam restritas ao admin.
     match /{document=**} {
-      allow read, write: if eAdmin();
+      allow read, write: if false;
     }
   }
 }

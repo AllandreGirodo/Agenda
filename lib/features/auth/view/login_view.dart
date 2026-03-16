@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:local_auth/local_auth.dart';
@@ -10,6 +11,7 @@ import 'package:agenda/features/auth/controller/login_controller.dart';
 import 'package:agenda/features/auth/view/signup_view.dart';
 import 'package:agenda/core/widgets/language_selector.dart';
 import 'package:agenda/core/services/firestore_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -19,31 +21,136 @@ class LoginView extends StatefulWidget {
 }
 
 class _LoginViewState extends State<LoginView> {
+  static const String _prefLembrarCredenciaisLogin =
+      'login_remember_credentials';
+  static const String _prefEmailLogin = 'login_saved_email';
+  static const String _prefSenhaLogin = 'login_saved_password';
+
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
   final _loginController = LoginController();
   bool _isLoading = false;
   bool _isObscure = true;
+  bool _lembrarCredenciais = false;
   bool _valorTesteBooleanoBanco = false;
   final LocalAuthentication auth = LocalAuthentication();
 
   @override
   void initState() {
     super.initState();
+    _carregarCredenciaisSalvas();
     _verificarBiometriaAutomatica();
   }
 
+  Future<void> _carregarCredenciaisSalvas() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lembrar = prefs.getBool(_prefLembrarCredenciaisLogin) ?? false;
+    final emailSalvo = (prefs.getString(_prefEmailLogin) ?? '').trim();
+    final senhaSalva = (prefs.getString(_prefSenhaLogin) ?? '').trim();
+
+    if (!mounted) return;
+    setState(() {
+      _lembrarCredenciais = lembrar;
+      _emailController.text = lembrar ? emailSalvo : '';
+      _senhaController.text = lembrar ? senhaSalva : '';
+    });
+  }
+
+  Future<void> _persistirPreferenciasLogin({
+    required bool sucesso,
+    required String email,
+    required String senha,
+  }) async {
+    if (!sucesso) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefLembrarCredenciaisLogin, _lembrarCredenciais);
+
+    if (_lembrarCredenciais) {
+      await prefs.setString(_prefEmailLogin, email);
+      await prefs.setString(_prefSenhaLogin, senha);
+      return;
+    }
+
+    await prefs.remove(_prefEmailLogin);
+    await prefs.remove(_prefSenhaLogin);
+  }
+
+  Future<void> _onAlterarLembrarCredenciais(bool? valor) async {
+    final lembrar = valor ?? false;
+    setState(() => _lembrarCredenciais = lembrar);
+
+    if (lembrar) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefLembrarCredenciaisLogin, false);
+    await prefs.remove(_prefEmailLogin);
+    await prefs.remove(_prefSenhaLogin);
+  }
+
   Future<void> _login() async {
+    final email = _emailController.text.trim();
+    final senha = _senhaController.text.trim();
+    final emailValido = _isValidEmail(email);
+    final senhaValida = senha.length >= 6;
+    final motivos = <String>[];
+
+    if (email.isEmpty || senha.isEmpty) {
+      motivos.add('campos_obrigatorios_login');
+    }
+    if (email.isNotEmpty && !emailValido) {
+      motivos.add('email_invalido_regex');
+    }
+    if (senha.isNotEmpty && !senhaValida) {
+      motivos.add('senha_abaixo_minimo');
+    }
+
+    if (motivos.isNotEmpty) {
+      unawaited(
+        _loginController.auditarTentativaCredencial(
+        origem: 'login_formulario',
+        emailDigitado: email,
+        senhaInformada: senha,
+        inconformidade: true,
+        lgpdConsentido: true,
+        motivos: motivos,
+        emailValido: emailValido,
+        senhaForte: senhaValida,
+        ),
+      );
+
+      if (!mounted) return;
+
+      final mensagem = (email.isEmpty || senha.isEmpty)
+          ? AppStrings.preenchaEmailSenhaLogin
+          : !emailValido
+          ? AppStrings.emailInvalidoLogin
+          : AppStrings.senhaMinimaLogin;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(mensagem)));
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
-      await _loginController.logar(
-        context,
-        _emailController.text.trim(),
-        _senhaController.text.trim(),
+      final sucesso = await _loginController.logar(context, email, senha);
+
+      await _persistirPreferenciasLogin(
+        sucesso: sucesso,
+        email: email,
+        senha: senha,
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  bool _isValidEmail(String value) {
+    final normalized = value.trim();
+    if (normalized.isEmpty) return false;
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(normalized);
   }
 
   Future<void> _cadastro() async {
@@ -241,11 +348,12 @@ class _LoginViewState extends State<LoginView> {
     final messenger = ScaffoldMessenger.of(context);
 
     try {
-      final valorAtual = await FirestoreService().alternarTesteBooleanoLoginView(
-        emailDigitado: _emailController.text.trim(),
-        valorAtual: _valorTesteBooleanoBanco,
-        uid: FirebaseAuth.instance.currentUser?.uid,
-      );
+      final valorAtual = await FirestoreService()
+          .alternarTesteBooleanoLoginView(
+            emailDigitado: _emailController.text.trim(),
+            valorAtual: _valorTesteBooleanoBanco,
+            uid: FirebaseAuth.instance.currentUser?.uid,
+          );
 
       _valorTesteBooleanoBanco = valorAtual;
 
@@ -255,6 +363,9 @@ class _LoginViewState extends State<LoginView> {
           content: Text(AppStrings.testeBooleanoBancoSucesso(valorAtual)),
         ),
       );
+    } on StateError catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
@@ -335,6 +446,14 @@ class _LoginViewState extends State<LoginView> {
                       ),
                     ),
                     obscureText: _isObscure,
+                  ),
+                  const SizedBox(height: 8),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    value: _lembrarCredenciais,
+                    title: Text(AppStrings.lembrarMinhasCredenciais),
+                    onChanged: _onAlterarLembrarCredenciais,
                   ),
                   const SizedBox(height: 24),
                   if (_isLoading)

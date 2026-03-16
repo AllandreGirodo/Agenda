@@ -12,12 +12,12 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = "11"
     }
 
     defaultConfig {
@@ -52,11 +52,11 @@ dependencies {
   // TODO: Add the dependencies for Firebase products you want to use
   // When using the BoM, don't specify versions in Firebase dependencies
   implementation("com.google.firebase:firebase-analytics")
-  implementation("com.google.firebase:firebase-auth-ktx")
-  implementation("com.google.firebase:firebase-firestore-ktx")
-  implementation("com.google.firebase:firebase-functions-ktx")
-  implementation("com.google.firebase:firebase-storage-ktx")
-  implementation("com.google.firebase:firebase-messaging-ktx")
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+    implementation("com.google.firebase:firebase-functions")
+    implementation("com.google.firebase:firebase-storage")
+    implementation("com.google.firebase:firebase-messaging")
   implementation("com.google.firebase:firebase-appcheck-playintegrity")
 
 

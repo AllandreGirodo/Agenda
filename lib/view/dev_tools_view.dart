@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:agenda/core/services/firestore_service.dart';
 import 'package:agenda/core/utils/app_strings.dart';
 import 'package:agenda/features/admin/view/admin_ferramentas_senha_setup_view.dart';
@@ -14,7 +16,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import '../core/models/log_model.dart'; 
+import '../core/models/log_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DevToolsView extends StatefulWidget {
@@ -26,7 +28,8 @@ class DevToolsView extends StatefulWidget {
 
 class _DevToolsViewState extends State<DevToolsView> {
   final FirestoreService _firestoreService = FirestoreService();
-  final String _senhaDev = dotenv.env['DB_ADMIN_PASSWORD'] ?? 'admin123';
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
+  late final String _senhaDev = _carregarSenhaDev();
   bool _autenticado = false;
   bool _devicePreviewEnabled = false;
   bool _senhaConfigurada = true; // Assume configurada até verificar
@@ -41,7 +44,9 @@ class _DevToolsViewState extends State<DevToolsView> {
     'cupons',
     'logs',
     'lgpd_logs',
-    'changelogs'
+    'changelogs',
+    'app_software',
+    'app_changelog',
   ];
 
   @override
@@ -49,16 +54,138 @@ class _DevToolsViewState extends State<DevToolsView> {
     super.initState();
     // Verifica se a senha está configurada
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final existe = await _firestoreService.verificaSenhaAdminFerramentasConfigurada();
+      final permitido = await _usuarioPodeAcessarDevTools();
+      if (!permitido) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(AppStrings.acessoNegado)));
+        }
+        await _fecharTelaSemAutenticacao();
+        return;
+      }
+
+      final existe = await _firestoreService
+          .verificaSenhaAdminFerramentasConfigurada();
       if (!mounted) return;
       setState(() => _senhaConfigurada = existe);
-      
+
       // Se configurada, pede a senha para autenticar
       if (existe && !_autenticado) {
         _pedirSenha();
       }
     });
     _carregarPrefs();
+  }
+
+  Future<bool> _usuarioPodeAcessarDevTools() async {
+    final usuarioAuth = FirebaseAuth.instance.currentUser;
+    if (usuarioAuth == null) return false;
+
+    final usuario = await _firestoreService.getUsuario(usuarioAuth.uid);
+    return _firestoreService.podeAcessarPainelDev(usuario);
+  }
+
+  String _carregarSenhaDev() {
+    try {
+      return (dotenv.env['DB_ADMIN_PASSWORD'] ?? '').trim();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  String _envTrim(String key) => (dotenv.env[key] ?? '').trim();
+
+  String? _textoNaoVazio(Object? valor) {
+    if (valor == null) {
+      return null;
+    }
+
+    final texto = valor.toString().trim();
+    return texto.isEmpty ? null : texto;
+  }
+
+  Map<String, dynamic> _mapaDinamico(dynamic valor) {
+    if (valor is Map<String, dynamic>) {
+      return valor;
+    }
+    if (valor is Map) {
+      return valor.map((key, value) => MapEntry(key.toString(), value));
+    }
+    return <String, dynamic>{};
+  }
+
+  Map<String, dynamic> _normalizarRespostaExportacao(dynamic valor) {
+    final mapaBase = _mapaDinamico(valor);
+    final payload = mapaBase['result'] is Map
+        ? _mapaDinamico(mapaBase['result'])
+        : mapaBase['data'] is Map
+        ? _mapaDinamico(mapaBase['data'])
+        : mapaBase;
+    final metadata = _mapaDinamico(payload['metadata']);
+    final binId =
+        _textoNaoVazio(payload['binId']) ??
+        _textoNaoVazio(payload['id']) ??
+        _textoNaoVazio(metadata['id']);
+    final urlDireta =
+        _textoNaoVazio(payload['url']) ??
+        _textoNaoVazio(payload['apiUrl']) ??
+        _textoNaoVazio(payload['binUrl']);
+    final baseUrl = _envTrim('EXPORT_JSONBIN_URL');
+    final url =
+        urlDireta ??
+        (binId != null && baseUrl.isNotEmpty ? '$baseUrl/$binId' : null);
+
+    if (binId == null || url == null) {
+      throw Exception(AppStrings.exportacaoBackendRespostaInvalida);
+    }
+
+    return {'binId': binId, 'url': url};
+  }
+
+  Future<Map<String, dynamic>> _exportarColecaoViaBackend(
+    String collection,
+    List<Map<String, dynamic>> data,
+  ) async {
+    final functionName = _envTrim('EXPORT_JSONBIN_FUNCTION_NAME');
+    final proxyUrl = _envTrim('EXPORT_JSONBIN_PROXY_URL');
+    final nomeConfigurado = _envTrim('EXPORT_JSONBIN_BIN_NAME');
+    final descricaoConfigurada = _envTrim('EXPORT_JSONBIN_BIN_DESCRIPTION');
+    final binIdConfigurado = _envTrim('EXPORT_JSONBIN_BIN_ID');
+    final payload = <String, dynamic>{
+      'collection': collection,
+      'data': data,
+      'binName': nomeConfigurado.isNotEmpty
+          ? nomeConfigurado
+          : '${collection}_export_${DateTime.now().millisecondsSinceEpoch}',
+      if (descricaoConfigurada.isNotEmpty)
+        'binDescription': descricaoConfigurada,
+      if (binIdConfigurado.isNotEmpty) 'binId': binIdConfigurado,
+    };
+
+    if (functionName.isNotEmpty) {
+      final callable = _functions.httpsCallable(functionName);
+      final result = await callable.call(payload);
+      return _normalizarRespostaExportacao(result.data);
+    }
+
+    if (proxyUrl.isNotEmpty) {
+      final response = await http.post(
+        Uri.parse(proxyUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw Exception(
+          AppStrings.erroExportacaoBackendStatus(response.statusCode),
+        );
+      }
+
+      return _normalizarRespostaExportacao(jsonDecode(response.body));
+    }
+
+    throw Exception(AppStrings.exportacaoBackendNaoConfigurada);
   }
 
   Future<void> _carregarPrefs() async {
@@ -74,7 +201,9 @@ class _DevToolsViewState extends State<DevToolsView> {
     await prefs.setBool('enable_device_preview', value);
     setState(() => _devicePreviewEnabled = value);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.reinicieApp)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(AppStrings.reinicieApp)));
   }
 
   Future<String?> _solicitarSenha({
@@ -109,7 +238,8 @@ class _DevToolsViewState extends State<DevToolsView> {
             child: Text(AppStrings.cancelButton),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
             child: Text(AppStrings.confirmar),
           ),
         ],
@@ -134,7 +264,8 @@ class _DevToolsViewState extends State<DevToolsView> {
   Future<void> _pedirSenha() async {
     final senhaColecao = await _solicitarSenha(
       titulo: 'Acesso ao Banco de Dados',
-      descricao: 'Etapa 1/2: informe a senha de administrador salva no Firestore.',
+      descricao:
+          'Etapa 1/2: informe a senha de administrador salva no Firestore.',
       labelCampo: 'Senha da Collection (Admin)',
     );
 
@@ -145,17 +276,21 @@ class _DevToolsViewState extends State<DevToolsView> {
 
     bool senhaColecaoValida = false;
     try {
-      senhaColecaoValida = await _firestoreService.validarSenhaAdminFerramentas(senhaColecao);
+      senhaColecaoValida = await _firestoreService.validarSenhaAdminFerramentas(
+        senhaColecao,
+      );
     } on StateError catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
       await _fecharTelaSemAutenticacao();
       return;
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppStrings.naoValidarSenhaCollection)),
+          SnackBar(content: Text(AppStrings.naoValidarSenhaCollection)),
         );
       }
       await _fecharTelaSemAutenticacao();
@@ -165,7 +300,17 @@ class _DevToolsViewState extends State<DevToolsView> {
     if (!senhaColecaoValida) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppStrings.senhaCollectionIncorreta)),
+          SnackBar(content: Text(AppStrings.senhaCollectionIncorreta)),
+        );
+      }
+      await _fecharTelaSemAutenticacao();
+      return;
+    }
+
+    if (_senhaDev.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.senhaDevNaoConfigurada)),
         );
       }
       await _fecharTelaSemAutenticacao();
@@ -185,9 +330,9 @@ class _DevToolsViewState extends State<DevToolsView> {
 
     if (senhaDev != _senhaDev) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppStrings.senhaDevIncorreta)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(AppStrings.senhaDevIncorreta)));
       }
       await _fecharTelaSemAutenticacao();
       return;
@@ -198,7 +343,10 @@ class _DevToolsViewState extends State<DevToolsView> {
   }
 
   Future<int> _contarDocumentos(String collection) async {
-    final snapshot = await FirebaseFirestore.instance.collection(collection).count().get();
+    final snapshot = await FirebaseFirestore.instance
+        .collection(collection)
+        .count()
+        .get();
     return snapshot.count ?? 0;
   }
 
@@ -244,9 +392,15 @@ class _DevToolsViewState extends State<DevToolsView> {
         title: Text(AppStrings.truncateTable(collection)),
         content: Text(AppStrings.truncateConfirmacao(collection)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppStrings.cancelButton)),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(AppStrings.cancelButton),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
             onPressed: () => Navigator.pop(context, true),
             child: Text(AppStrings.apagarTudo),
           ),
@@ -269,13 +423,17 @@ class _DevToolsViewState extends State<DevToolsView> {
   // --- Exportação (JSON / CSV) ---
   Future<void> _exportarCollection(String collection, String formato) async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.gerandoArquivo)));
-      
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AppStrings.gerandoArquivo)));
+
       // 1. Busca dados
       final data = await _firestoreService.getFullCollection(collection);
       if (!mounted) return;
       if (data.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.colecaoVazia)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(AppStrings.colecaoVazia)));
         return;
       }
 
@@ -290,7 +448,9 @@ class _DevToolsViewState extends State<DevToolsView> {
         extensao = 'json';
       } else if (formato == 'excel') {
         if (collection != 'agendamentos') {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.excelApenasAgendamentos)));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(AppStrings.excelApenasAgendamentos)),
+          );
           return;
         }
         conteudo = await _firestoreService.gerarRelatorioAgendamentosExcel();
@@ -301,11 +461,11 @@ class _DevToolsViewState extends State<DevToolsView> {
         final allKeys = data.expand((map) => map.keys).toSet().toList();
         List<List<dynamic>> rows = [];
         rows.add(allKeys); // Cabeçalho
-        
+
         for (var map in data) {
           rows.add(allKeys.map((key) => map[key]?.toString() ?? '').toList());
         }
-        
+
         conteudo = const ListToCsvConverter().convert(rows);
         extensao = 'csv';
       }
@@ -321,11 +481,14 @@ class _DevToolsViewState extends State<DevToolsView> {
 
       // 4. Compartilha (Share Sheet do OS)
       if (!mounted) return;
-      await Share.shareXFiles([XFile(file.path)], text: 'Exportação da tabela $collection');
-
+      await Share.shareXFiles([
+        XFile(file.path),
+      ], text: 'Exportação da tabela $collection');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.erroExportar(e.toString()))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.erroExportar(e.toString()))),
+        );
       }
     }
   }
@@ -333,78 +496,73 @@ class _DevToolsViewState extends State<DevToolsView> {
   // --- Exportação Web (JSONBin.io) ---
   Future<void> _exportarParaWeb(String collection) async {
     try {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.enviandoParaJsonBin)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AppStrings.enviandoParaJsonBin)));
 
       if (!mounted) return;
       // 1. Busca dados
       final data = await _firestoreService.getFullCollection(collection);
       if (!mounted) return;
       if (data.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.colecaoVazia)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(AppStrings.colecaoVazia)));
         return;
       }
 
-      // 2. Prepara JSON e Headers
-      final jsonBody = jsonEncode(data);
-      final apiKey = dotenv.env['X_ACCESS_API_KEY'] ?? dotenv.env['X_MASTER_API_KEY'];
-      
-      if (apiKey == null) throw Exception('API Key do JSONBin não configurada no .env');
+      // 2. Delegar a exportacao para backend/Cloud Functions.
+      final exportacao = await _exportarColecaoViaBackend(collection, data);
+      final binId = exportacao['binId'] as String;
+      final url = exportacao['url'] as String;
 
-      // 3. Envia Request (POST)
-      final response = await http.post(
-        Uri.parse('https://api.jsonbin.io/v3/b'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Access-Key': apiKey,
-          'X-Bin-Private': 'false', // Define como público para facilitar leitura (cuidado com dados reais)
-          'X-Bin-Name': '${collection}_export_${DateTime.now().millisecondsSinceEpoch}',
-        },
-        body: jsonBody,
-      );
-
-      // 4. Processa Resposta
-      if (response.statusCode == 200) {
-        final responseData = jsonDecode(response.body);
-        final binId = responseData['metadata']['id'];
-        final url = 'https://api.jsonbin.io/v3/b/$binId';
-
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: Text(AppStrings.exportacaoConcluida),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(AppStrings.dadosSalvosNuvem),
-                  const SizedBox(height: 10),
-                  SelectableText('Bin ID: $binId', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 5),
-                  Text(AppStrings.urlApi),
-                  SelectableText(url, style: const TextStyle(color: Colors.blue, fontSize: 12)),
-                ],
-              ),
-              actions: [
-                TextButton.icon(
-                  icon: const Icon(Icons.copy),
-                  label: Text(AppStrings.copiarUrl),
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: url));
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.urlCopiada)));
-                  },
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(AppStrings.exportacaoConcluida),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(AppStrings.dadosSalvosNuvem),
+                const SizedBox(height: 10),
+                SelectableText(
+                  'Bin ID: $binId',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                TextButton(onPressed: () => Navigator.pop(context), child: Text(AppStrings.fechar)),
+                const SizedBox(height: 5),
+                Text(AppStrings.urlApi),
+                SelectableText(
+                  url,
+                  style: const TextStyle(color: Colors.blue, fontSize: 12),
+                ),
               ],
             ),
-          );
-        }
-      } else {
-        throw Exception('Erro API (${response.statusCode}): ${response.body}');
+            actions: [
+              TextButton.icon(
+                icon: const Icon(Icons.copy),
+                label: Text(AppStrings.copiarUrl),
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: url));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(AppStrings.urlCopiada)),
+                  );
+                },
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(AppStrings.fechar),
+              ),
+            ],
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.erroExportarWeb(e.toString()))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.erroExportarWeb(e.toString()))),
+        );
       }
     }
   }
@@ -422,25 +580,33 @@ class _DevToolsViewState extends State<DevToolsView> {
 
       if (result != null) {
         File file = File(result.files.single.path!);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.lendoArquivo)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(AppStrings.lendoArquivo)));
 
         // 2. Ler e Parsear JSON
         String conteudo = await file.readAsString();
         List<dynamic> jsonList = jsonDecode(conteudo);
-        
+
         // Converter para List<Map<String, dynamic>>
-        List<Map<String, dynamic>> dados = jsonList.map((e) => Map<String, dynamic>.from(e)).toList();
+        List<Map<String, dynamic>> dados = jsonList
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
 
         // 3. Enviar para Firestore
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.importandoRegistros(dados.length))));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppStrings.importandoRegistros(dados.length)),
+            ),
+          );
         }
         await _firestoreService.importarColecao(collection, dados);
 
         if (!mounted) return;
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(AppStrings.importacaoConcluida)),
+            SnackBar(content: Text(AppStrings.importacaoConcluida)),
           );
           setState(() {}); // Atualiza contadores
         }
@@ -449,7 +615,9 @@ class _DevToolsViewState extends State<DevToolsView> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppStrings.erroImportar(e.toString()))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.erroImportar(e.toString()))),
+      );
     }
   }
 
@@ -465,7 +633,7 @@ class _DevToolsViewState extends State<DevToolsView> {
         builder: (context, scrollController) {
           // Usamos StatefulBuilder para gerenciar o estado do filtro de busca dentro do Modal
           String filtroBusca = '';
-          
+
           return StatefulBuilder(
             builder: (BuildContext context, StateSetter setStateModal) {
               return Scaffold(
@@ -488,12 +656,17 @@ class _DevToolsViewState extends State<DevToolsView> {
                   foregroundColor: Colors.white,
                 ),
                 body: StreamBuilder<QuerySnapshot>(
-                  // Aumentei o limite para permitir busca em mais itens, 
+                  // Aumentei o limite para permitir busca em mais itens,
                   // mas em produção o ideal seria busca no backend (.where)
-                  stream: FirebaseFirestore.instance.collection(collection).limit(100).snapshots(),
+                  stream: FirebaseFirestore.instance
+                      .collection(collection)
+                      .limit(100)
+                      .snapshots(),
                   builder: (context, snapshot) {
-                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                    
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
                     var docs = snapshot.data!.docs;
 
                     // Filtro Local
@@ -501,13 +674,24 @@ class _DevToolsViewState extends State<DevToolsView> {
                       docs = docs.where((doc) {
                         final data = doc.data() as Map<String, dynamic>;
                         final id = doc.id.toLowerCase();
-                        final nome = (data['nome'] ?? '').toString().toLowerCase();
-                        final email = (data['email'] ?? '').toString().toLowerCase();
-                        return id.contains(filtroBusca) || nome.contains(filtroBusca) || email.contains(filtroBusca);
+                        final nome =
+                            (data['cliente_nome'] ?? data['nome'] ?? '')
+                                .toString()
+                                .toLowerCase();
+                        final email = (data['email'] ?? '')
+                            .toString()
+                            .toLowerCase();
+                        return id.contains(filtroBusca) ||
+                            nome.contains(filtroBusca) ||
+                            email.contains(filtroBusca);
                       }).toList();
                     }
 
-                    if (docs.isEmpty) return Center(child: Text(AppStrings.nenhumDocumentoEncontrado));
+                    if (docs.isEmpty) {
+                      return Center(
+                        child: Text(AppStrings.nenhumDocumentoEncontrado),
+                      );
+                    }
 
                     return ListView.separated(
                       controller: scrollController,
@@ -516,14 +700,24 @@ class _DevToolsViewState extends State<DevToolsView> {
                       itemBuilder: (context, index) {
                         final doc = docs[index];
                         final data = doc.data() as Map<String, dynamic>;
-                        
-                        // Tenta achar um campo "nome" ou usa o ID para o título
-                        final titulo = data['nome'] ?? data['email'] ?? doc.id;
+
+                        // Prioriza o novo campo de cliente e mantem compatibilidade com legado.
+                        final titulo =
+                            data['cliente_nome'] ??
+                            data['nome'] ??
+                            data['email'] ??
+                            doc.id;
 
                         return ListTile(
-                          title: Text(titulo.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
+                          title: Text(
+                            titulo.toString(),
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           subtitle: Text('ID: ${doc.id}'),
-                          trailing: const Icon(Icons.data_object, color: Colors.teal),
+                          trailing: const Icon(
+                            Icons.data_object,
+                            color: Colors.teal,
+                          ),
                           onTap: () => _mostrarDetalhesJson(doc.id, data),
                         );
                       },
@@ -531,7 +725,7 @@ class _DevToolsViewState extends State<DevToolsView> {
                   },
                 ),
               );
-            }
+            },
           );
         },
       ),
@@ -553,7 +747,10 @@ class _DevToolsViewState extends State<DevToolsView> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppStrings.fechar)),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(AppStrings.fechar),
+          ),
         ],
       ),
     );
@@ -587,30 +784,61 @@ class _DevToolsViewState extends State<DevToolsView> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(AppStrings.systemLogsRealtime, style: const TextStyle(color: Colors.greenAccent, fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+                        Text(
+                          AppStrings.systemLogsRealtime,
+                          style: const TextStyle(
+                            color: Colors.greenAccent,
+                            fontFamily: 'monospace',
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         Row(
                           children: [
                             // Filtro
                             DropdownButton<String>(
                               dropdownColor: Colors.grey[900],
                               value: filtroSelecionado,
-                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                              ),
                               underline: Container(), // Remove a linha padrão
-                              icon: const Icon(Icons.filter_list, color: Colors.greenAccent, size: 16),
+                              icon: const Icon(
+                                Icons.filter_list,
+                                color: Colors.greenAccent,
+                                size: 16,
+                              ),
                               items: [
-                                DropdownMenuItem(value: 'todos', child: Text(AppStrings.filtroTodos)),
-                                DropdownMenuItem(value: 'erro', child: Text(AppStrings.filtroErros)),
-                                DropdownMenuItem(value: 'aviso', child: Text(AppStrings.filtroAvisos)),
-                                DropdownMenuItem(value: 'info', child: Text(AppStrings.filtroInfo)),
+                                DropdownMenuItem(
+                                  value: 'todos',
+                                  child: Text(AppStrings.filtroTodos),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'erro',
+                                  child: Text(AppStrings.filtroErros),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'aviso',
+                                  child: Text(AppStrings.filtroAvisos),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'info',
+                                  child: Text(AppStrings.filtroInfo),
+                                ),
                               ],
                               onChanged: (value) {
                                 if (value != null) {
-                                  setStateModal(() => filtroSelecionado = value);
+                                  setStateModal(
+                                    () => filtroSelecionado = value,
+                                  );
                                 }
                               },
                             ),
                             const SizedBox(width: 10),
-                            const Icon(Icons.terminal, color: Colors.greenAccent),
+                            const Icon(
+                              Icons.terminal,
+                              color: Colors.greenAccent,
+                            ),
                           ],
                         ),
                       ],
@@ -618,46 +846,94 @@ class _DevToolsViewState extends State<DevToolsView> {
                   ),
                   Expanded(
                     child: StreamBuilder<List<LogModel>>(
-                  stream: _firestoreService.getLogs(),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasError) return Center(child: Text(AppStrings.erroGenerico(snapshot.error.toString()), style: const TextStyle(color: Colors.red)));
-                    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.greenAccent));
-
-                    var logs = snapshot.data!;
-                    // Aplica o filtro localmente
-                    if (filtroSelecionado != 'todos') {
-                      logs = logs.where((l) => l.tipo == filtroSelecionado).toList();
-                    }
-
-                    if (logs.isEmpty) return Center(child: Text(AppStrings.semLogsRegistrados, style: const TextStyle(color: Colors.white54)));
-
-                    return ListView.separated(
-                      controller: scrollController,
-                      itemCount: logs.length,
-                      separatorBuilder: (c, i) => const Divider(color: Colors.white12, height: 1),
-                      itemBuilder: (context, index) {
-                        final log = logs[index];
-                        Color color = Colors.white;
-                        if (log.tipo == 'erro' || log.tipo == 'cancelamento') {
-                          color = Colors.redAccent;
-                        } else if (log.tipo == 'aviso') {
-                          color = Colors.orangeAccent;
+                      stream: _firestoreService.getLogs(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Text(
+                              AppStrings.erroGenerico(
+                                snapshot.error.toString(),
+                              ),
+                              style: const TextStyle(color: Colors.red),
+                            ),
+                          );
                         }
-                        
-                        return ListTile(
-                          dense: true,
-                          leading: Text(DateFormat('HH:mm:ss').format(log.dataHora), style: const TextStyle(color: Colors.grey, fontSize: 10, fontFamily: 'monospace')),
-                          title: Text('[${log.tipo.toUpperCase()}]', style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11, fontFamily: 'monospace')),
-                          subtitle: Text(log.mensagem, style: const TextStyle(color: Colors.white70, fontFamily: 'monospace', fontSize: 12)),
+                        if (!snapshot.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.greenAccent,
+                            ),
+                          );
+                        }
+
+                        var logs = snapshot.data!;
+                        // Aplica o filtro localmente
+                        if (filtroSelecionado != 'todos') {
+                          logs = logs
+                              .where((l) => l.tipo == filtroSelecionado)
+                              .toList();
+                        }
+
+                        if (logs.isEmpty) {
+                          return Center(
+                            child: Text(
+                              AppStrings.semLogsRegistrados,
+                              style: const TextStyle(color: Colors.white54),
+                            ),
+                          );
+                        }
+
+                        return ListView.separated(
+                          controller: scrollController,
+                          itemCount: logs.length,
+                          separatorBuilder: (c, i) =>
+                              const Divider(color: Colors.white12, height: 1),
+                          itemBuilder: (context, index) {
+                            final log = logs[index];
+                            Color color = Colors.white;
+                            if (log.tipo == 'erro' ||
+                                log.tipo == 'cancelamento') {
+                              color = Colors.redAccent;
+                            } else if (log.tipo == 'aviso') {
+                              color = Colors.orangeAccent;
+                            }
+
+                            return ListTile(
+                              dense: true,
+                              leading: Text(
+                                DateFormat('HH:mm:ss').format(log.dataHora),
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 10,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                              title: Text(
+                                '[${log.tipo.toUpperCase()}]',
+                                style: TextStyle(
+                                  color: color,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
+                                  fontFamily: 'monospace',
+                                ),
+                              ),
+                              subtitle: Text(
+                                log.mensagem,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                ),
+                              ),
+                            );
+                          },
                         );
                       },
-                    );
-                  },
-                ),
+                    ),
                   ),
                 ],
               );
-            }
+            },
           );
         },
       ),
@@ -674,7 +950,9 @@ class _DevToolsViewState extends State<DevToolsView> {
     }
 
     // Se não autenticado, mostra loading
-    if (!_autenticado) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (!_autenticado) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -690,7 +968,7 @@ class _DevToolsViewState extends State<DevToolsView> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => setState(() {}),
-          )
+          ),
         ],
       ),
       body: ListView(
@@ -700,75 +978,125 @@ class _DevToolsViewState extends State<DevToolsView> {
             subtitle: Text(AppStrings.requerReinicioApp),
             value: _devicePreviewEnabled,
             onChanged: _toggleDevicePreview,
-            secondary: const Icon(Icons.devices_other, color: Colors.purpleAccent),
+            secondary: const Icon(
+              Icons.devices_other,
+              color: Colors.purpleAccent,
+            ),
           ),
           const Divider(thickness: 2),
           ...List.generate(_collections.length * 2 - 1, (i) {
             if (i.isOdd) return const Divider();
             final index = i ~/ 2;
-          final collection = _collections[index];
-          return FutureBuilder<int>(
-            future: _contarDocumentos(collection),
-            builder: (context, snapshot) {
-              final count = snapshot.data ?? 0;
-              return ListTile(
-                leading: const Icon(Icons.table_chart),
-                title: Text(collection, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text(AppStrings.registros(count)),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Botão Visualizar JSON
-                    IconButton(
-                      icon: const Icon(Icons.visibility, color: Colors.purple),
-                      tooltip: AppStrings.tooltipVisualizarJson,
-                      onPressed: () => _abrirVisualizadorJson(collection),
-                    ),
-                    // Menu Exportar
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.download, color: Colors.orange),
-                      tooltip: AppStrings.tooltipExportarDados,
-                      onSelected: (format) {
-                        if (format == 'web') {
-                          _exportarParaWeb(collection);
-                        } else {
-                          _exportarCollection(collection, format);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'json',
-                          child: Row(children: [const Icon(Icons.code, size: 18), const SizedBox(width: 8), Text(AppStrings.exportFormatoJson)]),
+            final collection = _collections[index];
+            return FutureBuilder<int>(
+              future: _contarDocumentos(collection),
+              builder: (context, snapshot) {
+                final count = snapshot.data ?? 0;
+                return ListTile(
+                  leading: const Icon(Icons.table_chart),
+                  title: Text(
+                    collection,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(AppStrings.registros(count)),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Botão Visualizar JSON
+                      IconButton(
+                        icon: const Icon(
+                          Icons.visibility,
+                          color: Colors.purple,
                         ),
-                        PopupMenuItem(
-                          value: 'csv',
-                          child: Row(children: [const Icon(Icons.table_view, size: 18), const SizedBox(width: 8), Text(AppStrings.exportFormatoCsv)]),
+                        tooltip: AppStrings.tooltipVisualizarJson,
+                        onPressed: () => _abrirVisualizadorJson(collection),
+                      ),
+                      // Menu Exportar
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.download, color: Colors.orange),
+                        tooltip: AppStrings.tooltipExportarDados,
+                        onSelected: (format) {
+                          if (format == 'web') {
+                            _exportarParaWeb(collection);
+                          } else {
+                            _exportarCollection(collection, format);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'json',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.code, size: 18),
+                                const SizedBox(width: 8),
+                                Text(AppStrings.exportFormatoJson),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'csv',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.table_view, size: 18),
+                                const SizedBox(width: 8),
+                                Text(AppStrings.exportFormatoCsv),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'excel',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.grid_on, size: 18),
+                                const SizedBox(width: 8),
+                                Text(AppStrings.exportFormatoExcel),
+                              ],
+                            ),
+                          ),
+                          PopupMenuItem(
+                            value: 'web',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.cloud_upload, size: 18),
+                                const SizedBox(width: 8),
+                                Text(AppStrings.exportFormatoWeb),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Botão Importar
+                      IconButton(
+                        icon: const Icon(
+                          Icons.upload_file,
+                          color: Colors.green,
                         ),
-                        PopupMenuItem(
-                          value: 'excel',
-                          child: Row(children: [const Icon(Icons.grid_on, size: 18), const SizedBox(width: 8), Text(AppStrings.exportFormatoExcel)]),
+                        tooltip: AppStrings.tooltipImportarJson,
+                        onPressed: () => _importarCollection(collection),
+                      ),
+                      // Botões Existentes
+                      IconButton(
+                        icon: const Icon(
+                          Icons.add_circle_outline,
+                          color: Colors.blue,
                         ),
-                        PopupMenuItem(
-                          value: 'web',
-                          child: Row(children: [const Icon(Icons.cloud_upload, size: 18), const SizedBox(width: 8), Text(AppStrings.exportFormatoWeb)]),
+                        onPressed: () => _popularCollection(collection),
+                        tooltip: AppStrings.tooltipPopularSeed,
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_forever,
+                          color: Colors.red,
                         ),
-                      ],
-                    ),
-                    // Botão Importar
-                    IconButton(
-                      icon: const Icon(Icons.upload_file, color: Colors.green),
-                      tooltip: AppStrings.tooltipImportarJson,
-                      onPressed: () => _importarCollection(collection),
-                    ),
-                    // Botões Existentes
-                    IconButton(icon: const Icon(Icons.add_circle_outline, color: Colors.blue), onPressed: () => _popularCollection(collection), tooltip: AppStrings.tooltipPopularSeed),
-                    IconButton(icon: const Icon(Icons.delete_forever, color: Colors.red), onPressed: () => _limparCollection(collection), tooltip: AppStrings.tooltipLimparTruncate),
-                  ],
-                ),
-              );
-            },
-          );
-        }),
+                        onPressed: () => _limparCollection(collection),
+                        tooltip: AppStrings.tooltipLimparTruncate,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          }),
         ],
       ),
     );

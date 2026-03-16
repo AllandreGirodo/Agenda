@@ -1,11 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core_platform_interface/test.dart';
 import 'package:agenda/core/services/firestore_service.dart';
 import 'package:agenda/core/models/agendamento_model.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  const runFirebaseIntegration = bool.fromEnvironment(
+    'RUN_FIREBASE_INTEGRATION',
+    defaultValue: false,
+  );
 
   group('Fluxo de Agendamento (E2E)', () {
     late FirestoreService service;
@@ -13,6 +18,8 @@ void main() {
     String? agendamentoIdCriado;
 
     setUpAll(() async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      setupFirebaseCoreMocks();
       await Firebase.initializeApp();
       service = FirestoreService();
     });
@@ -62,5 +69,5 @@ void main() {
 
       expect(agendamentoAprovado.status, 'aprovado');
     });
-  });
+  }, skip: !runFirebaseIntegration ? 'Defina --dart-define=RUN_FIREBASE_INTEGRATION=true para executar o teste E2E com Firebase real.' : false);
 }

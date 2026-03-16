@@ -7,10 +7,18 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_core_platform_interface/test.dart' as firebase_test;
 
 import 'package:agenda/main.dart';
 
 void main() {
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    firebase_test.setupFirebaseCoreMocks();
+    await Firebase.initializeApp();
+  });
+
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const MyApp(onboardingComplete: true));
@@ -26,5 +34,5 @@ void main() {
     // Verify that our counter has incremented.
     expect(find.text('0'), findsNothing);
     expect(find.text('1'), findsOneWidget);
-  });
+  }, skip: true); //Este smoke test é um artefato gerado pelo flutter create e não reflete o app atual
 }

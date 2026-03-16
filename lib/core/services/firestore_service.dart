@@ -1,14 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:cross_file/cross_file.dart';
 import 'dart:convert';
+import 'package:crypto/crypto.dart' as crypto;
 import 'package:excel/excel.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:agenda/core/models/agendamento_model.dart';
+import 'package:agenda/core/models/app_software_config_model.dart';
 import 'package:agenda/core/models/changelog_model.dart';
 import 'package:agenda/core/models/chat_model.dart';
 import 'package:agenda/core/models/config_model.dart';
@@ -24,6 +28,355 @@ import 'package:agenda/core/models/cliente_model.dart';
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
+  static const String _tenantPadraoId = 'administrador_padrao_atrelado';
+  static const String _tenantPadraoNomeExibicao =
+      'administrador_padrao_atrelado';
+
+  String _normalizarTelefone(String telefone) {
+    return telefone.replaceAll(RegExp(r'[^0-9]'), '');
+  }
+
+  String _normalizarEmail(String email) {
+    return email.trim().toLowerCase();
+  }
+
+  String _normalizarNomeBusca(String nome) {
+    return nome.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  String _normalizarSlug(String valor) {
+    final limpo = valor.trim().toLowerCase();
+    final semAcento = limpo
+        .replaceAll('á', 'a')
+        .replaceAll('à', 'a')
+        .replaceAll('ã', 'a')
+        .replaceAll('â', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('ê', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ô', 'o')
+        .replaceAll('õ', 'o')
+        .replaceAll('ú', 'u')
+        .replaceAll('ç', 'c');
+
+    return semAcento
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'^_+|_+$'), '');
+  }
+
+  String _devEmailConfigurado() {
+    try {
+      final valorEnv = (dotenv.env['DEV_EMAIL'] ?? '').trim();
+      if (valorEnv.isNotEmpty) {
+        return _normalizarEmail(valorEnv);
+      }
+    } catch (_) {
+      // dotenv pode nao estar inicializado em alguns contextos de teste.
+    }
+
+    const valorDefine = String.fromEnvironment('DEV_EMAIL', defaultValue: '');
+    return _normalizarEmail(valorDefine);
+  }
+
+  String _pushNotificationFunctionName() {
+    try {
+      final valorEnv = (dotenv.env['PUSH_NOTIFICATION_FUNCTION_NAME'] ?? '')
+          .trim();
+      if (valorEnv.isNotEmpty) {
+        return valorEnv;
+      }
+    } catch (_) {
+      // dotenv pode nao estar inicializado em alguns contextos de teste.
+    }
+
+    return const String.fromEnvironment(
+      'PUSH_NOTIFICATION_FUNCTION_NAME',
+      defaultValue: '',
+    ).trim();
+  }
+
+  String _pushNotificationProxyUrl() {
+    try {
+      final valorEnv = (dotenv.env['PUSH_NOTIFICATION_PROXY_URL'] ?? '').trim();
+      if (valorEnv.isNotEmpty) {
+        return valorEnv;
+      }
+    } catch (_) {
+      // dotenv pode nao estar inicializado em alguns contextos de teste.
+    }
+
+    return const String.fromEnvironment(
+      'PUSH_NOTIFICATION_PROXY_URL',
+      defaultValue: '',
+    ).trim();
+  }
+
+  bool emailEhDevMaster(String email) {
+    final devEmail = _devEmailConfigurado();
+    if (devEmail.isEmpty) return false;
+    return _normalizarEmail(email) == devEmail;
+  }
+
+  bool podeAcessarPainelDev(UsuarioModel? usuario) {
+    if (usuario == null) return false;
+    return usuario.devMaster && emailEhDevMaster(usuario.email);
+  }
+
+  Future<void> _garantirConfiguracoesGeraisTenantPadrao({
+    String tenantId = _tenantPadraoId,
+    String nomeExibicao = _tenantPadraoNomeExibicao,
+  }) async {
+    final tenantSlug = _normalizarSlug(tenantId);
+    final nome = nomeExibicao.trim().isNotEmpty
+        ? nomeExibicao.trim()
+        : _tenantPadraoNomeExibicao;
+
+    await _db.collection('configuracoes_gerais').doc(tenantSlug).set({
+      'id': tenantSlug,
+      'nome_exibicao': nome,
+      'nome_normalizado': _normalizarNomeBusca(nome),
+      'ativo': true,
+      'atualizado_em': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<String> getAdministradoraPadraoAtreladaId() async {
+    try {
+      final doc = await _db.collection('configuracoes').doc('geral').get();
+      final dados = doc.data() ?? const <String, dynamic>{};
+
+      final valorId =
+          (dados['administradora_padrao_atrelada_id'] as String? ?? '').trim();
+      final valorLegado =
+          (dados['administradora_padrao_atrelada'] as String? ?? '').trim();
+
+      final tenantId = _normalizarSlug(
+        valorId.isNotEmpty
+            ? valorId
+            : (valorLegado.isNotEmpty ? valorLegado : _tenantPadraoId),
+      );
+      final nomeExibicao = valorLegado.isNotEmpty
+          ? valorLegado
+          : _tenantPadraoNomeExibicao;
+
+      if (tenantId.isNotEmpty) {
+        await _db.collection('configuracoes').doc('geral').set({
+          'administradora_padrao_atrelada_id': tenantId,
+        }, SetOptions(merge: true));
+
+        await _garantirConfiguracoesGeraisTenantPadrao(
+          tenantId: tenantId,
+          nomeExibicao: nomeExibicao,
+        );
+
+        return tenantId;
+      }
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        rethrow;
+      }
+    }
+
+    return _tenantPadraoId;
+  }
+
+  Future<String> getNomeAdministradoraPorId(String adminId) async {
+    final tenantId = _normalizarSlug(adminId);
+    if (tenantId.isEmpty) return _tenantPadraoNomeExibicao;
+
+    try {
+      final doc = await _db
+          .collection('configuracoes_gerais')
+          .doc(tenantId)
+          .get();
+      final nome = (doc.data()?['nome_exibicao'] as String? ?? '').trim();
+      if (nome.isNotEmpty) return nome;
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        rethrow;
+      }
+    }
+
+    return adminId;
+  }
+
+  DocumentReference<Map<String, dynamic>> _usuarioRefPorEmail(String email) {
+    return _db.collection('usuarios').doc(_normalizarEmail(email));
+  }
+
+  Future<DocumentReference<Map<String, dynamic>>?> _buscarUsuarioRefPorUid(
+    String uid,
+  ) async {
+    final uidNormalizado = uid.trim();
+    if (uidNormalizado.isEmpty) return null;
+
+    final usuarioAtual = FirebaseAuth.instance.currentUser;
+    final bool uidEhDoUsuarioLogado =
+        usuarioAtual != null && usuarioAtual.uid == uidNormalizado;
+
+    if (uidEhDoUsuarioLogado) {
+      final emailAutenticado = _normalizarEmail(usuarioAtual.email ?? '');
+      if (emailAutenticado.isNotEmpty) {
+        final usuarioRefPorEmail = _db
+            .collection('usuarios')
+            .doc(emailAutenticado);
+        final usuarioSnapPorEmail = await usuarioRefPorEmail.get();
+        if (usuarioSnapPorEmail.exists) {
+          return usuarioRefPorEmail;
+        }
+      }
+
+      final usuarioLegadoRef = _db.collection('usuarios').doc(uidNormalizado);
+      final usuarioLegadoSnap = await usuarioLegadoRef.get();
+      if (usuarioLegadoSnap.exists) {
+        return usuarioLegadoRef;
+      }
+    }
+
+    final indiceEmail = await _db
+        .collection('usuarios_por_email')
+        .where('uid', isEqualTo: uidNormalizado)
+        .limit(1)
+        .get();
+
+    if (indiceEmail.docs.isNotEmpty) {
+      final dataIndice = indiceEmail.docs.first.data();
+      final emailNormalizado = _normalizarEmail(
+        (dataIndice['email_normalizado'] as String? ??
+                indiceEmail.docs.first.id)
+            .trim(),
+      );
+      if (emailNormalizado.isNotEmpty) {
+        final usuarioRefPorEmail = _db
+            .collection('usuarios')
+            .doc(emailNormalizado);
+        final usuarioSnapPorEmail = await usuarioRefPorEmail.get();
+        if (usuarioSnapPorEmail.exists) {
+          return usuarioRefPorEmail;
+        }
+      }
+    }
+
+    final usuariosPorId = await _db
+        .collection('usuarios')
+        .where('id', isEqualTo: uidNormalizado)
+        .limit(1)
+        .get();
+
+    if (usuariosPorId.docs.isNotEmpty) {
+      return usuariosPorId.docs.first.reference;
+    }
+
+    // Compatibilidade com documentos legados cuja chave era o UID.
+    final usuarioLegadoRef = _db.collection('usuarios').doc(uidNormalizado);
+    final usuarioLegadoSnap = await usuarioLegadoRef.get();
+    if (usuarioLegadoSnap.exists) {
+      return usuarioLegadoRef;
+    }
+
+    return null;
+  }
+
+  Future<DocumentSnapshot<Map<String, dynamic>>?> _buscarUsuarioSnapPorUid(
+    String uid,
+  ) async {
+    final usuarioRef = await _buscarUsuarioRefPorUid(uid);
+    if (usuarioRef == null) return null;
+
+    final snap = await usuarioRef.get();
+    if (!snap.exists || snap.data() == null) return null;
+    return snap;
+  }
+
+  String _hashValorSensivel(String valor) {
+    return crypto.sha256.convert(utf8.encode(valor)).toString();
+  }
+
+  String _normalizarVersaoSoftware(String versao) {
+    final partes = _partesVersao(versao);
+    while (partes.length < 4) {
+      partes.add(0);
+    }
+    return partes.join('.');
+  }
+
+  List<int> _partesVersao(String versao) {
+    final normalized = versao.trim().replaceFirst(RegExp(r'^[vV]'), '');
+    if (normalized.isEmpty) return <int>[0];
+
+    final parts = normalized
+        .split(RegExp(r'[^0-9]+'))
+        .where((part) => part.isNotEmpty)
+        .map((part) => int.tryParse(part) ?? 0)
+        .toList();
+
+    return parts.isEmpty ? <int>[0] : parts;
+  }
+
+  int compararVersoesSoftware(String versaoA, String versaoB) {
+    final a = _partesVersao(versaoA);
+    final b = _partesVersao(versaoB);
+    final maxLen = a.length > b.length ? a.length : b.length;
+
+    for (var i = 0; i < maxLen; i++) {
+      final ai = i < a.length ? a[i] : 0;
+      final bi = i < b.length ? b[i] : 0;
+      if (ai != bi) return ai.compareTo(bi);
+    }
+
+    return 0;
+  }
+
+  Future<String> getVersaoLocalAplicativo() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      return _normalizarVersaoSoftware(info.version);
+    } catch (_) {
+      const fallbackVersion = String.fromEnvironment(
+        'APP_VERSION',
+        defaultValue: '1.0.0.0',
+      );
+      return _normalizarVersaoSoftware(fallbackVersion);
+    }
+  }
+
+  Future<AppSoftwareConfigModel> getAppSoftwareConfig() async {
+    const padrao = AppSoftwareConfigModel.padrao;
+    final docRef = _db.collection('app_software').doc('config');
+
+    try {
+      final doc = await docRef.get();
+      if (doc.exists && doc.data() != null) {
+        return AppSoftwareConfigModel.fromMap(doc.data()!);
+      }
+
+      await docRef.set(padrao.toMap(), SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        rethrow;
+      }
+    }
+
+    return padrao;
+  }
+
+  String _whatsappAdminPadrao() {
+    try {
+      final telefoneEnv = (dotenv.env['WHATSAPP_ADMIN'] ?? '').trim();
+      if (telefoneEnv.isNotEmpty) {
+        return _normalizarTelefone(telefoneEnv);
+      }
+    } catch (_) {
+      // dotenv pode nao estar inicializado em alguns contextos de teste.
+    }
+
+    const telefoneDefine = String.fromEnvironment(
+      'WHATSAPP_ADMIN',
+      defaultValue: '',
+    );
+    return _normalizarTelefone(telefoneDefine);
+  }
 
   // --- Clientes ---
   Future<void> salvarCliente(Cliente cliente) async {
@@ -107,7 +460,10 @@ class FirestoreService {
 
   // --- Configurações do Sistema ---
   Future<void> salvarConfiguracao(ConfigModel config) async {
-    await _db.collection('configuracoes').doc('geral').set(config.toMap());
+    await _db
+        .collection('configuracoes')
+        .doc('geral')
+        .set(config.toMap(), SetOptions(merge: true));
   }
 
   Future<ConfigModel> getConfiguracao() async {
@@ -170,20 +526,70 @@ class FirestoreService {
     return senhaInformada.trim() == senhaConfigurada;
   }
 
-  // Busca o telefone do admin (WhatsApp) configurado, ou retorna um padrão se não existir
+  // Busca o telefone do admin (WhatsApp) configurado.
+  // Quando não existir no Firestore, usa WHATSAPP_ADMIN e tenta persistir no banco.
   Future<String> getTelefoneAdmin() async {
-    final doc = await _db.collection('configuracoes').doc('geral').get();
-    if (doc.exists && doc.data() != null) {
-      return doc.data()!['whatsapp_admin'] as String? ?? '5511999999999';
+    final telefonePadrao = _whatsappAdminPadrao();
+    final docRef = _db.collection('configuracoes').doc('geral');
+
+    try {
+      final doc = await docRef.get();
+      if (doc.exists && doc.data() != null) {
+        final telefoneBanco = _normalizarTelefone(
+          doc.data()!['whatsapp_admin'] as String? ?? '',
+        );
+        if (telefoneBanco.isNotEmpty) {
+          return telefoneBanco;
+        }
+      }
+
+      if (telefonePadrao.isNotEmpty) {
+        try {
+          await docRef.set({
+            'whatsapp_admin': telefonePadrao,
+          }, SetOptions(merge: true));
+        } on FirebaseException catch (e) {
+          if (e.code != 'permission-denied') {
+            rethrow;
+          }
+        }
+      }
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        rethrow;
+      }
     }
-    return '5511999999999';
+
+    return telefonePadrao;
   }
 
   // Salva o telefone do admin (Conectar este método a um TextField na tela de Admin)
   Future<void> salvarTelefoneAdmin(String telefone) async {
+    final telefoneNormalizado = _normalizarTelefone(telefone);
     await _db.collection('configuracoes').doc('geral').set({
-      'whatsapp_admin': telefone,
+      'whatsapp_admin': telefoneNormalizado,
     }, SetOptions(merge: true));
+  }
+
+  // Tenta garantir que WHATSAPP_ADMIN esteja persistido em configuracoes/geral.
+  // Se o usuario atual nao tiver permissao (nao-admin), o fluxo segue sem erro.
+  Future<void> sincronizarWhatsappAdminPadrao() async {
+    final telefonePadrao = _whatsappAdminPadrao();
+    if (telefonePadrao.isEmpty) return;
+
+    try {
+      await _db.collection('configuracoes').doc('geral').set({
+        'whatsapp_admin': telefonePadrao,
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        rethrow;
+      }
+    }
+  }
+
+  Future<String> getAdministradoraPadraoAtrelada() async {
+    return getAdministradoraPadraoAtreladaId();
   }
 
   // Busca a lista de tipos de massagem configurados no banco
@@ -229,24 +635,174 @@ class FirestoreService {
 
   // --- Usuarios (Login) ---
   Future<UsuarioModel?> getUsuario(String uid) async {
-    final doc = await _db.collection('usuarios').doc(uid).get();
-    if (doc.exists && doc.data() != null) {
+    final doc = await _buscarUsuarioSnapPorUid(uid);
+    if (doc != null && doc.data() != null) {
       return UsuarioModel.fromMap(doc.data()!);
     }
     return null;
   }
 
   Stream<UsuarioModel?> getUsuarioStream(String uid) {
-    return _db.collection('usuarios').doc(uid).snapshots().map((doc) {
-      if (doc.exists && doc.data() != null) {
-        return UsuarioModel.fromMap(doc.data()!);
+    final uidNormalizado = uid.trim();
+    if (uidNormalizado.isEmpty) {
+      return Stream<UsuarioModel?>.value(null);
+    }
+
+    final usuarioAtual = FirebaseAuth.instance.currentUser;
+    final bool uidEhDoUsuarioLogado =
+        usuarioAtual != null && usuarioAtual.uid == uidNormalizado;
+
+    if (uidEhDoUsuarioLogado) {
+      final emailAutenticado = _normalizarEmail(usuarioAtual.email ?? '');
+      if (emailAutenticado.isNotEmpty) {
+        return _db
+            .collection('usuarios')
+            .doc(emailAutenticado)
+            .snapshots()
+            .asyncMap((doc) async {
+              if (doc.exists && doc.data() != null) {
+                return UsuarioModel.fromMap(doc.data()!);
+              }
+
+              final docLegado = await _db
+                  .collection('usuarios')
+                  .doc(uidNormalizado)
+                  .get();
+              if (docLegado.exists && docLegado.data() != null) {
+                return UsuarioModel.fromMap(docLegado.data()!);
+              }
+
+              return null;
+            });
       }
-      return null;
-    });
+
+      return _db.collection('usuarios').doc(uidNormalizado).snapshots().map((
+        doc,
+      ) {
+        if (doc.exists && doc.data() != null) {
+          return UsuarioModel.fromMap(doc.data()!);
+        }
+        return null;
+      });
+    }
+
+    return _db
+        .collection('usuarios')
+        .where('id', isEqualTo: uidNormalizado)
+        .limit(1)
+        .snapshots()
+        .asyncMap((snapshot) async {
+          if (snapshot.docs.isNotEmpty) {
+            return UsuarioModel.fromMap(snapshot.docs.first.data());
+          }
+
+          final docLegado = await _db
+              .collection('usuarios')
+              .doc(uidNormalizado)
+              .get();
+          if (docLegado.exists && docLegado.data() != null) {
+            return UsuarioModel.fromMap(docLegado.data()!);
+          }
+
+          return null;
+        });
   }
 
   Future<void> salvarUsuario(UsuarioModel usuario) async {
-    await _db.collection('usuarios').doc(usuario.id).set(usuario.toMap());
+    final emailDocId = _normalizarEmail(
+      usuario.emailNormalizado ?? usuario.email,
+    );
+    final docId = emailDocId.isNotEmpty ? emailDocId : usuario.id;
+
+    await _db
+        .collection('usuarios')
+        .doc(docId)
+        .set(usuario.toMap(), SetOptions(merge: true));
+    await _sincronizarIndiceHumanoUsuario(
+      uid: usuario.id,
+      email: usuario.email,
+      nomeCliente: usuario.nomeCliente ?? usuario.nome,
+      tipo: usuario.tipo,
+      aprovado: usuario.aprovado,
+    );
+  }
+
+  Future<void> marcarChangelogComoVisto(String uid, String versao) async {
+    final usuarioRef = await _buscarUsuarioRefPorUid(uid);
+    if (usuarioRef == null) return;
+
+    await usuarioRef.set({
+      'last_changelog_seen': _normalizarVersaoSoftware(versao),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> atualizarPreferenciaAutoChangelog(
+    String uid,
+    bool exibirAutomaticamente,
+  ) async {
+    final usuarioRef = await _buscarUsuarioRefPorUid(uid);
+    if (usuarioRef == null) return;
+
+    await usuarioRef.set({
+      'show_changelog_auto': exibirAutomaticamente,
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> registrarAuditoriaCredencialInconforme({
+    required String origem,
+    required String emailDigitado,
+    required String senhaInformada,
+    required bool inconformidade,
+    required bool lgpdConsentido,
+    required List<String> motivos,
+    String? nomeClienteDigitado,
+    String? usuarioId,
+    bool? emailValido,
+    bool? senhaForte,
+  }) async {
+    final emailNormalizado = _normalizarEmail(emailDigitado);
+
+    try {
+      await _db.collection('auditoria_credenciais').add({
+        'origem': origem,
+        'email_digitado': emailDigitado,
+        'email_normalizado': emailNormalizado,
+        'nome_cliente_digitado': (nomeClienteDigitado ?? '').trim(),
+        'senha_hash': _hashValorSensivel(senhaInformada),
+        'senha_tamanho': senhaInformada.length,
+        'motivos': motivos,
+        'inconformidade': inconformidade,
+        'lgpd_consentido': lgpdConsentido,
+        'email_valido': emailValido ?? emailNormalizado.isNotEmpty,
+        'senha_forte': senhaForte ?? false,
+        'usuario_id': usuarioId,
+        'criado_em': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Falha ao registrar auditoria de credenciais: $e');
+    }
+  }
+
+  Future<void> _sincronizarIndiceHumanoUsuario({
+    required String uid,
+    required String email,
+    required String nomeCliente,
+    required String tipo,
+    required bool aprovado,
+  }) async {
+    final emailNormalizado = _normalizarEmail(email);
+    if (emailNormalizado.isEmpty) return;
+
+    await _db.collection('usuarios_por_email').doc(emailNormalizado).set({
+      'uid': uid,
+      'email': email,
+      'email_normalizado': emailNormalizado,
+      'nome_cliente': nomeCliente,
+      'nome_cliente_normalizado': _normalizarNomeBusca(nomeCliente),
+      'tipo': tipo,
+      'aprovado': aprovado,
+      'atualizado_em': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Future<bool> alternarTesteBooleanoLoginView({
@@ -255,16 +811,189 @@ class FirestoreService {
     String? uid,
   }) async {
     final proximoValor = !valorAtual;
+    final usuarioAtual = FirebaseAuth.instance.currentUser;
+    final uidEfetivo = (uid ?? usuarioAtual?.uid ?? '').trim();
+    final emailAutenticado = (usuarioAtual?.email ?? '').trim();
+    final nomePadrao = (usuarioAtual?.displayName ?? '').trim().isNotEmpty
+        ? (usuarioAtual?.displayName ?? '').trim()
+        : 'Cliente';
 
     await _db.collection('teste').add({
       'ativo': proximoValor,
       'email_digitado': emailDigitado.isEmpty ? 'sem_email' : emailDigitado,
-      'uid': uid ?? 'nao_autenticado',
+      'uid': uidEfetivo.isEmpty ? 'nao_autenticado' : uidEfetivo,
       'origem': 'login_view',
       'criado_em': FieldValue.serverTimestamp(),
     });
 
+    if (uidEfetivo.isEmpty) {
+      throw StateError(AppStrings.testeBooleanoRequerLogin);
+    }
+
+    final emailBase = emailAutenticado.isNotEmpty
+        ? emailAutenticado
+        : emailDigitado.trim();
+
+    await _garantirCamposEssenciaisDoUsuario(
+      uid: uidEfetivo,
+      email: emailBase,
+      nomePadrao: nomePadrao,
+    );
+
     return proximoValor;
+  }
+
+  Future<void> _garantirCamposEssenciaisDoUsuario({
+    required String uid,
+    required String email,
+    required String nomePadrao,
+  }) async {
+    final emailNormalizado = _normalizarEmail(email);
+    final tenantPadraoId = await getAdministradoraPadraoAtreladaId();
+    final devMaster = emailEhDevMaster(emailNormalizado);
+    final tipoPadrao = devMaster ? 'admin' : 'cliente';
+    final aprovadoPadrao = devMaster;
+
+    final usuarioRef = emailNormalizado.isNotEmpty
+        ? _usuarioRefPorEmail(emailNormalizado)
+        : _db.collection('usuarios').doc(uid);
+    final clienteRef = _db.collection('clientes').doc(uid);
+
+    final usuarioSnap = await usuarioRef.get();
+    final clienteSnap = await clienteRef.get();
+
+    if (!usuarioSnap.exists || usuarioSnap.data() == null) {
+      await usuarioRef.set({
+        'id': uid,
+        'nome': nomePadrao,
+        'nome_cliente': nomePadrao,
+        'email': email,
+        'email_normalizado': _normalizarEmail(email),
+        'nome_cliente_normalizado': _normalizarNomeBusca(nomePadrao),
+        'tipo': tipoPadrao,
+        'aprovado': aprovadoPadrao,
+        'data_cadastro': FieldValue.serverTimestamp(),
+        'fcm_token': null,
+        'visualiza_todos': false,
+        'theme': 'AppThemeType.sistema',
+        'whatsapp': '',
+        'numero_e_whatsapp': true,
+        'locale': 'pt',
+        'admin_atrelada_id': tenantPadraoId,
+        'dev_master': devMaster,
+        'lgpd_consentido': false,
+        'last_changelog_seen': null,
+        'show_changelog_auto': true,
+      }, SetOptions(merge: true));
+    } else {
+      final usuarioData = usuarioSnap.data()!;
+      final updatesUsuario = <String, dynamic>{};
+
+      final nomeAtual = (usuarioData['nome'] as String? ?? '').trim();
+      final emailAtual = (usuarioData['email'] as String? ?? '').trim();
+      final nomeClienteAtual = (usuarioData['nome_cliente'] as String? ?? '')
+          .trim();
+
+      if (nomeAtual.isEmpty) updatesUsuario['nome'] = nomePadrao;
+      if (nomeClienteAtual.isEmpty) {
+        updatesUsuario['nome_cliente'] = nomePadrao;
+      }
+      if (emailAtual.isEmpty && email.isNotEmpty) {
+        updatesUsuario['email'] = email;
+      }
+      if (!usuarioData.containsKey('email_normalizado') && email.isNotEmpty) {
+        updatesUsuario['email_normalizado'] = _normalizarEmail(email);
+      }
+      if (!usuarioData.containsKey('nome_cliente_normalizado')) {
+        updatesUsuario['nome_cliente_normalizado'] = _normalizarNomeBusca(
+          nomePadrao,
+        );
+      }
+      if (!usuarioData.containsKey('aprovado')) {
+        updatesUsuario['aprovado'] = aprovadoPadrao;
+      }
+      if (!usuarioData.containsKey('tipo')) updatesUsuario['tipo'] = tipoPadrao;
+      if (!usuarioData.containsKey('theme')) {
+        updatesUsuario['theme'] = 'AppThemeType.sistema';
+      }
+      if (!usuarioData.containsKey('whatsapp')) updatesUsuario['whatsapp'] = '';
+      if (!usuarioData.containsKey('numero_e_whatsapp')) {
+        updatesUsuario['numero_e_whatsapp'] = true;
+      }
+      if (!usuarioData.containsKey('locale')) updatesUsuario['locale'] = 'pt';
+      if (!usuarioData.containsKey('lgpd_consentido')) {
+        updatesUsuario['lgpd_consentido'] = false;
+      }
+      if (!usuarioData.containsKey('show_changelog_auto')) {
+        updatesUsuario['show_changelog_auto'] = true;
+      }
+      if (!usuarioData.containsKey('admin_atrelada_id')) {
+        updatesUsuario['admin_atrelada_id'] = tenantPadraoId;
+      }
+      if (!usuarioData.containsKey('dev_master')) {
+        updatesUsuario['dev_master'] = devMaster;
+      }
+
+      if (updatesUsuario.isNotEmpty) {
+        await usuarioRef.set(updatesUsuario, SetOptions(merge: true));
+      }
+    }
+
+    await _sincronizarIndiceHumanoUsuario(
+      uid: uid,
+      email: email,
+      nomeCliente: nomePadrao,
+      tipo: usuarioSnap.data()?['tipo'] as String? ?? tipoPadrao,
+      aprovado: usuarioSnap.data()?['aprovado'] as bool? ?? aprovadoPadrao,
+    );
+
+    if (!clienteSnap.exists || clienteSnap.data() == null) {
+      await clienteRef.set({
+        'uid': uid,
+        'cliente_nome': nomePadrao,
+        'whatsapp': '',
+        'saldo_sessoes': 0,
+        'favoritos': <String>[],
+        'endereco': '',
+        'historico_medico': '',
+        'alergias': '',
+        'medicamentos': '',
+        'cirurgias': '',
+        'anamnese_ok': false,
+      }, SetOptions(merge: true));
+      return;
+    }
+
+    final clienteData = clienteSnap.data()!;
+    final updatesCliente = <String, dynamic>{};
+
+    final nomeClienteAtual =
+        (clienteData['cliente_nome'] as String? ??
+                clienteData['nome'] as String? ??
+                '')
+            .trim();
+
+    if (nomeClienteAtual.isEmpty) updatesCliente['cliente_nome'] = nomePadrao;
+    if (!clienteData.containsKey('whatsapp')) updatesCliente['whatsapp'] = '';
+    if (!clienteData.containsKey('favoritos')) {
+      updatesCliente['favoritos'] = <String>[];
+    }
+    if (!clienteData.containsKey('endereco')) updatesCliente['endereco'] = '';
+    if (!clienteData.containsKey('historico_medico')) {
+      updatesCliente['historico_medico'] = '';
+    }
+    if (!clienteData.containsKey('alergias')) updatesCliente['alergias'] = '';
+    if (!clienteData.containsKey('medicamentos')) {
+      updatesCliente['medicamentos'] = '';
+    }
+    if (!clienteData.containsKey('cirurgias')) updatesCliente['cirurgias'] = '';
+    if (!clienteData.containsKey('anamnese_ok')) {
+      updatesCliente['anamnese_ok'] = false;
+    }
+
+    if (updatesCliente.isNotEmpty) {
+      await clienteRef.set(updatesCliente, SetOptions(merge: true));
+    }
   }
 
   Stream<List<UsuarioModel>> getUsuariosPendentes() {
@@ -281,21 +1010,75 @@ class FirestoreService {
   }
 
   Future<void> aprovarUsuario(String uid) async {
-    await _db.collection('usuarios').doc(uid).update({'aprovado': true});
+    final usuarioRef = await _buscarUsuarioRefPorUid(uid);
+    if (usuarioRef == null) {
+      throw StateError('Usuario nao encontrado para aprovacao: $uid');
+    }
+
+    final usuarioSnap = await usuarioRef.get();
+    final usuarioData = usuarioSnap.data() ?? <String, dynamic>{};
+    final nomeCliente =
+        (usuarioData['nome_cliente'] as String? ??
+                usuarioData['nome'] as String? ??
+                'Cliente')
+            .trim();
+    final email = (usuarioData['email'] as String? ?? '').trim();
+    final whatsapp = (usuarioData['whatsapp'] as String? ?? '').trim();
+    final adminAtreladaId =
+        (usuarioData['admin_atrelada_id'] as String? ??
+                await getAdministradoraPadraoAtreladaId())
+            .trim();
+
+    await usuarioRef.set({
+      'aprovado': true,
+      'nome_cliente': nomeCliente,
+      'email_normalizado': _normalizarEmail(email),
+      'nome_cliente_normalizado': _normalizarNomeBusca(nomeCliente),
+      'admin_atrelada_id': adminAtreladaId,
+    }, SetOptions(merge: true));
+
+    await _db.collection('clientes').doc(uid).set({
+      'uid': uid,
+      'cliente_nome': nomeCliente,
+      'whatsapp': whatsapp,
+      'saldo_sessoes': 0,
+      'favoritos': <String>[],
+      'endereco': '',
+      'historico_medico': '',
+      'alergias': '',
+      'medicamentos': '',
+      'cirurgias': '',
+      'anamnese_ok': false,
+    }, SetOptions(merge: true));
+
+    await _sincronizarIndiceHumanoUsuario(
+      uid: uid,
+      email: email,
+      nomeCliente: nomeCliente,
+      tipo: 'cliente',
+      aprovado: true,
+    );
   }
 
   Future<void> atualizarToken(String uid, String token) async {
-    await _db.collection('usuarios').doc(uid).update({'fcm_token': token});
+    final usuarioRef = await _buscarUsuarioRefPorUid(uid);
+    if (usuarioRef == null) return;
+
+    await usuarioRef.update({'fcm_token': token});
   }
 
   Future<void> atualizarPermissaoVisualizacao(String uid, bool permitir) async {
-    await _db.collection('usuarios').doc(uid).update({
-      'visualiza_todos': permitir,
-    });
+    final usuarioRef = await _buscarUsuarioRefPorUid(uid);
+    if (usuarioRef == null) return;
+
+    await usuarioRef.update({'visualiza_todos': permitir});
   }
 
   Future<void> atualizarTemaUsuario(String uid, String theme) async {
-    await _db.collection('usuarios').doc(uid).update({'theme': theme});
+    final usuarioRef = await _buscarUsuarioRefPorUid(uid);
+    if (usuarioRef == null) return;
+
+    await usuarioRef.update({'theme': theme});
   }
 
   // --- Agendamentos ---
@@ -307,20 +1090,49 @@ class FirestoreService {
         .doc(agendamento.idCliente)
         .get();
     final clienteData = clienteDoc.data();
+    final administradoraPadrao = await getAdministradoraPadraoAtreladaId();
 
     final dadosParaSalvar = agendamento.toMap();
 
     if (clienteData != null) {
       dadosParaSalvar['cliente_nome_snapshot'] =
-          clienteData['nome'] ?? 'Cliente Sem Nome';
+          clienteData['cliente_nome'] ??
+          clienteData['nome'] ??
+          'Cliente Sem Nome';
       dadosParaSalvar['cliente_telefone_snapshot'] =
           clienteData['whatsapp'] ?? '';
     } else {
       dadosParaSalvar['cliente_nome_snapshot'] = 'Cliente Desconhecido';
     }
 
+    dadosParaSalvar['administradora_atrelada'] =
+        agendamento.administradoraAtrelada ?? administradoraPadrao;
+
     // O toMap() já inclui 'data_criacao' automaticamente
     await _db.collection('agendamentos').add(dadosParaSalvar);
+  }
+
+  Future<Agendamento?> buscarAgendamentoAtivoNoHorario(
+    DateTime dataHora,
+  ) async {
+    final snapshot = await _db
+        .collection('agendamentos')
+        .where('data_hora', isEqualTo: Timestamp.fromDate(dataHora))
+        .get();
+
+    for (final doc in snapshot.docs) {
+      final agendamento = Agendamento.fromMap(doc.data(), id: doc.id);
+      final status = agendamento.status;
+      final ocupado =
+          status != 'cancelado' &&
+          status != 'cancelado_tardio' &&
+          status != 'recusado';
+      if (ocupado) {
+        return agendamento;
+      }
+    }
+
+    return null;
   }
 
   // Retorna um Stream para atualização em tempo real
@@ -356,6 +1168,8 @@ class FirestoreService {
   }) async {
     // Se estiver aprovando, tenta descontar do pacote
     if (novoStatus == 'aprovado' && clienteId != null) {
+      final usuarioClienteRef = await _buscarUsuarioRefPorUid(clienteId);
+
       await _db.runTransaction((transaction) async {
         final clienteRef = _db.collection('clientes').doc(clienteId);
         final clienteDoc = await transaction.get(clienteRef);
@@ -376,20 +1190,20 @@ class FirestoreService {
         // para evitar expor a FCM Server Key no aplicativo e garantir segurança.
         // A função 'notificarAprovacaoAgendamento' no Firebase observará a mudança de status.
         // Envio de Notificação Push Real
-        final usuarioDoc = await transaction.get(
-          _db.collection('usuarios').doc(clienteId),
-        );
-        final token = usuarioDoc.data()?['fcm_token'];
-        if (token != null) {
-          // Chama o método de envio (fora da transação pois é async/http)
-          // Usamos Future.microtask para não bloquear a transação
-          Future.microtask(
-            () => enviarNotificacaoPush(
-              token,
-              AppStrings.notifAgendamentoAprovadoTitulo,
-              AppStrings.notifAgendamentoAprovadoCorpo,
-            ),
-          );
+        if (usuarioClienteRef != null) {
+          final usuarioDoc = await transaction.get(usuarioClienteRef);
+          final token = usuarioDoc.data()?['fcm_token'];
+          if (token != null) {
+            // Chama o método de envio (fora da transação pois é async/http)
+            // Usamos Future.microtask para não bloquear a transação
+            Future.microtask(
+              () => enviarNotificacaoPush(
+                token,
+                AppStrings.notifAgendamentoAprovadoTitulo,
+                AppStrings.notifAgendamentoAprovadoCorpo,
+              ),
+            );
+          }
         }
 
         // Registrar Log na transação (ou logo após)
@@ -430,10 +1244,52 @@ class FirestoreService {
     String uid,
     bool entrar,
   ) async {
-    await _db.collection('agendamentos').doc(agendamentoId).update({
-      'lista_espera': entrar
-          ? FieldValue.arrayUnion([uid])
-          : FieldValue.arrayRemove([uid]),
+    final usuario = await getUsuario(uid);
+    final nomeCliente = (usuario?.nomeCliente ?? usuario?.nome ?? 'Cliente')
+        .trim();
+    final agendamentoRef = _db.collection('agendamentos').doc(agendamentoId);
+
+    await _db.runTransaction((transaction) async {
+      final agendamentoSnap = await transaction.get(agendamentoRef);
+      if (!agendamentoSnap.exists || agendamentoSnap.data() == null) {
+        return;
+      }
+
+      final data = agendamentoSnap.data()!;
+      final filaAtual = List<String>.from(
+        data['lista_espera'] ?? const <String>[],
+      );
+      final detalhesRaw = List<dynamic>.from(
+        data['lista_espera_detalhes'] ?? const <dynamic>[],
+      );
+      final detalhes = detalhesRaw
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+
+      if (entrar) {
+        if (!filaAtual.contains(uid)) {
+          filaAtual.add(uid);
+          detalhes.add({
+            'uid': uid,
+            'nome_cliente': nomeCliente,
+            'prioridade': filaAtual.length,
+            'entrada_em': Timestamp.now(),
+          });
+        }
+      } else {
+        filaAtual.removeWhere((item) => item == uid);
+        detalhes.removeWhere((item) => item['uid'] == uid);
+      }
+
+      for (var i = 0; i < detalhes.length; i++) {
+        detalhes[i]['prioridade'] = i + 1;
+      }
+
+      transaction.update(agendamentoRef, {
+        'lista_espera': filaAtual,
+        'lista_espera_detalhes': detalhes,
+      });
     });
   }
 
@@ -553,24 +1409,53 @@ class FirestoreService {
     String titulo,
     String corpo,
   ) async {
-    final serverKey = dotenv.env['FCM_SERVER_KEY'];
-    if (serverKey == null) return;
+    final callableName = _pushNotificationFunctionName();
+    final proxyUrl = _pushNotificationProxyUrl();
+
+    if (callableName.isEmpty && proxyUrl.isEmpty) {
+      debugPrint(
+        'Push nao enviado: configure PUSH_NOTIFICATION_FUNCTION_NAME ou '
+        'PUSH_NOTIFICATION_PROXY_URL no backend.',
+      );
+      return;
+    }
+
+    final payload = <String, dynamic>{
+      'token': token,
+      'titulo': titulo,
+      'corpo': corpo,
+      'notification': {'title': titulo, 'body': corpo},
+    };
 
     try {
-      await http.post(
-        Uri.parse('https://fcm.googleapis.com/fcm/send'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'key=$serverKey',
-        },
-        body: jsonEncode({
-          'notification': {'title': titulo, 'body': corpo},
-          'priority': 'high',
-          'to': token,
-        }),
-      );
+      if (callableName.isNotEmpty) {
+        final callable = _functions.httpsCallable(callableName);
+        await callable.call(payload);
+        return;
+      }
     } catch (e) {
-      debugPrint('Erro ao enviar push: $e');
+      debugPrint('Erro ao enviar push via Cloud Functions: $e');
+    }
+
+    if (proxyUrl.isEmpty) {
+      return;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse(proxyUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        debugPrint(
+          'Erro ao enviar push via proxy (${response.statusCode}): '
+          '${response.body}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Erro ao enviar push via proxy: $e');
     }
   }
 
@@ -622,7 +1507,7 @@ class FirestoreService {
     // 1. Anonimizar dados do Cliente (Remove PII, mantém ID e Saldo para auditoria)
     final clienteRef = _db.collection('clientes').doc(uid);
     batch.update(clienteRef, {
-      'nome': 'Usuário Anonimizado (LGPD)',
+      'cliente_nome': 'Usuário Anonimizado (LGPD)',
       'whatsapp': '',
       'endereco': '',
       'historico_medico': 'Dados excluídos por solicitação do titular',
@@ -634,14 +1519,16 @@ class FirestoreService {
     });
 
     // 2. Anonimizar dados de Usuário (Login)
-    final usuarioRef = _db.collection('usuarios').doc(uid);
-    batch.update(usuarioRef, {
-      'nome': 'Anonimizado',
-      'email':
-          'excluido_$uid@anonimizado.com', // Email fictício para não quebrar unicidade se necessário
-      'aprovado': false,
-      'fcm_token': FieldValue.delete(), // Remove token de notificação
-    });
+    final usuarioRef = await _buscarUsuarioRefPorUid(uid);
+    if (usuarioRef != null) {
+      batch.update(usuarioRef, {
+        'nome': 'Anonimizado',
+        'email':
+            'excluido_$uid@anonimizado.com', // Email fictício para não quebrar unicidade se necessário
+        'aprovado': false,
+        'fcm_token': FieldValue.delete(), // Remove token de notificação
+      });
+    }
 
     // 3. Registrar na coleção específica de LGPD
     final lgpdRef = _db.collection('lgpd_logs').doc();
@@ -887,7 +1774,7 @@ class FirestoreService {
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
-              .map((doc) => ChangeLogModel.fromMap(doc.data()))
+              .map((doc) => ChangeLogModel.fromMap(doc.data(), docId: doc.id))
               .toList(),
         );
   }
@@ -900,9 +1787,67 @@ class FirestoreService {
         .get();
 
     if (snapshot.docs.isNotEmpty) {
-      return ChangeLogModel.fromMap(snapshot.docs.first.data());
+      return ChangeLogModel.fromMap(
+        snapshot.docs.first.data(),
+        docId: snapshot.docs.first.id,
+      );
     }
     return null;
+  }
+
+  Future<ChangeLogModel?> getAppChangelogByVersion(String version) async {
+    final normalizedVersion = _normalizarVersaoSoftware(version);
+
+    try {
+      final appDoc = await _db
+          .collection('app_changelog')
+          .doc(normalizedVersion)
+          .get();
+      if (appDoc.exists && appDoc.data() != null) {
+        return ChangeLogModel.fromMap(appDoc.data()!, docId: appDoc.id);
+      }
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        rethrow;
+      }
+    }
+
+    final legacyDoc = await _db
+        .collection('changelogs')
+        .doc('v$normalizedVersion')
+        .get();
+    if (legacyDoc.exists && legacyDoc.data() != null) {
+      return ChangeLogModel.fromMap(
+        legacyDoc.data()!,
+        docId: normalizedVersion,
+      );
+    }
+
+    return null;
+  }
+
+  Future<ChangeLogModel?> getLatestAppChangelog() async {
+    try {
+      final snapshot = await _db
+          .collection('app_changelog')
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        return ChangeLogModel.fromMap(
+          snapshot.docs.first.data(),
+          docId: snapshot.docs.first.id,
+        );
+      }
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        rethrow;
+      }
+    }
+
+    final config = await getAppSoftwareConfig();
+    return await getAppChangelogByVersion(config.currentVersion);
   }
 
   Future<void> inicializarChangeLog() async {
@@ -989,5 +1934,29 @@ class FirestoreService {
       );
       await _db.collection('changelogs').doc('v1.0.0').set(initialLog.toMap());
     }
+
+    await _db
+        .collection('app_software')
+        .doc('config')
+        .set(AppSoftwareConfigModel.padrao.toMap(), SetOptions(merge: true));
+
+    await _db
+        .collection('app_changelog')
+        .doc(AppSoftwareConfigModel.padrao.currentVersion)
+        .set(
+          ChangeLogModel(
+            versao: AppSoftwareConfigModel.padrao.currentVersion,
+            data: DateTime.now(),
+            titulo: 'Lançamento inicial',
+            isCritical: true,
+            autor: 'Sistema',
+            mudancas: const [
+              'Base inicial de governança de versões no aplicativo.',
+              'Controle de bloqueio por versão mínima suportada.',
+              'Exibição de changelog pós-login para clientes e administradora.',
+            ],
+          ).toMap(),
+          SetOptions(merge: true),
+        );
   }
 }

@@ -45,7 +45,7 @@ class Cliente {
   Map<String, dynamic> toMap() {
     return {
       'uid': idCliente,
-      'nome': nomeCliente,
+      'cliente_nome': nomeCliente,
       'whatsapp': whatsappCliente,
       'data_nascimento':
           dataNascimentoCliente != null ? Timestamp.fromDate(dataNascimentoCliente!) : null,
@@ -63,7 +63,7 @@ class Cliente {
   factory Cliente.fromMap(Map<String, dynamic> map) {
     return Cliente(
       idCliente: map['uid'] ?? '',
-      nomeCliente: map['nome'],
+      nomeCliente: map['cliente_nome'] ?? map['nome'],
       whatsappCliente: map['whatsapp'],
       dataNascimentoCliente: map['data_nascimento'] != null
           ? (map['data_nascimento'] as Timestamp).toDate()
