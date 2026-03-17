@@ -51,11 +51,17 @@ class Validadores {
       return obrigatorio ? 'E-mail obrigatório' : null;
     }
     
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(value)) {
+    if (!isEmailValido(value)) {
       return 'E-mail inválido';
     }
     return null;
+  }
+
+  /// Retorna `true` se [value] for um endereço de e-mail válido.
+  static bool isEmailValido(String value) {
+    final normalized = value.trim();
+    if (normalized.isEmpty) return false;
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(normalized);
   }
 
   /// Valida se a idade baseada na data de nascimento é maior ou igual a [idadeMinima].

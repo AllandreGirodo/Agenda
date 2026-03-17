@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:agenda/core/utils/app_styles.dart';
 import 'package:agenda/core/utils/app_strings.dart';
+import 'package:agenda/core/utils/validadores.dart';
 import 'package:agenda/features/agendamento/view/agendamento_view.dart';
 import 'package:agenda/features/auth/controller/login_controller.dart';
 import 'package:agenda/features/auth/view/signup_view.dart';
@@ -91,7 +92,7 @@ class _LoginViewState extends State<LoginView> {
   Future<void> _login() async {
     final email = _emailController.text.trim();
     final senha = _senhaController.text.trim();
-    final emailValido = _isValidEmail(email);
+    final emailValido = Validadores.isEmailValido(email);
     final senhaValida = senha.length >= 6;
     final motivos = <String>[];
 
@@ -145,12 +146,6 @@ class _LoginViewState extends State<LoginView> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  bool _isValidEmail(String value) {
-    final normalized = value.trim();
-    if (normalized.isEmpty) return false;
-    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(normalized);
   }
 
   Future<void> _cadastro() async {

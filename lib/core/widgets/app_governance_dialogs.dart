@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:agenda/core/models/changelog_model.dart';
+import 'package:agenda/core/models/usuario_model.dart';
+import 'package:agenda/core/services/app_governance_service.dart';
 import 'package:agenda/core/utils/app_strings.dart';
 
 class AppGovernanceDialogs {
@@ -165,5 +168,56 @@ class AppGovernanceDialogs {
     );
 
     return result ?? initialShowAuto;
+  }
+
+  /// Processa o resultado de [AppGovernanceService.verificarPosLogin], exibindo
+  /// os diálogos apropriados e navegando para a tela de login quando necessário.
+  ///
+  /// [loginViewBuilder] deve retornar o widget da tela de login para ser usado
+  /// na navegação em caso de atualização forçada.
+  static Future<void> processarResultadoGovernanca(
+    BuildContext context, {
+    required AppGovernanceCheckResult resultado,
+    required UsuarioModel usuario,
+    required AppGovernanceService governanceService,
+    required String uid,
+    required WidgetBuilder loginViewBuilder,
+  }) async {
+    if (resultado.forceUpdate) {
+      await showForceUpdateDialog(
+        context,
+        localVersion: resultado.localVersion,
+        minRequiredVersion: resultado.minRequiredVersion,
+        currentVersion: resultado.currentVersion,
+      );
+
+      if (!context.mounted) return;
+
+      await FirebaseAuth.instance.signOut();
+
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: loginViewBuilder),
+          (route) => false,
+        );
+      }
+      return;
+    }
+
+    if (!resultado.shouldShowChangelog || resultado.changelog == null) return;
+
+    final manterExibicaoAutomatica = await showChangelogDialog(
+      context,
+      changelog: resultado.changelog!,
+      initialShowAuto: usuario.showChangelogAuto,
+    );
+
+    if (!context.mounted) return;
+
+    await governanceService.registrarVisualizacaoChangelog(
+      uid: uid,
+      versao: resultado.currentVersion,
+      manterExibicaoAutomatica: manterExibicaoAutomatica,
+    );
   }
 }

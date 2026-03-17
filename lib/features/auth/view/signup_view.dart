@@ -6,6 +6,7 @@ import 'package:agenda/features/auth/controller/login_controller.dart';
 import 'package:agenda/app_localizations.dart';
 import 'package:agenda/core/widgets/language_selector.dart';
 import 'package:agenda/core/utils/app_strings.dart';
+import 'package:agenda/core/utils/validadores.dart';
 import 'package:agenda/main.dart';
 import 'package:agenda/view/termos_uso_view.dart';
 
@@ -76,7 +77,7 @@ class _SignUpViewState extends State<SignUpView> {
     final phoneDigits = _countPhoneDigits(_whatsappController.text);
     final senha = _senhaController.text;
     final nomeValido = nome.isNotEmpty;
-    final emailValido = email.isNotEmpty && _isValidEmail(email);
+    final emailValido = email.isNotEmpty && Validadores.isEmailValido(email);
     final numeroLabel = _isWhatsappNumber
         ? localizations.whatsappLabel
         : localizations.phoneNumberLabel;
@@ -85,7 +86,7 @@ class _SignUpViewState extends State<SignUpView> {
     final mascaraComZerosRestantes = _maskedBackgroundWithTypedPositions(
       _whatsappController.text,
     );
-    final emailInvalidoDigitando = email.isNotEmpty && !_isValidEmail(email);
+    final emailInvalidoDigitando = email.isNotEmpty && !Validadores.isEmailValido(email);
     final limiteCelularAtingido = phoneDigits >= _maxPhoneDigits;
     final senhaTemTamanhoValido = senha.length >= 6 && senha.length <= 20;
     final senhaTemMaiuscula = RegExp(r'[A-Z]').hasMatch(senha);
@@ -509,7 +510,7 @@ class _SignUpViewState extends State<SignUpView> {
                 onPressed: podeCadastrar
                     ? () async {
                         final nome = _nomeController.text.trim();
-                        final emailValido = _isValidEmail(email);
+                        final emailValido = Validadores.isEmailValido(email);
                         final motivos = <String>[];
 
                         if (nome.isEmpty) {
@@ -620,12 +621,6 @@ class _SignUpViewState extends State<SignUpView> {
 
   int _countPhoneDigits(String value) {
     return value.replaceAll(RegExp(r'[^0-9]'), '').length;
-  }
-
-  bool _isValidEmail(String value) {
-    final normalized = value.trim();
-    if (normalized.isEmpty) return false;
-    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(normalized);
   }
 
   Future<bool> _abrirTermosEPrivacidade() async {
