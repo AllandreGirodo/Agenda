@@ -92,42 +92,13 @@ class _AgendamentoViewState extends State<AgendamentoView> {
     final resultado = await _appGovernanceService.verificarPosLogin(usuario);
     if (!mounted) return;
 
-    if (resultado.forceUpdate) {
-      await AppGovernanceDialogs.showForceUpdateDialog(
-        context,
-        localVersion: resultado.localVersion,
-        minRequiredVersion: resultado.minRequiredVersion,
-        currentVersion: resultado.currentVersion,
-      );
-
-      if (!mounted) return;
-
-      await FirebaseAuth.instance.signOut();
-
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginView()),
-          (route) => false,
-        );
-      }
-      return;
-    }
-
-    if (!resultado.shouldShowChangelog || resultado.changelog == null) return;
-
-    final manterExibicaoAutomatica =
-        await AppGovernanceDialogs.showChangelogDialog(
-          context,
-          changelog: resultado.changelog!,
-          initialShowAuto: usuario.showChangelogAuto,
-        );
-
-    if (!mounted) return;
-
-    await _appGovernanceService.registrarVisualizacaoChangelog(
+    await AppGovernanceDialogs.processarResultadoGovernanca(
+      context,
+      resultado: resultado,
+      usuario: usuario,
+      governanceService: _appGovernanceService,
       uid: uid,
-      versao: resultado.currentVersion,
-      manterExibicaoAutomatica: manterExibicaoAutomatica,
+      loginViewBuilder: (_) => const LoginView(),
     );
   }
 
@@ -882,16 +853,28 @@ class _AgendamentoViewState extends State<AgendamentoView> {
     bool entrar,
   ) async {
     final messenger = ScaffoldMessenger.of(context);
-    await _firestoreService.toggleListaEspera(agendamento.id!, uid, entrar);
-    if (mounted) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            entrar
-                ? AppStrings.listaEsperaEntradaSucesso
-                : AppStrings.listaEsperaSaidaSucesso,
+    try {
+      await _firestoreService.toggleListaEspera(agendamento.id!, uid, entrar);
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              entrar
+                  ? AppStrings.listaEsperaEntradaSucesso
+                  : AppStrings.listaEsperaSaidaSucesso,
+            ),
           ),
-        ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      final mensagem = e is StateError
+          ? e.message.toString()
+          : AppStrings.erroGenerico('$e');
+
+      messenger.showSnackBar(
+        SnackBar(content: Text(mensagem)),
       );
     }
   }

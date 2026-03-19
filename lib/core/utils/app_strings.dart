@@ -115,9 +115,107 @@ Service and package prices are subject to change. Payment must be made as agreed
       : 'Allow messaging in appointment';
   static String get configReciboLeitura =>
       _isPt ? 'Recibo de Leitura' : 'Read Receipts';
+  static String get configMensagensAleatoriasTitulo => _isPt
+      ? 'Mensagens Aleatorias para Clientes'
+      : 'Random Messages for Clients';
+  static String get configMensagensAleatoriasAtivar =>
+      _isPt ? 'Ativar mensagens automaticas' : 'Enable automatic messages';
+  static String get configMensagensAleatoriasDescricao => _isPt
+      ? 'Permite configurar textos motivacionais e lembretes com sorteio automatico.'
+      : 'Allows configuring motivational texts and reminders with automatic randomization.';
+  static String get configMensagensIntervalo =>
+      _isPt ? 'Intervalo entre envios' : 'Interval between sends';
+  static String get diasUnidade => _isPt ? 'dias' : 'days';
+  static String get configMensagensUsarNomePreferido =>
+      _isPt ? 'Usar nome preferido da cliente' : 'Use client preferred name';
+  static String get configMensagensUsarNomePreferidoDescricao => _isPt
+      ? 'Quando disponivel, personaliza a mensagem com o nome preferido.'
+      : 'When available, personalizes the message with preferred name.';
+  static String get configMensagensSemAgendamento => _isPt
+      ? 'Permitir envio sem agendamento futuro'
+      : 'Allow sending without upcoming appointment';
+  static String get configMensagensSemAgendamentoDescricao => _isPt
+      ? 'Se desativado, so envia para clientes com proximo agendamento confirmado.'
+      : 'If disabled, only sends to clients with a confirmed upcoming appointment.';
+  static String get configMensagensSelecaoTitulo => _isPt
+      ? 'Mensagem escolhida para envio'
+      : 'Selected message to send';
+  static String get configMensagensSelecaoDescricao => _isPt
+      ? 'Escolha uma mensagem especifica ou deixe em sorteio automatico.'
+      : 'Choose a specific message or keep automatic randomization.';
+  static String get configMensagensSelecaoAleatoria =>
+      _isPt ? 'Sorteio automatico' : 'Automatic randomization';
+  static String configMensagensOpcaoNumero(int numero) =>
+      _isPt ? 'Mensagem $numero' : 'Message $numero';
+  static String get configMensagensSelecionadaBadge =>
+      _isPt ? 'Selecionada pelo admin' : 'Selected by admin';
+  static String get configMensagensPreviewBotao =>
+      _isPt ? 'Ver preview' : 'Preview message';
+  static String get configMensagensAdicionar =>
+      _isPt ? 'Adicionar mensagem' : 'Add message';
+  static String get configMensagensEditar =>
+      _isPt ? 'Editar mensagem' : 'Edit message';
+  static String get configMensagensRestaurarPadrao =>
+      _isPt ? 'Restaurar padrao' : 'Restore default';
+  static String get configMensagensSimularDisparo =>
+      _isPt ? 'Simular disparo' : 'Simulate dispatch';
+  static String get configMensagensDispararAgora =>
+      _isPt ? 'Disparar agora' : 'Send now';
+  static String get configMensagensTextoLabel =>
+      _isPt ? 'Texto da mensagem' : 'Message text';
+  static String get configMensagensTextoHint => _isPt
+      ? 'Ex.: Oi {nome}, temos horarios especiais para voce esta semana.'
+      : 'Example: Hi {name}, we have special slots for you this week.';
+  static String get configMensagensTextoObrigatorio =>
+      _isPt ? 'Informe uma mensagem valida.' : 'Provide a valid message.';
+  static String get configMensagensPreviewTitulo =>
+      _isPt ? 'Preview da mensagem' : 'Message preview';
+  static String get configMensagensNenhumaCadastrada => _isPt
+      ? 'Nenhuma mensagem cadastrada. Adicione pelo menos uma para ativar a estrategia.'
+      : 'No messages registered. Add at least one to enable the strategy.';
+  static String get configMensagensRemoverTitulo =>
+      _isPt ? 'Remover mensagem' : 'Remove message';
+  static String get configMensagensRemoverDescricao => _isPt
+      ? 'Deseja remover esta mensagem da lista?'
+      : 'Do you want to remove this message from the list?';
+  static String configMensagensResultadoSimulacao(
+    int total,
+    int elegiveis,
+    int simulados,
+    int erros,
+  ) => _isPt
+      ? 'Simulacao concluida. Total: $total, elegiveis: $elegiveis, simulados: $simulados, erros: $erros.'
+      : 'Simulation finished. Total: $total, eligible: $elegiveis, simulated: $simulados, errors: $erros.';
+  static String configMensagensResultadoDisparo(
+    int total,
+    int elegiveis,
+    int enviados,
+    int erros,
+  ) => _isPt
+      ? 'Disparo concluido. Total: $total, elegiveis: $elegiveis, enviados: $enviados, erros: $erros.'
+      : 'Dispatch finished. Total: $total, eligible: $elegiveis, sent: $enviados, errors: $erros.';
+  static String configMensagensErroDisparo(String erro) => _isPt
+      ? 'Erro ao executar disparo: $erro'
+      : 'Failed to execute dispatch: $erro';
+  static List<String> get configMensagensAleatoriasPadrao => _isPt
+      ? [
+          'Oi {nome}, esperamos voce para sua proxima sessao. Seu bem-estar vem em primeiro lugar.',
+          'Que tal reservar um horario esta semana para manter sua rotina de autocuidado?',
+          'Lembrete de carinho: pausas e massagens regulares ajudam muito no equilibrio do corpo.',
+        ]
+      : [
+          'Hi {name}, we are looking forward to your next session. Your well-being comes first.',
+          'How about booking a slot this week to keep your self-care routine going?',
+          'A kind reminder: regular pauses and massage sessions help your body stay balanced.',
+        ];
   static String get backupTitulo =>
       _isPt ? 'Backup e Restauração' : 'Backup and Restore';
   static String get backupExportar => _isPt ? 'Exportar Dados' : 'Export Data';
+  static String get backupExportarCsv =>
+      _isPt ? 'Exportar Backup CSV' : 'Export CSV Backup';
+  static String get backupSomenteCsv => _isPt
+      ? 'Integrações em JSON foram desativadas. O backup é exportado somente em CSV.'
+      : 'JSON integrations were disabled. Backups are exported in CSV only.';
   static String get backupImportar => _isPt ? 'Importar Dados' : 'Import Data';
   static String get backupAgendaMassoterapia =>
       _isPt ? 'Backup Agenda Massoterapia' : 'Massage Therapy Agenda Backup';
@@ -172,6 +270,30 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get senhaLabel => _isPt ? 'Senha' : 'Password';
   static String get entrarBtn => _isPt ? 'Entrar' : 'Sign In';
   static String get cadastrarBtn => _isPt ? 'Criar Conta' : 'Create Account';
+  static String get googleCadastroComplementarTitulo => _isPt
+      ? 'Complete seu cadastro'
+      : 'Complete your registration';
+  static String get googleCadastroComplementarDescricao => _isPt
+      ? 'Para continuar com o Google, informe seu nome, telefone e aceite os termos de uso.'
+      : 'To continue with Google, enter your name, phone number, and accept the terms of use.';
+  static String get googleCadastroLerTermos => _isPt
+      ? 'Ler Termos de Uso e Privacidade'
+      : 'Read Terms of Use and Privacy';
+  static String get googleCadastroNumeroEhWhatsapp => _isPt
+      ? 'Este número também é WhatsApp'
+      : 'This number is also WhatsApp';
+  static String get googleCadastroNomeObrigatorio => _isPt
+      ? 'Informe seu nome completo para continuar.'
+      : 'Enter your full name to continue.';
+  static String get googleCadastroTelefoneInvalido => _isPt
+      ? 'Informe um WhatsApp válido com no mínimo 10 dígitos.'
+      : 'Enter a valid WhatsApp number with at least 10 digits.';
+  static String get googleCadastroLgpdObrigatorio => _isPt
+      ? 'Você precisa aceitar os termos para concluir o cadastro.'
+      : 'You must accept the terms to complete your registration.';
+  static String get googleCadastroSessaoExpirada => _isPt
+      ? 'Sua sessão expirou. Faça login novamente com o Google.'
+      : 'Your session has expired. Please sign in with Google again.';
   static String get esqueceuSenha =>
       _isPt ? 'Esqueceu a senha?' : 'Forgot password?';
   static String get digiteEmailCadastrado =>
@@ -254,6 +376,14 @@ Service and package prices are subject to change. Payment must be made as agreed
     if (paginaAtual >= totalPaginas - 1) return onboardingArrasteVoltar;
     return onboardingArrasteAmbos;
   }
+  static String get onboardingInstagramBtn =>
+      _isPt ? 'Instagram' : 'Instagram';
+  static String get onboardingInstagramNaoDisponivel => _isPt
+      ? 'Link do Instagram não configurado.'
+      : 'Instagram link not configured.';
+  static String get onboardingInstagramNaoAbriu => _isPt
+      ? 'Não foi possível abrir o Instagram.'
+      : 'Could not open Instagram.';
 
   static String get pularBtn => _isPt ? 'Pular' : 'Skip';
   static String get comecarBtn => _isPt ? 'Começar' : 'Get Started';
@@ -299,8 +429,19 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get personalDataTitle =>
       _isPt ? 'Dados Pessoais' : 'Personal Data';
   static String get fullNameLabel => _isPt ? 'Nome Completo' : 'Full Name';
+  static String get preferredNameLabel =>
+      _isPt ? 'Nome preferido ou apelido' : 'Preferred name or nickname';
+  static String get contactDataTitle => _isPt ? 'Contatos' : 'Contact details';
   static String get cpfLabel => _isPt ? 'CPF' : 'Tax ID (CPF)';
   static String get whatsappLabel => _isPt ? 'WhatsApp' : 'WhatsApp';
+  static String get secondaryContactNameLabel =>
+      _isPt ? 'Nome do contato secundário' : 'Secondary contact name';
+  static String get secondaryPhoneLabel =>
+      _isPt ? 'Telefone secundário' : 'Secondary phone';
+  static String get referralNameLabel =>
+      _isPt ? 'Quem indicou você' : 'Referral name';
+  static String get referralPhoneLabel =>
+      _isPt ? 'Telefone da indicação' : 'Referral phone';
   static String get cepLabel => _isPt ? 'CEP' : 'Zip Code';
   static String get addressLabel => _isPt ? 'Endereço' : 'Address';
   static String get birthDateLabel =>
@@ -436,6 +577,9 @@ Service and package prices are subject to change. Payment must be made as agreed
       : 'You will be notified if this slot becomes available.';
   static String get listaEsperaSaidaSucesso =>
       _isPt ? 'Você saiu da lista de espera.' : 'You left the waitlist.';
+  static String limiteSolicitacoesListaEspera(int limite) => _isPt
+      ? 'Você já solicitou $limite horários na lista de espera. Cancele um para solicitar outro.'
+      : 'You have already requested $limite time slots on the waitlist. Cancel one to request another.';
   static String totalResumo(String valor) =>
       _isPt ? 'Total: $valor' : 'Total: $valor';
   static String cancelamentoTardioResumo(
@@ -531,6 +675,9 @@ Service and package prices are subject to change. Payment must be made as agreed
       _isPt ? 'Pesquisar Cliente' : 'Search Client';
   static String get nenhumClienteEncontrado =>
       _isPt ? 'Nenhum cliente encontrado.' : 'No clients found.';
+  static String get erroPermissaoLerClientes => _isPt
+      ? 'Sem permissao para ler clientes. Verifique as regras do Firestore para o usuario admin.'
+      : 'No permission to read clients. Check Firestore rules for the admin user.';
   static String saldoSessoesLabel(int saldo) =>
       _isPt ? 'Saldo de Sessões: $saldo' : 'Session Balance: $saldo';
   static String emailCadastroLabel(String email, String dataCadastro) => _isPt
@@ -550,6 +697,31 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get aprovar => _isPt ? 'Aprovar' : 'Approve';
   static String get recusar => _isPt ? 'Recusar' : 'Reject';
   static String get pacote => _isPt ? 'Pacote' : 'Package';
+  static String get alterarPacotes =>
+      _isPt ? 'Alterar Pacotes' : 'Change Packages';
+  static String get naoDisponivelCurto => _isPt ? 'Não Disponível' : 'Not Available';
+  static String clienteResumoUltimoDiaFinanceiroPago(String data) => _isPt
+      ? 'Último dia financeiro pago: $data'
+      : 'Last paid financial day: $data';
+  static String clienteResumoValorUltimoPagamento(String valor) => _isPt
+      ? 'Valor do último pagamento: $valor'
+      : 'Last payment amount: $valor';
+  static String clienteResumoDataRegistroFinanceiro(String data) => _isPt
+      ? 'Data do registro financeiro: $data'
+      : 'Financial record date: $data';
+  static String clienteResumoRecorrente(bool recorrente) => _isPt
+      ? 'Cliente recorrente: ${recorrente ? sim : nao}'
+      : 'Recurring client: ${recorrente ? sim : nao}';
+  static String clienteResumoUltimosAtendimentos(String horarios) => _isPt
+      ? 'Últimos 3 atendimentos: $horarios'
+      : 'Last 3 sessions: $horarios';
+  static String clienteResumoProximosAtendimentos(String horarios) => _isPt
+      ? 'Próximos 5 atendimentos: $horarios'
+      : 'Next 5 sessions: $horarios';
+  static String clienteResumoPacoteVaiAte(String data) =>
+      _isPt ? 'Pacote vai até: $data' : 'Package goes until: $data';
+  static String clienteResumoPacoteExpiraEm(String data) =>
+      _isPt ? 'Pacote expira em: $data' : 'Package expires on: $data';
   static String temaDe(String nome) =>
       _isPt ? 'Tema de $nome' : '$nome\'s Theme';
   static String temaAlteradoPara(String labelTema) =>
@@ -998,30 +1170,7 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get excelApenasAgendamentos => _isPt
       ? 'Excel disponível apenas para Agendamentos.'
       : 'Excel available only for Appointments.';
-  static String get enviandoParaJsonBin =>
-      _isPt ? 'Enviando para JSONBin...' : 'Uploading to JSONBin...';
-  static String get exportacaoBackendNaoConfigurada => _isPt
-      ? 'Configure EXPORT_JSONBIN_FUNCTION_NAME ou EXPORT_JSONBIN_PROXY_URL no .env. As chaves do JSONBin devem ficar apenas no backend.'
-      : 'Configure EXPORT_JSONBIN_FUNCTION_NAME or EXPORT_JSONBIN_PROXY_URL in .env. JSONBin keys must stay only in the backend.';
-  static String get exportacaoBackendRespostaInvalida => _isPt
-      ? 'O backend de exportacao nao retornou um binId/url valido.'
-      : 'The export backend did not return a valid binId/url.';
-  static String erroExportacaoBackendStatus(int statusCode) => _isPt
-      ? 'Backend de exportacao respondeu com status $statusCode.'
-      : 'Export backend responded with status $statusCode.';
-  static String get exportacaoConcluida =>
-      _isPt ? 'Exportação Concluída ☁️' : 'Export Completed ☁️';
-  static String get dadosSalvosNuvem => _isPt
-      ? 'Dados salvos na nuvem com sucesso!'
-      : 'Data saved to cloud successfully!';
-  static String binId(String id) => _isPt ? 'Bin ID: $id' : 'Bin ID: $id';
-  static String get urlApi => _isPt ? 'URL API:' : 'API URL:';
-  static String get copiarUrl => _isPt ? 'Copiar URL' : 'Copy URL';
-  static String get urlCopiada => _isPt ? 'URL copiada!' : 'URL copied!';
   static String get fechar => _isPt ? 'Fechar' : 'Close';
-  static String erroExportarWeb(String erro) => _isPt
-      ? 'Erro ao exportar para web: $erro'
-      : 'Error exporting to web: $erro';
   static String get nenhumDocumentoEncontrado =>
       _isPt ? 'Nenhum documento encontrado.' : 'No documents found.';
   static String get semLogsRegistrados =>
@@ -1040,21 +1189,41 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get requerReinicioApp => _isPt
       ? 'Requer reinício do app. Útil para testar responsividade.'
       : 'Requires app restart. Useful for responsiveness testing.';
-  static String get tooltipVisualizarJson =>
-      _isPt ? 'Visualizar Dados (JSON)' : 'View Data (JSON)';
+  static String get ativarModoCompactoDevTools => _isPt
+      ? 'Ativar modo compacto (DevTools)'
+      : 'Enable compact mode (DevTools)';
+  static String get modoCompactoDevToolsDescricao => _isPt
+      ? 'Ajusta botões e grade de ações para telas pequenas e device preview.'
+      : 'Adjusts action buttons and layout for small screens and device preview.';
   static String get tooltipExportarDados => 'Exportar';
-  static String get tooltipImportarJson =>
-      _isPt ? 'Importar JSON (Restore)' : 'Import JSON (Restore)';
+  static String get tooltipImportarPlanilha => _isPt
+      ? 'Importar planilha de clientes (CSV/XLSX)'
+      : 'Import client spreadsheet (CSV/XLSX)';
+  static String get importarPlanilhaTitle =>
+      _isPt ? 'Importar planilha de clientes' : 'Import client spreadsheet';
+  static String get lendoPlanilha =>
+      _isPt ? 'Lendo planilha...' : 'Reading spreadsheet...';
+  static String importandoPlanilhaClientes(int total) =>
+      _isPt ? 'Importando $total clientes...' : 'Importing $total clients...';
+  static String resultadoImportacaoPlanilha(int imp, int ign, int err) => _isPt
+      ? '$imp importados, $ign ignorados (sem telefone), $err erros'
+      : '$imp imported, $ign skipped (no phone), $err errors';
+  static String get formatoNaoSuportado => _isPt
+      ? 'Formato de arquivo não suportado. Use CSV ou XLSX.'
+      : 'Unsupported file format. Use CSV or XLSX.';
   static String get tooltipPopularSeed =>
       _isPt ? 'Popular (Seed)' : 'Seed (Populate)';
   static String get tooltipLimparTruncate =>
       _isPt ? 'Limpar (Truncate)' : 'Clear (Truncate)';
+  static String get devAcaoExportar => _isPt ? 'Exportar' : 'Export';
+  static String get devAcaoImportar => _isPt ? 'Importar' : 'Import';
+  static String get devAcaoPlanilha => _isPt ? 'Planilha' : 'Spreadsheet';
+  static String get devAcaoPopular => _isPt ? 'Popular' : 'Seed';
+  static String get devAcaoLimpar => _isPt ? 'Limpar' : 'Clear';
   static String get systemLogsRealtime =>
       _isPt ? 'Logs do Sistema (tempo real)' : 'System Logs (Real-time)';
-  static String get exportFormatoJson => 'JSON';
   static String get exportFormatoCsv => 'CSV';
   static String get exportFormatoExcel => 'Excel (XLSX)';
-  static String get exportFormatoWeb => 'Web (JSONBin)';
 
   // Widgets compartilhados
   static String get alterarTemaTooltip =>
@@ -1150,6 +1319,8 @@ Service and package prices are subject to change. Payment must be made as agreed
       _isPt ? 'Administração de Agendamentos' : 'Appointment Administration';
   static String get procurarAgendamento =>
       _isPt ? 'Procurar agendamento...' : 'Search appointment...';
+  static String get menuAcoesAdmin =>
+      _isPt ? 'Ações de administração' : 'Administration actions';
 
   // Geral
   static String erroGenerico(String erro) =>
@@ -1233,4 +1404,72 @@ Service and package prices are subject to change. Payment must be made as agreed
       : 'Error loading settings: $erro';
   static String get erroAoVerificarBiometria =>
       _isPt ? 'Erro ao verificar biometria' : 'Error checking biometrics';
+
+  // --- Importação de Dados Melhorada ---
+  static String get validacaoArquivo =>
+      _isPt ? 'Validação de Arquivo' : 'File Validation';
+  static String get cabecalhoValido =>
+      _isPt ? 'Cabeçalho válido!' : 'Valid header!';
+  static String get camposObrigatorios =>
+      _isPt ? 'Campos Obrigatórios' : 'Required Fields';
+  static String get camposOpcionais =>
+      _isPt ? 'Campos Opcionais' : 'Optional Fields';
+  static String get camposNaoMapeados =>
+      _isPt ? 'Campos Não Mapeados (Serão Ignorados)' : 'Unmapped Fields (Will Be Ignored)';
+  static String get formatoEsperado =>
+      _isPt ? 'Formato Esperado' : 'Expected Format';
+  static String get previewDados => _isPt ? 'Visualização dos Dados' : 'Data Preview';
+  static String get avisos => _isPt ? 'Avisos' : 'Warnings';
+  static String get errosValidacao => _isPt ? 'Erros de Validação' : 'Validation Errors';
+  static String get procedeImportacao =>
+      _isPt ? 'Prosseguir com importação?' : 'Proceed with import?';
+  static String get campos => _isPt ? 'Campos' : 'Fields';
+  static String get tipo => _isPt ? 'Tipo' : 'Type';
+  static String get descricao => _isPt ? 'Descrição' : 'Description';
+  static String get obrigatorio => _isPt ? 'Obrigatório' : 'Required';
+  static String get opcional => _isPt ? 'Opcional' : 'Optional';
+  static String get telefonePrincipalDesc =>
+      _isPt ? 'Telefone do cliente (WhatsApp)' : 'Client phone (WhatsApp)';
+  static String get nomeClienteDesc =>
+      _isPt ? 'Nome completo do cliente' : 'Client full name';
+  static String get emailClienteDesc =>
+      _isPt ? 'Email do cliente' : 'Client email';
+  static String get previewRegistro =>
+      _isPt ? 'Registro #' : 'Record #';
+  static String get totalRegistrosValidos =>
+      _isPt ? 'Total de registros válidos' : 'Total valid records';
+  static String get totalRegistrosComErro =>
+      _isPt ? 'Total de registros com erro' : 'Total records with error';
+  static String get sim => _isPt ? 'Sim' : 'Yes';
+  static String get nao => _isPt ? 'Não' : 'No';
+
+  // Export/Import Strings
+  static String get exportacaoBackendRespostaInvalida =>
+      _isPt ? 'Resposta inválida do backend' : 'Invalid backend response';
+  static String erroExportacaoBackendStatus(String status) =>
+      _isPt ? 'Erro de status no backend: $status' : 'Backend status error: $status';
+  static String get exportacaoBackendNaoConfigurada =>
+      _isPt ? 'Exportação para backend não configurada' : 'Backend export not configured';
+  static String get enviandoParaJsonBin =>
+      _isPt ? 'Enviando para JSONBin...' : 'Sending to JSONBin...';
+  static String get exportacaoConcluida =>
+      _isPt ? 'Exportação concluída!' : 'Export completed!';
+  static String get dadosSalvosNuvem =>
+      _isPt ? 'Dados salvos na nuvem com sucesso!' : 'Data saved to cloud successfully!';
+  static String get urlApi =>
+      _isPt ? 'URL da API' : 'API URL';
+  static String get copiarUrl =>
+      _isPt ? 'Copiar URL' : 'Copy URL';
+  static String get urlCopiada =>
+      _isPt ? 'URL copiada para a área de transferência!' : 'URL copied to clipboard!';
+  static String erroExportarWeb(String error) =>
+      _isPt ? 'Erro ao exportar para web: $error' : 'Error exporting to web: $error';
+  static String get tooltipVisualizarJson =>
+      _isPt ? 'Visualizar em formato JSON' : 'View in JSON format';
+  static String get exportFormatoJson =>
+      _isPt ? 'Exportar como JSON' : 'Export as JSON';
+  static String get exportFormatoWeb =>
+      _isPt ? 'Exportar para Web' : 'Export to Web';
+  static String get tooltipImportarJson =>
+      _isPt ? 'Importar dados de um arquivo JSON' : 'Import data from a JSON file';
 }

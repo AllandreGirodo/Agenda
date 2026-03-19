@@ -9,6 +9,7 @@ import 'package:agenda/core/services/firestore_service.dart';
 import 'package:agenda/core/models/agendamento_model.dart';
 import 'package:agenda/core/models/usuario_model.dart';
 import 'package:agenda/core/models/cliente_model.dart';
+import 'package:agenda/core/models/transacao_model.dart';
 import 'package:agenda/features/auth/view/login_view.dart';
 import 'package:agenda/features/admin/view/config_view.dart';
 import 'package:agenda/features/estoque/view/admin_estoque_view.dart';
@@ -28,6 +29,8 @@ import 'package:agenda/core/utils/massage_type_catalog.dart';
 class AdminAgendamentosView extends StatefulWidget {
   const AdminAgendamentosView({super.key});
 
+  static bool isCompactLayoutForWidth(double largura) => largura < 980;
+
   @override
   State<AdminAgendamentosView> createState() => _AdminAgendamentosViewState();
 }
@@ -35,6 +38,7 @@ class AdminAgendamentosView extends StatefulWidget {
 class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
   final FirestoreService _firestoreService = FirestoreService();
   final AppGovernanceService _appGovernanceService = AppGovernanceService();
+  static const double _fonteResumoCliente = 8.0;
   DateTime _dataDashboard = DateTime.now();
   double _precoSessao = 100.00;
   final TextEditingController _searchController = TextEditingController();
@@ -42,6 +46,251 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
   bool _devGravarMetricas = false; // Flag para ativar gravação de histórico
   bool _podeAcessarPainelDev = false;
   bool _governancaVersionadaVerificada = false;
+
+  String _normalizarTextoBusca(String texto) {
+    return texto
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[áàâãä]'), 'a')
+        .replaceAll(RegExp(r'[éèêë]'), 'e')
+        .replaceAll(RegExp(r'[íìîï]'), 'i')
+        .replaceAll(RegExp(r'[óòôõö]'), 'o')
+        .replaceAll(RegExp(r'[úùûü]'), 'u')
+        .replaceAll('ç', 'c')
+        .replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  bool _clienteCorrespondeFiltro(Cliente cliente, String filtroNormalizado) {
+    if (filtroNormalizado.isEmpty) return true;
+
+    final camposBusca = <String>[
+      cliente.nomeExibicao,
+      cliente.nome,
+      cliente.nomePreferidoCliente ?? '',
+      cliente.whatsapp,
+      cliente.telefonePrincipal,
+      cliente.uid,
+    ];
+
+    return camposBusca.any(
+      (campo) => _normalizarTextoBusca(campo).contains(filtroNormalizado),
+    );
+  }
+
+  String _formatarDataResumo(DateTime? data) {
+    if (data == null) return AppStrings.naoDisponivelCurto;
+    return DateFormat('dd/MM/yyyy').format(data);
+  }
+
+  String _formatarDataHoraResumo(DateTime? data) {
+    if (data == null) return AppStrings.naoDisponivelCurto;
+    return DateFormat('dd/MM/yyyy HH:mm').format(data);
+  }
+
+  String _formatarValorResumo(double? valor) {
+    if (valor == null) return AppStrings.naoDisponivelCurto;
+    return 'R\$ ${valor.toStringAsFixed(2)}';
+  }
+
+  String _formatarListaHorariosResumo(List<Agendamento> agendamentos) {
+    if (agendamentos.isEmpty) return AppStrings.naoDisponivelCurto;
+
+    return agendamentos
+        .map((agendamento) => DateFormat('dd/MM HH:mm').format(agendamento.dataHora))
+        .join(' | ');
+  }
+
+  String _extrairRotuloResumo(String linhaComValor) {
+    final linha = linhaComValor.trim();
+    if (!linha.endsWith(':')) return linha;
+    return linha.substring(0, linha.length - 1).trim();
+  }
+
+  Widget _buildResumoClienteDetalhado(Cliente cliente) {
+    return StreamBuilder<List<Agendamento>>(
+      stream: _firestoreService.getAgendamentosDoCliente(cliente.uid),
+      builder: (context, agendamentosSnapshot) {
+        final agendamentos = agendamentosSnapshot.data ?? const <Agendamento>[];
+        final agora = DateTime.now();
+
+        final atendimentosConcluidos = agendamentos
+            .where(
+              (agendamento) =>
+                  agendamento.status == 'aprovado' &&
+                  !agendamento.dataHora.isAfter(agora),
+            )
+            .toList()
+          ..sort((a, b) => b.dataHora.compareTo(a.dataHora));
+
+        final ultimos3Atendimentos = atendimentosConcluidos.take(3).toList();
+
+        final proximosAtendimentos = agendamentos
+            .where(
+              (agendamento) =>
+                  agendamento.dataHora.isAfter(agora) &&
+                  agendamento.status != 'cancelado' &&
+                  agendamento.status != 'cancelado_tardio' &&
+                  agendamento.status != 'recusado',
+            )
+            .toList()
+          ..sort((a, b) => a.dataHora.compareTo(b.dataHora));
+
+        final proximos5Atendimentos = proximosAtendimentos.take(5).toList();
+        final recorrente =
+            atendimentosConcluidos.length >= 3 || cliente.sugestaoClienteFixoAgenda;
+        final pacoteVaiAte =
+            proximosAtendimentos.isNotEmpty ? proximosAtendimentos.last.dataHora : null;
+
+        return StreamBuilder<List<TransacaoFinanceira>>(
+          stream: _firestoreService.getTransacoesDoCliente(cliente.uid),
+          builder: (context, transacoesSnapshot) {
+            final transacoes =
+                transacoesSnapshot.data ?? const <TransacaoFinanceira>[];
+
+            final transacoesPagas = transacoes
+                .where(
+                  (transacao) =>
+                      transacao.statusPagamento.toLowerCase() == 'pago',
+                )
+                .toList()
+              ..sort((a, b) => b.dataPagamento.compareTo(a.dataPagamento));
+
+            final ultimaTransacaoPaga =
+                transacoesPagas.isNotEmpty ? transacoesPagas.first : null;
+
+            final linhasResumo = <String>[
+              AppStrings.saldoSessoesLabel(cliente.saldoSessoes),
+              AppStrings.clienteResumoValorUltimoPagamento(
+                _formatarValorResumo(ultimaTransacaoPaga?.valorLiquido),
+              ),
+              AppStrings.clienteResumoRecorrente(recorrente),
+              AppStrings.clienteResumoUltimosAtendimentos(
+                _formatarListaHorariosResumo(ultimos3Atendimentos),
+              ),
+              AppStrings.clienteResumoProximosAtendimentos(
+                _formatarListaHorariosResumo(proximos5Atendimentos),
+              ),
+            ];
+
+            final linhasTabelaDatas = <MapEntry<String, String>>[
+              MapEntry(
+                _extrairRotuloResumo(
+                  AppStrings.clienteResumoUltimoDiaFinanceiroPago(''),
+                ),
+                _formatarDataResumo(ultimaTransacaoPaga?.dataPagamento),
+              ),
+              MapEntry(
+                _extrairRotuloResumo(
+                  AppStrings.clienteResumoDataRegistroFinanceiro(''),
+                ),
+                _formatarDataHoraResumo(
+                  ultimaTransacaoPaga?.dataCriacao ??
+                      ultimaTransacaoPaga?.dataPagamento,
+                ),
+              ),
+              MapEntry(
+                _extrairRotuloResumo(
+                  AppStrings.clienteResumoPacoteVaiAte(''),
+                ),
+                _formatarDataResumo(pacoteVaiAte),
+              ),
+              MapEntry(
+                _extrairRotuloResumo(
+                  AppStrings.clienteResumoPacoteExpiraEm(''),
+                ),
+                AppStrings.naoDisponivelCurto,
+              ),
+            ];
+
+            final estiloResumo = const TextStyle(
+              fontSize: _fonteResumoCliente,
+              height: 1.2,
+            );
+
+            final blocoResumo = Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: linhasResumo
+                  .map(
+                    (linha) => Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Text(linha, style: estiloResumo),
+                    ),
+                  )
+                  .toList(),
+            );
+
+            final tabelaDatas = Table(
+              columnWidths: const {
+                0: FlexColumnWidth(2.8),
+                1: FlexColumnWidth(1.8),
+              },
+              border: TableBorder.all(
+                color: Colors.grey,
+                width: 0.4,
+              ),
+              defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+              children: linhasTabelaDatas
+                  .map(
+                    (linha) => TableRow(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 2,
+                          ),
+                          child: Text(
+                            linha.key,
+                            style: estiloResumo.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 2,
+                          ),
+                          child: Text(
+                            linha.value,
+                            style: estiloResumo,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                  .toList(),
+            );
+
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final exibirTabelaAoLado = constraints.maxWidth >= 520;
+
+                if (exibirTabelaAoLado) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(flex: 3, child: blocoResumo),
+                      const SizedBox(width: 8),
+                      Expanded(flex: 2, child: tabelaDatas),
+                    ],
+                  );
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    blocoResumo,
+                    const SizedBox(height: 6),
+                    tabelaDatas,
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -87,42 +336,13 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
     final resultado = await _appGovernanceService.verificarPosLogin(usuario);
     if (!mounted) return;
 
-    if (resultado.forceUpdate) {
-      await AppGovernanceDialogs.showForceUpdateDialog(
-        context,
-        localVersion: resultado.localVersion,
-        minRequiredVersion: resultado.minRequiredVersion,
-        currentVersion: resultado.currentVersion,
-      );
-
-      if (!mounted) return;
-
-      await FirebaseAuth.instance.signOut();
-
-      if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const LoginView()),
-          (route) => false,
-        );
-      }
-      return;
-    }
-
-    if (!resultado.shouldShowChangelog || resultado.changelog == null) return;
-
-    final manterExibicaoAutomatica =
-        await AppGovernanceDialogs.showChangelogDialog(
-          context,
-          changelog: resultado.changelog!,
-          initialShowAuto: usuario.showChangelogAuto,
-        );
-
-    if (!mounted) return;
-
-    await _appGovernanceService.registrarVisualizacaoChangelog(
+    await AppGovernanceDialogs.processarResultadoGovernanca(
+      context,
+      resultado: resultado,
+      usuario: usuario,
+      governanceService: _appGovernanceService,
       uid: uid,
-      versao: resultado.currentVersion,
-      manterExibicaoAutomatica: manterExibicaoAutomatica,
+      loginViewBuilder: (_) => const LoginView(),
     );
   }
 
@@ -134,6 +354,10 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
 
   @override
   Widget build(BuildContext context) {
+    final layoutCompacto = AdminAgendamentosView.isCompactLayoutForWidth(
+      MediaQuery.of(context).size.width,
+    );
+
     return DefaultTabController(
       length: 4,
       child: Scaffold(
@@ -179,91 +403,190 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
           backgroundColor: Colors.orange,
           foregroundColor: Colors.white,
           actions: [
-            IconButton(
-              icon: const Icon(Icons.analytics),
-              tooltip: AppStrings.relatorios,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AdminRelatoriosView(),
+            if (layoutCompacto)
+              PopupMenuButton<String>(
+                tooltip: AppStrings.menuAcoesAdmin,
+                onSelected: (acao) {
+                  switch (acao) {
+                    case 'relatorios':
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AdminRelatoriosView(),
+                        ),
+                      );
+                      break;
+                    case 'financeiro':
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AdminFinanceiroView(),
+                        ),
+                      );
+                      break;
+                    case 'logs':
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AdminLogsView(),
+                        ),
+                      );
+                      break;
+                    case 'lgpd':
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AdminLgpdLogsView(),
+                        ),
+                      );
+                      break;
+                    case 'estoque':
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AdminEstoqueView(),
+                        ),
+                      );
+                      break;
+                    case 'config':
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AdminConfigView(),
+                        ),
+                      );
+                      break;
+                    case 'devtools':
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DevToolsView(),
+                        ),
+                      );
+                      break;
+                    default:
+                      break;
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'relatorios',
+                    child: Text(AppStrings.relatorios),
                   ),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.attach_money),
-              tooltip: AppStrings.financeiroAnualTitulo,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AdminFinanceiroView(),
+                  PopupMenuItem(
+                    value: 'financeiro',
+                    child: Text(AppStrings.financeiroAnualTitulo),
                   ),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.list_alt),
-              tooltip: AppStrings.logsSistema,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AdminLogsView(),
+                  PopupMenuItem(
+                    value: 'logs',
+                    child: Text(AppStrings.logsSistema),
                   ),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.privacy_tip),
-              tooltip: AppStrings.auditoriaLgpd,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AdminLgpdLogsView(),
+                  PopupMenuItem(
+                    value: 'lgpd',
+                    child: Text(AppStrings.auditoriaLgpd),
                   ),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.inventory_2),
-              tooltip: AppStrings.estoqueControle,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AdminEstoqueView(),
+                  PopupMenuItem(
+                    value: 'estoque',
+                    child: Text(AppStrings.estoqueControle),
                   ),
-                );
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.settings),
-              tooltip: AppStrings.configuracoes,
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const AdminConfigView(),
+                  PopupMenuItem(
+                    value: 'config',
+                    child: Text(AppStrings.configuracoes),
                   ),
-                );
-              },
-            ),
-            if (_podeAcessarPainelDev)
+                  if (_podeAcessarPainelDev)
+                    PopupMenuItem(
+                      value: 'devtools',
+                      child: Text(AppStrings.devToolsDb),
+                    ),
+                ],
+              )
+            else ...[
               IconButton(
-                icon: const Icon(Icons.developer_mode),
-                tooltip: AppStrings.devToolsDb,
+                icon: const Icon(Icons.analytics),
+                tooltip: AppStrings.relatorios,
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const DevToolsView(),
+                      builder: (context) => const AdminRelatoriosView(),
                     ),
                   );
                 },
               ),
+              IconButton(
+                icon: const Icon(Icons.attach_money),
+                tooltip: AppStrings.financeiroAnualTitulo,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminFinanceiroView(),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.list_alt),
+                tooltip: AppStrings.logsSistema,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminLogsView(),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.privacy_tip),
+                tooltip: AppStrings.auditoriaLgpd,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminLgpdLogsView(),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.inventory_2),
+                tooltip: AppStrings.estoqueControle,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminEstoqueView(),
+                    ),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings),
+                tooltip: AppStrings.configuracoes,
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AdminConfigView(),
+                    ),
+                  );
+                },
+              ),
+              if (_podeAcessarPainelDev)
+                IconButton(
+                  icon: const Icon(Icons.developer_mode),
+                  tooltip: AppStrings.devToolsDb,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const DevToolsView(),
+                      ),
+                    );
+                  },
+                ),
+            ],
             const ThemeSelector(),
             const LanguageSelector(),
             IconButton(
@@ -280,6 +603,7 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
             ),
           ],
           bottom: TabBar(
+            isScrollable: layoutCompacto,
             onTap: (index) =>
                 HapticFeedback.mediumImpact(), // Vibração ao trocar de aba
             tabs: [
@@ -844,7 +1168,7 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
             ),
             onChanged: (value) {
               setState(() {
-                _filtroNome = value.toLowerCase();
+                _filtroNome = _normalizarTextoBusca(value);
               });
             },
           ),
@@ -853,16 +1177,37 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
           child: StreamBuilder<List<Cliente>>(
             stream: _firestoreService.getClientesAprovados(),
             builder: (context, snapshot) {
-              if (!snapshot.hasData) {
+              if (snapshot.hasError) {
+                final erro = snapshot.error;
+                final mensagemErro = erro is FirebaseException &&
+                        erro.code == 'permission-denied'
+                    ? AppStrings.erroCarregar(
+                        AppStrings.erroPermissaoLerClientes,
+                      )
+                    : AppStrings.erroCarregar('$erro');
+
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      mensagemErro,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                );
+              }
+
+              if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              final todosClientes = snapshot.data!;
+
+              final todosClientes = snapshot.data ?? const <Cliente>[];
 
               final clientes = _filtroNome.isEmpty
                   ? todosClientes
                   : todosClientes
                         .where(
-                          (c) => c.nome.toLowerCase().contains(_filtroNome),
+                          (c) => _clienteCorrespondeFiltro(c, _filtroNome),
                         )
                         .toList();
 
@@ -883,15 +1228,28 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
                       leading: CircleAvatar(
                         backgroundColor: Colors.teal,
                         child: Text(
-                          cliente.nome.isNotEmpty
-                              ? cliente.nome[0].toUpperCase()
+                          cliente.nomeExibicao.isNotEmpty
+                              ? cliente.nomeExibicao[0].toUpperCase()
                               : '?',
                         ),
                       ),
-                      title: Text(cliente.nome),
-                      subtitle: Text(
-                        AppStrings.saldoSessoesLabel(cliente.saldoSessoes),
+                      title: Text(
+                        cliente.nomeExibicao.isNotEmpty
+                            ? cliente.nomeExibicao
+                            : cliente.nome,
+                        style: (() {
+                          final estiloBase =
+                              Theme.of(context).textTheme.titleMedium;
+                          final tamanhoBase = estiloBase?.fontSize ?? 16;
+                          final tamanhoAjustado =
+                              (tamanhoBase - 2).clamp(8.0, 40.0).toDouble();
+                          return (estiloBase ?? const TextStyle()).copyWith(
+                            fontSize: tamanhoAjustado,
+                            fontWeight: FontWeight.bold,
+                          );
+                        })(),
                       ),
+                      subtitle: _buildResumoClienteDetalhado(cliente),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -929,7 +1287,7 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
                           ),
                           ElevatedButton.icon(
                             icon: const Icon(Icons.add_circle, size: 16),
-                            label: Text(AppStrings.pacote),
+                            label: Text(AppStrings.alterarPacotes),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.teal.shade50,
                             ),

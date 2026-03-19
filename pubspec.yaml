@@ -102,6 +102,9 @@ flutter:
     # - lib/fonts/
     - .env
     - assets/lottie/
+    - assets/Logo.jpg
+    - assets/Aparelho.jfif
+    - assets/Representando.jfif
 // lottie: https://lottiefiles.com/featured
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

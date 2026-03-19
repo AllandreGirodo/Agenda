@@ -18,12 +18,16 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../core/models/log_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'import_preview_dialog.dart';
 
 class DevToolsView extends StatefulWidget {
   const DevToolsView({super.key});
 
   @override
   State<DevToolsView> createState() => _DevToolsViewState();
+
+  static bool isCompactLayoutForWidth(double largura, {bool modoCompacto = false}) =>
+      modoCompacto || largura < 800;
 }
 
 class _DevToolsViewState extends State<DevToolsView> {
@@ -32,6 +36,7 @@ class _DevToolsViewState extends State<DevToolsView> {
   late final String _senhaDev = _carregarSenhaDev();
   bool _autenticado = false;
   bool _devicePreviewEnabled = false;
+  bool _valorTesteBooleanoBanco = false;
   bool _senhaConfigurada = true; // Assume configurada até verificar
 
   // Lista de Collections do sistema
@@ -115,6 +120,33 @@ class _DevToolsViewState extends State<DevToolsView> {
     return <String, dynamic>{};
   }
 
+  String _detectarSeparadorCsv(String conteudo) {
+    final primeiraLinha = conteudo
+        .split(RegExp(r'\r?\n'))
+        .map((linha) => linha.trim())
+        .firstWhere((linha) => linha.isNotEmpty, orElse: () => '');
+
+    if (primeiraLinha.isEmpty) {
+      return ',';
+    }
+
+    final qtdPontoVirgula = ';'.allMatches(primeiraLinha).length;
+    final qtdVirgula = ','.allMatches(primeiraLinha).length;
+    final qtdTab = '\t'.allMatches(primeiraLinha).length;
+
+    if (qtdPontoVirgula >= qtdVirgula &&
+        qtdPontoVirgula >= qtdTab &&
+        qtdPontoVirgula > 0) {
+      return ';';
+    }
+
+    if (qtdTab >= qtdVirgula && qtdTab > 0) {
+      return '\t';
+    }
+
+    return ',';
+  }
+
   Map<String, dynamic> _normalizarRespostaExportacao(dynamic valor) {
     final mapaBase = _mapaDinamico(valor);
     final payload = mapaBase['result'] is Map
@@ -178,7 +210,7 @@ class _DevToolsViewState extends State<DevToolsView> {
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw Exception(
-          AppStrings.erroExportacaoBackendStatus(response.statusCode),
+          AppStrings.erroExportacaoBackendStatus(response.statusCode.toString()),
         );
       }
 
@@ -204,6 +236,36 @@ class _DevToolsViewState extends State<DevToolsView> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(AppStrings.reinicieApp)));
+  }
+
+  Future<void> _alternarTesteBooleanoNoBanco() async {
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final usuarioAtual = FirebaseAuth.instance.currentUser;
+
+    try {
+      final valorAtual = await _firestoreService.alternarTesteBooleanoLoginView(
+        emailDigitado: (usuarioAtual?.email ?? '').trim(),
+        valorAtual: _valorTesteBooleanoBanco,
+        uid: usuarioAtual?.uid,
+        origem: 'dev_tools_view',
+      );
+
+      if (!mounted) return;
+      setState(() => _valorTesteBooleanoBanco = valorAtual);
+      messenger.showSnackBar(
+        SnackBar(content: Text(AppStrings.testeBooleanoBancoSucesso(valorAtual))),
+      );
+    } on StateError catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text(AppStrings.testeBooleanoBancoErro(e.toString()))),
+      );
+    }
   }
 
   Future<String?> _solicitarSenha({
@@ -621,6 +683,145 @@ class _DevToolsViewState extends State<DevToolsView> {
     }
   }
 
+  // --- Importacao de Planilha de Clientes (CSV / XLSX) ---
+  Future<void> _importarPlanilhaClientes() async {
+    try {
+      final pickerResult = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['csv', 'xlsx', 'xls'],
+        withData: true,
+      );
+
+      if (pickerResult == null || pickerResult.files.isEmpty) return;
+      if (!mounted) return;
+
+      final pickedFile = pickerResult.files.single;
+      final ext = (pickedFile.extension ?? '').toLowerCase();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.lendoPlanilha)),
+      );
+
+      List<Map<String, dynamic>> linhas = [];
+      List<String> headers = [];
+
+      // 1. Parse do arquivo
+      if (ext == 'csv') {
+        final bytes =
+            pickedFile.bytes ??
+            (pickedFile.path != null
+                ? await File(pickedFile.path!).readAsBytes()
+                : null);
+
+        if (bytes == null || bytes.isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(AppStrings.formatoNaoSuportado)),
+          );
+          return;
+        }
+
+        final conteudo = utf8.decode(bytes, allowMalformed: true);
+        final separador = _detectarSeparadorCsv(conteudo);
+        final rows = CsvToListConverter(
+          eol: '\n',
+          fieldDelimiter: separador,
+          shouldParseNumbers: false,
+        ).convert(conteudo);
+        if (rows.isEmpty) return;
+
+        headers = rows.first.map((e) => e.toString().trim()).toList();
+        if (headers.isNotEmpty) {
+          headers[0] = headers[0].replaceFirst('\ufeff', '').trim();
+        }
+
+        for (final row in rows.skip(1)) {
+          if (row.every((v) => v.toString().trim().isEmpty)) continue;
+          final map = <String, dynamic>{};
+          for (int i = 0; i < headers.length; i++) {
+            map[headers[i]] = i < row.length ? row[i] : null;
+          }
+          linhas.add(map);
+        }
+      } else if (ext == 'xlsx' || ext == 'xls') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Formato $ext nao suportado ainda')),
+        );
+        return;
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.formatoNaoSuportado)),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+
+      // 2. Validar cabecalho
+      final validacao = ImportPreviewHelper.validarCabecalho(headers);
+      if (!validacao['valido']) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('Erro na validacao'),
+            content: Text(validacao['erro'] ?? 'Erro desconhecido'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(AppStrings.fechar),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // 3. Mostrar preview
+      if (!mounted) return;
+      final confirmado = await ImportPreviewHelper.mostrarPreview(
+        context,
+        headers: headers,
+        linhas: linhas,
+      );
+
+      if (!confirmado || !mounted) return;
+
+      // 4. Importar para o Firestore
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.importandoPlanilhaClientes(linhas.length))),
+      );
+
+      final resultado = await _firestoreService.importarPlanilhaClientes(linhas);
+
+      if (!mounted) return;
+      final imp = resultado['importados'] ?? 0;
+      final ign = resultado['ignorados'] ?? 0;
+      final err = resultado['erros'] ?? 0;
+
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(AppStrings.importarPlanilhaTitle),
+          content: Text(AppStrings.resultadoImportacaoPlanilha(imp, ign, err)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(AppStrings.fechar),
+            ),
+          ],
+        ),
+      );
+      setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.erroImportar(e.toString()))),
+      );
+    }
+  }
+
   // --- Visualizador JSON ---
   void _abrirVisualizadorJson(String collection) {
     showModalBottomSheet(
@@ -983,6 +1184,17 @@ class _DevToolsViewState extends State<DevToolsView> {
               color: Colors.purpleAccent,
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _alternarTesteBooleanoNoBanco,
+                icon: const Icon(Icons.toggle_on_outlined),
+                label: Text(AppStrings.testeBooleanoBancoBtn),
+              ),
+            ),
+          ),
           const Divider(thickness: 2),
           ...List.generate(_collections.length * 2 - 1, (i) {
             if (i.isOdd) return const Divider();
@@ -1011,6 +1223,16 @@ class _DevToolsViewState extends State<DevToolsView> {
                         tooltip: AppStrings.tooltipVisualizarJson,
                         onPressed: () => _abrirVisualizadorJson(collection),
                       ),
+                      // Botao Importar Planilha (so para clientes)
+                      if (collection == 'clientes')
+                        IconButton(
+                          icon: const Icon(
+                            Icons.upload_file,
+                            color: Colors.teal,
+                          ),
+                          tooltip: AppStrings.tooltipImportarPlanilha,
+                          onPressed: () => _importarPlanilhaClientes(),
+                        ),
                       // Menu Exportar
                       PopupMenuButton<String>(
                         icon: const Icon(Icons.download, color: Colors.orange),

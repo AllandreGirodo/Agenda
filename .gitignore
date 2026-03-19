@@ -54,3 +54,11 @@ GoogleService-Info.plist
 
 # Instruções de secrets (privadas)
 .github/SECRETS_*.md
+
+# Dados de teste e desenvolvimento
+base_tcc_agenda_outros_horarios.xlsx
+
+# Imagens e outros assets que não são essenciais para o código-fonte
+assets/images/
+assets/icons/
+lib/assets

@@ -31,9 +31,42 @@ Este documento serve como guia de referência para a nomenclatura de variáveis 
 ### Coleção: `clientes`
 | Variável Dart | Campo Firestore Atual | Sugestão de Melhoria | Motivo |
 | :--- | :--- | :--- | :--- |
-| `uid` | `uid` | `cliente_uid` | Padronização. |
-| `saldoSessoes`| `saldo_sessoes` | `saldo_pacote_atual` | Clareza que se refere a pacotes. |
-| `anamneseOk` | `anamnese_ok` | `is_anamnese_preenchida` | Booleano explícito. |
+| `idCliente` | `uid` | `uid` | Mantido para compatibilidade com Auth e regras atuais. |
+| `nomeCliente` | `cliente_nome` | `cliente_nome` | Nome civil/principal do cadastro. |
+| `nomePreferidoCliente` | `nome_preferido` | `nome_preferido` | Nome de exibição, apelido ou nome social. |
+| `whatsappCliente` | `whatsapp` | `whatsapp` + `telefone_principal` | Compatibilidade com legado e transição para telefone principal explícito. |
+| `ddiCliente` | `ddi` | `ddi` | Permite evoluir para outros países sem perder o padrão `+55`. |
+| `telefonePrincipalCliente` | `telefone_principal` | `telefone_principal` | Campo principal para busca/CRM. |
+| `nomeContatoSecundarioCliente` | `nome_contato_secundario` | `nome_contato_secundario` | Identifica o vínculo do segundo número. |
+| `telefoneSecundarioCliente` | `telefone_secundario` | `telefone_secundario` | Número alternativo do cliente ou empresa relacionada. |
+| `nomeIndicacaoCliente` | `nome_indicacao` | `nome_indicacao` | Rastreia relacionamento/origem do lead. |
+| `telefoneIndicacaoCliente` | `telefone_indicacao` | `telefone_indicacao` | Facilita contato da indicação quando fizer sentido comercial. |
+| `categoriaOrigemCliente` | `categoria_origem` | `categoria_origem` | Consolidar `Contato Direto` e `Indicação` vindos da planilha. |
+| `cpfCliente` | `cpf` | `cpf` | Corrige ausência de persistência de um campo já presente na UI. |
+| `cepCliente` | `cep` | `cep` | Corrige ausência de persistência de um campo já presente na UI. |
+| `agendaFixaSemanaCliente` | `agenda_fixa_semana` | `agenda_fixa_semana` | Mapa semanal recorrente, melhor que 7 campos soltos na aplicação. |
+| `frequenciaHistoricaAgendaCliente` | `frequencia_historica_agenda` | `frequencia_historica_agenda` | Valor numérico útil para priorização/CRM. |
+| `ultimaDataAgendadaCliente` | `ultima_data_agendada` | `ultima_data_agendada` | Snapshot da última presença conhecida. |
+| `ultimoHorarioAgendadoCliente` | `ultimo_horario_agendado` | `ultimo_horario_agendado` | Ajuda a sugerir horários recorrentes. |
+| `ultimoDiaSemanaAgendadoCliente` | `ultimo_dia_semana_agendado` | `ultimo_dia_semana_agendado` | Melhora filtros operacionais. |
+| `sugestaoClienteFixo` | `sugestao_cliente_fixo` | `sugestao_cliente_fixo` | Heurística derivada da agenda histórica. |
+| `agendaHistoricoCliente` | `agenda_historico` | `agenda_historico` | Guarda `horarios_recorrentes` e preferências `outro_horario_1..5` sem poluir o topo do documento. |
+| `saldoSessoesCliente`| `saldo_sessoes` | `saldo_sessoes` | Mantido por compatibilidade funcional atual. |
+| `anamneseOkCliente` | `anamnese_ok` | `anamnese_ok` | Mantido para não quebrar código e regras existentes. |
+
+### Campos admin/import-only em `clientes`
+
+Mesmo morando no documento do cliente, estes campos devem ser tratados como dados de apoio operacional e não como dados livres para edição pelo próprio cliente:
+
+- `categoria_origem`
+- `presenca_agenda`
+- `frequencia_historica_agenda`
+- `ultima_data_agendada`
+- `ultimo_horario_agendado`
+- `ultimo_dia_semana_agendado`
+- `sugestao_cliente_fixo`
+- `agenda_fixa_semana`
+- `agenda_historico`
 
 ---
 

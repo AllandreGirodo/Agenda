@@ -16,7 +16,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class FirestoreStructureHelper {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   static const String _tenantPadraoId = 'administrador_padrao_atrelado';
-  static const String _tenantPadraoNome = 'administrador_padrao_atrelado';
+  static const String _tenantPadraoNome = 'Administradora padrão';
 
   static String get _whatsappAdminPadrao {
     try {

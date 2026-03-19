@@ -4,6 +4,7 @@ class UsuarioModel {
   final String id;
   final String nome;
   final String? nomeCliente;
+  final String? nomePreferido;
   final String email;
   final String? emailNormalizado;
   final String? nomeClienteNormalizado;
@@ -14,6 +15,13 @@ class UsuarioModel {
   final bool visualizaTodos;
   final String? theme;
   final String? whatsapp;
+  final String? ddi;
+  final String? telefonePrincipal;
+  final String? nomeContatoSecundario;
+  final String? telefoneSecundario;
+  final String? nomeIndicacao;
+  final String? telefoneIndicacao;
+  final String? categoriaOrigem;
   final bool numeroEhWhatsapp;
   final String? locale;
   final String? adminAtreladaId;
@@ -27,6 +35,7 @@ class UsuarioModel {
     required this.id,
     required this.nome,
     this.nomeCliente,
+    this.nomePreferido,
     required this.email,
     this.emailNormalizado,
     this.nomeClienteNormalizado,
@@ -37,6 +46,13 @@ class UsuarioModel {
     this.visualizaTodos = false,
     this.theme,
     this.whatsapp,
+    this.ddi,
+    this.telefonePrincipal,
+    this.nomeContatoSecundario,
+    this.telefoneSecundario,
+    this.nomeIndicacao,
+    this.telefoneIndicacao,
+    this.categoriaOrigem,
     this.numeroEhWhatsapp = true,
     this.locale,
     this.adminAtreladaId,
@@ -49,10 +65,11 @@ class UsuarioModel {
 
   // Converter para Map (para salvar no Firestore)
   Map<String, dynamic> toMap() {
-    return {
+    final map = <String, dynamic>{
       'id': id,
       'nome': nome,
       'nome_cliente': nomeCliente ?? nome,
+      'nome_preferido': nomePreferido,
       'email': email,
       'email_normalizado': emailNormalizado ?? email.trim().toLowerCase(),
       'nome_cliente_normalizado':
@@ -66,6 +83,13 @@ class UsuarioModel {
       'visualiza_todos': visualizaTodos,
       'theme': theme,
       'whatsapp': whatsapp,
+      'ddi': ddi ?? '55',
+      'telefone_principal': telefonePrincipal ?? whatsapp,
+      'nome_contato_secundario': nomeContatoSecundario,
+      'telefone_secundario': telefoneSecundario,
+      'nome_indicacao': nomeIndicacao,
+      'telefone_indicacao': telefoneIndicacao,
+      'categoria_origem': categoriaOrigem,
       'numero_e_whatsapp': numeroEhWhatsapp,
       'locale': locale,
       'admin_atrelada_id': adminAtreladaId,
@@ -77,6 +101,9 @@ class UsuarioModel {
       'last_changelog_seen': lastChangelogSeen,
       'show_changelog_auto': showChangelogAuto,
     };
+
+    map.removeWhere((key, value) => value == null);
+    return map;
   }
 
   // Criar a partir de Map (ao ler do Firestore)
@@ -85,6 +112,7 @@ class UsuarioModel {
       id: map['id'] ?? '',
       nome: map['nome'] ?? '',
       nomeCliente: map['nome_cliente'] ?? map['nome'],
+      nomePreferido: map['nome_preferido'] as String?,
       email: map['email'] ?? '',
       emailNormalizado: map['email_normalizado'] as String?,
       nomeClienteNormalizado: map['nome_cliente_normalizado'] as String?,
@@ -97,6 +125,14 @@ class UsuarioModel {
       visualizaTodos: map['visualiza_todos'] ?? false,
       theme: map['theme'],
       whatsapp: map['whatsapp'] as String?,
+        ddi: map['ddi'] as String?,
+        telefonePrincipal:
+          map['telefone_principal'] as String? ?? map['whatsapp'] as String?,
+        nomeContatoSecundario: map['nome_contato_secundario'] as String?,
+        telefoneSecundario: map['telefone_secundario'] as String?,
+        nomeIndicacao: map['nome_indicacao'] as String?,
+        telefoneIndicacao: map['telefone_indicacao'] as String?,
+        categoriaOrigem: map['categoria_origem'] as String?,
       numeroEhWhatsapp: map['numero_e_whatsapp'] as bool? ?? true,
       locale: map['locale'] as String?,
       adminAtreladaId: map['admin_atrelada_id'] as String?,

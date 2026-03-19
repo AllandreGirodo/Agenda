@@ -6,6 +6,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:agenda/core/utils/app_styles.dart';
 import 'package:agenda/core/utils/app_strings.dart';
+import 'package:agenda/core/utils/validadores.dart';
 import 'package:agenda/features/agendamento/view/agendamento_view.dart';
 import 'package:agenda/features/auth/controller/login_controller.dart';
 import 'package:agenda/features/auth/view/signup_view.dart';
@@ -32,7 +33,6 @@ class _LoginViewState extends State<LoginView> {
   bool _isLoading = false;
   bool _isObscure = true;
   bool _lembrarCredenciais = false;
-  bool _valorTesteBooleanoBanco = false;
   final LocalAuthentication auth = LocalAuthentication();
 
   @override
@@ -91,7 +91,7 @@ class _LoginViewState extends State<LoginView> {
   Future<void> _login() async {
     final email = _emailController.text.trim();
     final senha = _senhaController.text.trim();
-    final emailValido = _isValidEmail(email);
+    final emailValido = Validadores.isEmailValido(email);
     final senhaValida = senha.length >= 6;
     final motivos = <String>[];
 
@@ -145,12 +145,6 @@ class _LoginViewState extends State<LoginView> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  bool _isValidEmail(String value) {
-    final normalized = value.trim();
-    if (normalized.isEmpty) return false;
-    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(normalized);
   }
 
   Future<void> _cadastro() async {
@@ -240,28 +234,44 @@ class _LoginViewState extends State<LoginView> {
 
   Future<void> _googleLogin() async {
     setState(() => _isLoading = true);
-    final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        setState(() => _isLoading = false);
-        return; // Usuário cancelou
+      if (kIsWeb) {
+        final provider = GoogleAuthProvider()
+          ..setCustomParameters({'prompt': 'select_account'});
+
+        try {
+          await FirebaseAuth.instance.signInWithPopup(provider);
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'popup-blocked') {
+            await FirebaseAuth.instance.signInWithRedirect(provider);
+            return;
+          }
+          if (e.code == 'popup-closed-by-user' ||
+              e.code == 'cancelled-popup-request') {
+            return;
+          }
+          rethrow;
+        }
+      } else {
+        final googleSignIn = GoogleSignIn();
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+        if (googleUser == null) {
+          return;
+        }
+
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+        final AuthCredential credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        await FirebaseAuth.instance.signInWithCredential(credential);
       }
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      await FirebaseAuth.instance.signInWithCredential(credential);
       if (!mounted) return;
-      // Redirecionamento é tratado pelo StreamBuilder no AgendamentoView ou aqui manualmente
-      navigator.pushReplacement(
-        MaterialPageRoute(builder: (_) => const AgendamentoView()),
-      );
+      await _loginController.logarComGoogleAutenticado(context);
     } catch (e) {
       if (mounted) {
         messenger.showSnackBar(
@@ -341,51 +351,13 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
-  Future<void> _alternarTesteBooleanoNoBanco() async {
-    if (!mounted) return;
-
-    setState(() => _isLoading = true);
-    final messenger = ScaffoldMessenger.of(context);
-
-    try {
-      final valorAtual = await FirestoreService()
-          .alternarTesteBooleanoLoginView(
-            emailDigitado: _emailController.text.trim(),
-            valorAtual: _valorTesteBooleanoBanco,
-            uid: FirebaseAuth.instance.currentUser?.uid,
-          );
-
-      _valorTesteBooleanoBanco = valorAtual;
-
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(AppStrings.testeBooleanoBancoSucesso(valorAtual)),
-        ),
-      );
-    } on StateError catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text(e.message)));
-    } catch (e) {
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(AppStrings.testeBooleanoBancoErro(e.toString())),
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     // Usa o tema atual (Light ou Dark) configurado no main.dart
     final theme = Theme.of(context);
 
     return Scaffold(
-      // Fundo transparente para permitir ver o AnimatedBackground do main.dart
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -494,17 +466,6 @@ class _LoginViewState extends State<LoginView> {
                           ),
                           onPressed: _googleLogin,
                         ),
-                        if (kDebugMode) ...[
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: _alternarTesteBooleanoNoBanco,
-                              icon: const Icon(Icons.toggle_on_outlined),
-                              label: Text(AppStrings.testeBooleanoBancoBtn),
-                            ),
-                          ),
-                        ],
                         const SizedBox(height: 10),
                         // Botão de Biometria
                         IconButton(

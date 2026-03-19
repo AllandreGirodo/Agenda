@@ -780,7 +780,7 @@ class _AdminFerramentasDatabaseSetupViewState
                     _buildCampoEnvNaoEditavel(
                       'PUSH_NOTIFICATION_FUNCTION_NAME',
                     ),
-                    _buildCampoEnvNaoEditavel('EXPORT_JSONBIN_FUNCTION_NAME'),
+                    _buildCampoEnvNaoEditavel('RANDOM_MESSAGES_FUNCTION_NAME'),
                     _buildCampoEnvNaoEditavel('RECAPTCHA_SITE_KEY'),
                     _buildCampoEnvNaoEditavel('VAPID_KEY'),
                   ]),

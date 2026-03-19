@@ -35,6 +35,19 @@ graph TD
 
 ## 📋 Collections Principais
 
+### Observação de modelagem baseada na planilha
+
+O arquivo `base_tcc_agenda_outros_horarios.xlsx` trouxe 1.918 registros úteis, com forte predominância de:
+
+- `Telefone Principal`
+- `nome indicado` e `telefone indicado`
+- `nome secundario` e `telefone secundario`
+- categoria (`Contato Direto` ou `Indicação`)
+- sinais históricos de recorrência (`Frequência Histórica`, `Última Data`, `Último Horário`, `Último Dia da Semana`)
+- sugestão booleana de cliente fixo
+
+Por isso a coleção `clientes` passa a concentrar não só anamnese, mas também CRM leve, contato alternativo e leitura histórica de recorrência.
+
 ### 1. `clientes` Collection
 **Documento ID:** `{uid}` (Firebase Auth UID)
 
@@ -42,7 +55,17 @@ graph TD
 {
   uid: string,                    // ID único do Firebase Auth
   cliente_nome: string,           // Nome completo do cliente
-  whatsapp: string,               // Telefone WhatsApp
+  nome_preferido: string,         // Nome social, apelido ou forma de tratamento
+  ddi: string,                    // DDI principal. Padrão: "55"
+  whatsapp: string,               // Campo legado para compatibilidade
+  telefone_principal: string,     // Número principal sem máscara
+  nome_contato_secundario: string,// Nome associado ao telefone secundário
+  telefone_secundario: string,    // Número alternativo
+  nome_indicacao: string,         // Quem indicou o cliente
+  telefone_indicacao: string,     // Telefone da indicação
+  categoria_origem: string,       // 'Contato Direto' | 'Indicação'
+  cpf: string,                    // CPF do cliente
+  cep: string,                    // CEP separado do endereço livre
   data_nascimento: Timestamp,     // Data de nascimento
   saldo_sessoes: number,          // Quantidade de sessões pré-pagas
   favoritos: string[],            // Lista de IDs de favoritos
@@ -51,13 +74,44 @@ graph TD
   alergias: string,               // Alergias conhecidas
   medicamentos: string,           // Medicamentos em uso
   cirurgias: string,              // Histórico de cirurgias
-  anamnese_ok: boolean            // Anamnese preenchida
+  anamnese_ok: boolean,           // Anamnese preenchida
+
+  // Sinais históricos importados da agenda/CRM
+  presenca_agenda: boolean,       // Já apareceu em agenda histórica?
+  frequencia_historica_agenda: number,
+  ultima_data_agendada: Timestamp,
+  ultimo_horario_agendado: string,
+  ultimo_dia_semana_agendado: string,
+  sugestao_cliente_fixo: boolean,
+
+  // Recorrência semanal consolidada
+  agenda_fixa_semana: {
+    domingo: boolean,
+    segunda_feira: boolean,
+    terca_feira: boolean,
+    quarta_feira: boolean,
+    quinta_feira: boolean,
+    sexta_feira: boolean,
+    sabado: boolean
+  },
+
+  // Horários históricos esparsos que não valem um subdocumento próprio
+  agenda_historico: {
+    horarios_recorrentes: string,
+    outro_horario_1: string,
+    outro_horario_2: string,
+    outro_horario_3: string,
+    outro_horario_4: string,
+    outro_horario_5: string
+  }
 }
 ```
 
 **Índices Necessários:**
 - `cliente_nome` (ASC)
-- `whatsapp` (ASC)
+- `telefone_principal` (ASC)
+- `categoria_origem` (ASC)
+- `ultimo_dia_semana_agendado` (ASC)
 
 ---
 
@@ -68,19 +122,40 @@ graph TD
 {
   id: string,                     // ID único do usuário
   nome: string,                   // Nome do usuário
+  nome_cliente: string,           // Nome principal do cliente no domínio da agenda
+  nome_preferido: string,         // Apelido/nome preferido para exibição futura
   email: string,                  // E-mail de login
+  email_normalizado: string,      // E-mail em lowercase
+  nome_cliente_normalizado: string,
   tipo: string,                   // 'admin' | 'cliente'
   aprovado: boolean,              // Cliente aprovado pelo admin
   data_cadastro: Timestamp,       // Data de registro
   fcm_token: string,              // Token para notificações push
   visualiza_todos: boolean,       // Permissão para ver todos os dados
-  theme: string                   // Tema preferido da UI
+  theme: string,                  // Tema preferido da UI
+  whatsapp: string,               // Campo legado para compatibilidade
+  ddi: string,                    // DDI do telefone principal
+  telefone_principal: string,     // Telefone principal sem máscara
+  nome_contato_secundario: string,
+  telefone_secundario: string,
+  nome_indicacao: string,
+  telefone_indicacao: string,
+  categoria_origem: string,
+  numero_e_whatsapp: boolean,
+  locale: string,
+  admin_atrelada_id: string,
+  dev_master: boolean,
+  lgpd_consentido: boolean,
+  lgpd_consentimento_em: Timestamp,
+  last_changelog_seen: string,
+  show_changelog_auto: boolean
 }
 ```
 
 **Índices Necessários:**
 - `email` (ASC)
 - `tipo` + `aprovado` (ASC, ASC)
+- `telefone_principal` (ASC)
 
 ---
 

@@ -196,6 +196,7 @@ service cloud.firestore {
           'id',
           'nome',
           'nome_cliente',
+          'nome_preferido',
           'email',
           'email_normalizado',
           'nome_cliente_normalizado',
@@ -206,6 +207,13 @@ service cloud.firestore {
           'visualiza_todos',
           'theme',
           'whatsapp',
+          'ddi',
+          'telefone_principal',
+          'nome_contato_secundario',
+          'telefone_secundario',
+          'nome_indicacao',
+          'telefone_indicacao',
+          'categoria_origem',
           'numero_e_whatsapp',
           'locale',
           'admin_atrelada_id',
@@ -240,6 +248,14 @@ service cloud.firestore {
         && (request.resource.data.fcm_token == null || request.resource.data.fcm_token is string)
         && (request.resource.data.theme == null || request.resource.data.theme is string)
         && (request.resource.data.whatsapp == null || request.resource.data.whatsapp is string)
+        && (request.resource.data.nome_preferido == null || request.resource.data.nome_preferido is string)
+        && (request.resource.data.ddi == null || request.resource.data.ddi is string)
+        && (request.resource.data.telefone_principal == null || request.resource.data.telefone_principal is string)
+        && (request.resource.data.nome_contato_secundario == null || request.resource.data.nome_contato_secundario is string)
+        && (request.resource.data.telefone_secundario == null || request.resource.data.telefone_secundario is string)
+        && (request.resource.data.nome_indicacao == null || request.resource.data.nome_indicacao is string)
+        && (request.resource.data.telefone_indicacao == null || request.resource.data.telefone_indicacao is string)
+        && (request.resource.data.categoria_origem == null || request.resource.data.categoria_origem is string)
         && (request.resource.data.numero_e_whatsapp == null || request.resource.data.numero_e_whatsapp is bool)
         && (request.resource.data.locale == null || request.resource.data.locale is string)
         && request.resource.data.lgpd_consentido == true
@@ -253,6 +269,7 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'nome',
           'nome_cliente',
+          'nome_preferido',
           'email',
           'email_normalizado',
           'nome_cliente_normalizado',
@@ -260,6 +277,12 @@ service cloud.firestore {
           'fcm_token',
           'theme',
           'whatsapp',
+          'ddi',
+          'telefone_principal',
+          'nome_contato_secundario',
+          'telefone_secundario',
+          'nome_indicacao',
+          'telefone_indicacao',
           'numero_e_whatsapp',
           'locale',
           'admin_atrelada_id',
@@ -297,6 +320,14 @@ service cloud.firestore {
         && (request.resource.data.fcm_token == null || request.resource.data.fcm_token is string)
         && (request.resource.data.theme == null || request.resource.data.theme is string)
         && (request.resource.data.whatsapp == null || request.resource.data.whatsapp is string)
+        && (request.resource.data.nome_preferido == null || request.resource.data.nome_preferido is string)
+        && (request.resource.data.ddi == null || request.resource.data.ddi is string)
+        && (request.resource.data.telefone_principal == null || request.resource.data.telefone_principal is string)
+        && (request.resource.data.nome_contato_secundario == null || request.resource.data.nome_contato_secundario is string)
+        && (request.resource.data.telefone_secundario == null || request.resource.data.telefone_secundario is string)
+        && (request.resource.data.nome_indicacao == null || request.resource.data.nome_indicacao is string)
+        && (request.resource.data.telefone_indicacao == null || request.resource.data.telefone_indicacao is string)
+        && (request.resource.data.categoria_origem == null || request.resource.data.categoria_origem is string)
         && (request.resource.data.numero_e_whatsapp == null || request.resource.data.numero_e_whatsapp is bool)
         && (request.resource.data.locale == null || request.resource.data.locale is string)
         && (request.resource.data.lgpd_consentido == null || request.resource.data.lgpd_consentido is bool)
@@ -312,7 +343,25 @@ service cloud.firestore {
           'uid',
           'cliente_nome',
           'nome',
+          'nome_preferido',
+          'ddi',
           'whatsapp',
+          'telefone_principal',
+          'nome_contato_secundario',
+          'telefone_secundario',
+          'nome_indicacao',
+          'telefone_indicacao',
+          'categoria_origem',
+          'presenca_agenda',
+          'frequencia_historica_agenda',
+          'ultima_data_agendada',
+          'ultimo_horario_agendado',
+          'ultimo_dia_semana_agendado',
+          'sugestao_cliente_fixo',
+          'agenda_fixa_semana',
+          'agenda_historico',
+          'cpf',
+          'cep',
           'data_nascimento',
           'saldo_sessoes',
           'favoritos',
@@ -326,7 +375,25 @@ service cloud.firestore {
         && request.resource.data.uid == clienteId
         && (request.resource.data.cliente_nome == null || request.resource.data.cliente_nome is string)
         && (request.resource.data.nome == null || request.resource.data.nome is string)
+        && (request.resource.data.nome_preferido == null || request.resource.data.nome_preferido is string)
+        && (request.resource.data.ddi == null || request.resource.data.ddi is string)
         && (request.resource.data.whatsapp == null || request.resource.data.whatsapp is string)
+        && (request.resource.data.telefone_principal == null || request.resource.data.telefone_principal is string)
+        && (request.resource.data.nome_contato_secundario == null || request.resource.data.nome_contato_secundario is string)
+        && (request.resource.data.telefone_secundario == null || request.resource.data.telefone_secundario is string)
+        && (request.resource.data.nome_indicacao == null || request.resource.data.nome_indicacao is string)
+        && (request.resource.data.telefone_indicacao == null || request.resource.data.telefone_indicacao is string)
+        && (request.resource.data.categoria_origem == null || request.resource.data.categoria_origem is string)
+        && (request.resource.data.presenca_agenda == null || request.resource.data.presenca_agenda is bool)
+        && (request.resource.data.frequencia_historica_agenda == null || request.resource.data.frequencia_historica_agenda is int)
+        && (request.resource.data.ultima_data_agendada == null || request.resource.data.ultima_data_agendada is timestamp)
+        && (request.resource.data.ultimo_horario_agendado == null || request.resource.data.ultimo_horario_agendado is string)
+        && (request.resource.data.ultimo_dia_semana_agendado == null || request.resource.data.ultimo_dia_semana_agendado is string)
+        && (request.resource.data.sugestao_cliente_fixo == null || request.resource.data.sugestao_cliente_fixo is bool)
+        && (request.resource.data.agenda_fixa_semana == null || request.resource.data.agenda_fixa_semana is map)
+        && (request.resource.data.agenda_historico == null || request.resource.data.agenda_historico is map)
+        && (request.resource.data.cpf == null || request.resource.data.cpf is string)
+        && (request.resource.data.cep == null || request.resource.data.cep is string)
         && (request.resource.data.data_nascimento == null || request.resource.data.data_nascimento is timestamp)
         && (request.resource.data.favoritos == null || request.resource.data.favoritos is list)
         && (request.resource.data.endereco == null || request.resource.data.endereco is string)
@@ -347,7 +414,16 @@ service cloud.firestore {
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'cliente_nome',
           'nome',
+          'nome_preferido',
+          'ddi',
           'whatsapp',
+          'telefone_principal',
+          'nome_contato_secundario',
+          'telefone_secundario',
+          'nome_indicacao',
+          'telefone_indicacao',
+          'cpf',
+          'cep',
           'data_nascimento',
           'favoritos',
           'endereco',

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:agenda/features/agendamento/view/agendamento_view.dart';
 import 'package:agenda/features/agendamento/view/admin_agendamentos_view.dart';
 import 'package:agenda/features/auth/view/aguardando_aprovacao_view.dart';
+import 'package:agenda/features/auth/view/google_profile_completion_view.dart';
 import 'package:agenda/core/services/firestore_service.dart';
 import 'package:agenda/core/services/auth_security_service.dart';
 import 'package:agenda/core/models/usuario_model.dart';
@@ -86,80 +87,16 @@ class LoginController {
         password: senha,
       );
 
-      if (userCredential.user != null) {
-        final uid = userCredential.user!.uid;
-
-        // 2. Buscar dados do usuário no Firestore para verificar o tipo
-        final usuario = await _firestoreService.getUsuario(uid);
-
-        if (usuario != null) {
-          // Atualiza token sem bloquear o login caso a gravação falhe.
-          try {
-            final token = await _firebaseMessaging.getToken();
-            if (token != null) {
-              await _firestoreService.atualizarToken(uid, token);
-            }
-          } catch (_) {}
-
-          if (!context.mounted) return false;
-
-          // Sincronizar tema do usuário salvo no banco
-          if (usuario.theme != null) {
-            try {
-              final themeEnum = AppThemeType.values.firstWhere(
-                (e) => e.toString() == usuario.theme,
-                orElse: () => AppThemeType.sistema,
-              );
-              MyApp.setCustomTheme(context, themeEnum);
-            } catch (_) {}
-          }
-
-          // 3. Redirecionar com base no tipo de usuário
-          if (usuario.tipo == 'admin') {
-            try {
-              await FirestoreStructureHelper().inicializarSistemaCompleto();
-            } catch (e) {
-              debugPrint('Falha ao inicializar colecoes de entrada: $e');
-            }
-
-            if (!context.mounted) return false;
-
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AdminAgendamentosView(),
-              ),
-            );
-            return true;
-          } else if (usuario.aprovado) {
-            // Cliente aprovado
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const AgendamentoView()),
-            );
-            return true;
-          } else {
-            // Cliente não aprovado (Pendente)
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AguardandoAprovacaoView(
-                  dataCadastro: usuario.dataCadastro ?? DateTime.now(),
-                ),
-              ),
-            );
-            return true;
-          }
-        } else {
-          if (!context.mounted) return false;
-          // Usuário autenticado mas sem registro no banco
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppStrings.cadastroUsuarioNaoEncontrado)),
-          );
-          await _auth.signOut();
-          return false;
-        }
+      final authUser = userCredential.user;
+      if (authUser == null) {
+        return false;
       }
+
+      return _finalizarLoginPosAutenticacao(
+        context,
+        authUser,
+        criarUsuarioSeAusente: false,
+      );
     } on FirebaseAuthException catch (e) {
       await auditarTentativaCredencial(
         origem: 'login',
@@ -190,6 +127,341 @@ class LoginController {
     }
 
     return false;
+  }
+
+  Future<bool> logarComGoogleAutenticado(BuildContext context) async {
+    final authUser = _auth.currentUser;
+    if (authUser == null) {
+      return false;
+    }
+
+    return _finalizarLoginPosAutenticacao(
+      context,
+      authUser,
+      criarUsuarioSeAusente: true,
+      validarCadastroGoogle: true,
+    );
+  }
+
+  Future<bool> completarCadastroGoogleCliente(
+    BuildContext context,
+    String nome,
+    String whatsapp,
+    bool numeroEhWhatsapp,
+    String? locale,
+  ) async {
+    final authUser = _auth.currentUser;
+    if (authUser == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.googleCadastroSessaoExpirada)),
+        );
+      }
+      return false;
+    }
+
+    final uid = authUser.uid;
+    final dataAgora = DateTime.now();
+    final email = (authUser.email ?? '').trim();
+    final emailNormalizado = email.toLowerCase();
+    final nomeNormalizado = nome.trim().isNotEmpty
+        ? nome.trim()
+        : _resolverNomeBaseUsuario(authUser, emailNormalizado: emailNormalizado);
+    final telefoneNormalizado = whatsapp.replaceAll(RegExp(r'[^0-9]'), '');
+
+    if (telefoneNormalizado.length < 10) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.googleCadastroTelefoneInvalido)),
+        );
+      }
+      return false;
+    }
+
+    try {
+      final usuarioExistente = await _firestoreService.getUsuario(uid);
+      final devMaster =
+          usuarioExistente?.devMaster ??
+          _firestoreService.emailEhDevMaster(emailNormalizado);
+      final tipoUsuario =
+          usuarioExistente?.tipo ?? (devMaster ? 'admin' : 'cliente');
+      final aprovado = usuarioExistente?.aprovado ?? devMaster;
+      final adminAtreladaIdInformada =
+          (usuarioExistente?.adminAtreladaId ?? '').trim();
+      final adminAtreladaId = adminAtreladaIdInformada.isNotEmpty
+          ? adminAtreladaIdInformada
+          : await _firestoreService.getAdministradoraPadraoAtreladaId();
+
+      final usuarioAtualizado = UsuarioModel(
+        id: uid,
+        nome: nomeNormalizado,
+        nomeCliente: nomeNormalizado,
+        nomePreferido: usuarioExistente?.nomePreferido,
+        email: email,
+        emailNormalizado: emailNormalizado,
+        nomeClienteNormalizado: nomeNormalizado.toLowerCase(),
+        tipo: tipoUsuario,
+        aprovado: aprovado,
+        dataCadastro: usuarioExistente?.dataCadastro ?? dataAgora,
+        fcmToken: usuarioExistente?.fcmToken,
+        visualizaTodos: usuarioExistente?.visualizaTodos ?? false,
+        theme: usuarioExistente?.theme ?? AppThemeType.sistema.toString(),
+        whatsapp: telefoneNormalizado,
+        ddi: usuarioExistente?.ddi ?? '55',
+        telefonePrincipal: telefoneNormalizado,
+        nomeContatoSecundario: usuarioExistente?.nomeContatoSecundario,
+        telefoneSecundario: usuarioExistente?.telefoneSecundario,
+        nomeIndicacao: usuarioExistente?.nomeIndicacao,
+        telefoneIndicacao: usuarioExistente?.telefoneIndicacao,
+        categoriaOrigem: usuarioExistente?.categoriaOrigem,
+        numeroEhWhatsapp: numeroEhWhatsapp,
+        locale: locale ?? usuarioExistente?.locale ?? 'pt',
+        adminAtreladaId: adminAtreladaId,
+        devMaster: devMaster,
+        lgpdConsentido: true,
+        lgpdConsentimentoEm: dataAgora,
+        lastChangelogSeen: usuarioExistente?.lastChangelogSeen,
+        showChangelogAuto: usuarioExistente?.showChangelogAuto ?? true,
+      );
+
+      await _firestoreService.salvarUsuario(usuarioAtualizado);
+
+      if (tipoUsuario == 'cliente') {
+        await _firestoreService.salvarPerfilInicialClienteGoogle(
+          uid: uid,
+          nomeCliente: nomeNormalizado,
+          whatsapp: telefoneNormalizado,
+        );
+
+        // Mantem sincronizacao best-effort para nao bloquear login social.
+        try {
+          await _firestoreService.sincronizarWhatsappAdminPadrao();
+        } catch (_) {}
+      }
+
+      return _finalizarLoginPosAutenticacao(
+        context,
+        authUser,
+        criarUsuarioSeAusente: false,
+        validarCadastroGoogle: true,
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.erroCadastroComDetalhe('$e'))),
+        );
+      }
+      return false;
+    }
+  }
+
+  Future<bool> _finalizarLoginPosAutenticacao(
+    BuildContext context,
+    User authUser, {
+    required bool criarUsuarioSeAusente,
+    bool validarCadastroGoogle = false,
+  }) async {
+    final uid = authUser.uid;
+    UsuarioModel? usuario = await _firestoreService.getUsuario(uid);
+
+    if (usuario == null && criarUsuarioSeAusente) {
+      final dataAgora = DateTime.now();
+      final email = (authUser.email ?? '').trim();
+      final emailNormalizado = email.toLowerCase();
+      final devMaster = _firestoreService.emailEhDevMaster(emailNormalizado);
+
+      if (!devMaster && validarCadastroGoogle) {
+        if (!context.mounted) return false;
+        _abrirFluxoCompletarCadastroGoogle(
+          context,
+          authUser: authUser,
+          usuarioExistente: null,
+        );
+        return true;
+      }
+
+      final nomeBase = _resolverNomeBaseUsuario(
+        authUser,
+        emailNormalizado: emailNormalizado,
+      );
+      final adminAtreladaId = await _firestoreService
+          .getAdministradoraPadraoAtreladaId();
+      final tipoUsuario = devMaster ? 'admin' : 'cliente';
+      final aprovado = devMaster;
+
+      final novoUsuario = UsuarioModel(
+        id: uid,
+        nome: nomeBase,
+        nomeCliente: nomeBase,
+        email: email,
+        emailNormalizado: emailNormalizado,
+        nomeClienteNormalizado: nomeBase.trim().toLowerCase(),
+        tipo: tipoUsuario,
+        aprovado: aprovado,
+        dataCadastro: dataAgora,
+        theme: AppThemeType.sistema.toString(),
+        whatsapp: '',
+        ddi: '55',
+        telefonePrincipal: '',
+        numeroEhWhatsapp: true,
+        locale: 'pt',
+        adminAtreladaId: adminAtreladaId,
+        devMaster: devMaster,
+        lgpdConsentido: true,
+        lgpdConsentimentoEm: dataAgora,
+      );
+
+      await _firestoreService.salvarUsuario(novoUsuario);
+
+      // Mantem sincronizacao best-effort para nao bloquear login social.
+      try {
+        await _firestoreService.sincronizarWhatsappAdminPadrao();
+      } catch (_) {}
+
+      usuario = await _firestoreService.getUsuario(uid);
+    }
+
+    if (usuario == null) {
+      if (!context.mounted) return false;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.cadastroUsuarioNaoEncontrado)),
+      );
+      await _auth.signOut();
+      return false;
+    }
+
+    final usuarioAtual = usuario;
+
+    if (validarCadastroGoogle &&
+        _usuarioPrecisaCompletarCadastroGoogle(usuarioAtual)) {
+      if (!context.mounted) return false;
+      _abrirFluxoCompletarCadastroGoogle(
+        context,
+        authUser: authUser,
+        usuarioExistente: usuarioAtual,
+      );
+      return true;
+    }
+
+    // Atualiza token sem bloquear o login caso a gravação falhe.
+    try {
+      final token = await _firebaseMessaging.getToken();
+      if (token != null) {
+        await _firestoreService.atualizarToken(uid, token);
+      }
+    } catch (_) {}
+
+    if (!context.mounted) return false;
+
+    // Sincronizar tema do usuário salvo no banco
+    if (usuarioAtual.theme != null) {
+      try {
+        final themeEnum = AppThemeType.values.firstWhere(
+          (e) => e.toString() == usuarioAtual.theme,
+          orElse: () => AppThemeType.sistema,
+        );
+        MyApp.setCustomTheme(context, themeEnum);
+      } catch (_) {}
+    }
+
+    // Redirecionar com base no tipo de usuário
+    if (usuarioAtual.tipo == 'admin') {
+      try {
+        await FirestoreStructureHelper().inicializarSistemaCompleto();
+      } catch (e) {
+        debugPrint('Falha ao inicializar colecoes de entrada: $e');
+      }
+
+      if (!context.mounted) return false;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const AdminAgendamentosView()),
+      );
+      return true;
+    }
+
+    if (usuarioAtual.aprovado) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const AgendamentoView()),
+      );
+      return true;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AguardandoAprovacaoView(
+          dataCadastro: usuarioAtual.dataCadastro ?? DateTime.now(),
+        ),
+      ),
+    );
+    return true;
+  }
+
+  void _abrirFluxoCompletarCadastroGoogle(
+    BuildContext context, {
+    required User authUser,
+    required UsuarioModel? usuarioExistente,
+  }) {
+    final email = (authUser.email ?? usuarioExistente?.email ?? '').trim();
+    final nomeInicial = (usuarioExistente?.nomeCliente ??
+            usuarioExistente?.nome ??
+            _resolverNomeBaseUsuario(
+              authUser,
+              emailNormalizado: email.toLowerCase(),
+            ))
+        .trim();
+    final whatsappInicial =
+        (usuarioExistente?.telefonePrincipal ?? usuarioExistente?.whatsapp ?? '')
+            .trim();
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => GoogleProfileCompletionView(
+          nomeInicial: nomeInicial,
+          email: email,
+          whatsappInicial: whatsappInicial,
+          numeroEhWhatsappInicial: usuarioExistente?.numeroEhWhatsapp ?? true,
+          onSalvar: completarCadastroGoogleCliente,
+        ),
+      ),
+    );
+  }
+
+  bool _usuarioPrecisaCompletarCadastroGoogle(UsuarioModel usuario) {
+    if (usuario.tipo != 'cliente') return false;
+
+    final nome = (usuario.nomeCliente ?? usuario.nome).trim();
+    final telefone =
+        (usuario.telefonePrincipal ?? usuario.whatsapp ?? '').replaceAll(
+          RegExp(r'[^0-9]'),
+          '',
+        );
+
+    return nome.isEmpty || telefone.length < 10 || !usuario.lgpdConsentido;
+  }
+
+  String _resolverNomeBaseUsuario(
+    User authUser, {
+    String? emailNormalizado,
+  }) {
+    final nomeExibicao = (authUser.displayName ?? '').trim();
+    if (nomeExibicao.isNotEmpty) return nomeExibicao;
+
+    final emailBase =
+        (emailNormalizado ?? (authUser.email ?? '').trim().toLowerCase())
+            .trim();
+    if (emailBase.contains('@')) {
+      return emailBase.split('@').first;
+    }
+    if (emailBase.isNotEmpty) {
+      return emailBase;
+    }
+
+    return 'Cliente';
   }
 
   Future<void> cadastrar(
@@ -230,6 +502,8 @@ class LoginController {
           dataCadastro: dataAgora,
           theme: AppThemeType.sistema.toString(),
           whatsapp: whatsapp,
+          ddi: '55',
+          telefonePrincipal: whatsapp,
           numeroEhWhatsapp: numeroEhWhatsapp,
           locale: locale,
           adminAtreladaId: adminAtreladaId,

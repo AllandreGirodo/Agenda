@@ -29,8 +29,90 @@ class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
   static const String _tenantPadraoId = 'administrador_padrao_atrelado';
-  static const String _tenantPadraoNomeExibicao =
-      'administrador_padrao_atrelado';
+  static const String _tenantPadraoNomeExibicao = 'Administradora padrão';
+  static const int _limiteSolicitacoesListaEsperaPorCliente = 5;
+  static const List<String> _diasSemanaAgenda = [
+    'domingo',
+    'segunda_feira',
+    'terca_feira',
+    'quarta_feira',
+    'quinta_feira',
+    'sexta_feira',
+    'sabado',
+  ];
+
+  Map<String, bool> _agendaFixaSemanaPadrao() {
+    return {
+      'domingo': false,
+      'segunda_feira': false,
+      'terca_feira': false,
+      'quarta_feira': false,
+      'quinta_feira': false,
+      'sexta_feira': false,
+      'sabado': false,
+    };
+  }
+
+  Map<String, dynamic> _agendaHistoricoPadrao() {
+    return {
+      'horarios_recorrentes': '',
+      'outro_horario_1': '',
+      'outro_horario_2': '',
+      'outro_horario_3': '',
+      'outro_horario_4': '',
+      'outro_horario_5': '',
+    };
+  }
+
+  String _nomeExibicaoTenantPadrao([String? valor]) {
+    final nomeInformado = (valor ?? '').trim();
+    if (nomeInformado.isEmpty) return _tenantPadraoNomeExibicao;
+
+    final nomeNormalizado = _normalizarSlug(nomeInformado);
+    if (nomeNormalizado == _tenantPadraoId && !nomeInformado.contains(' ')) {
+      return _tenantPadraoNomeExibicao;
+    }
+
+    return nomeInformado;
+  }
+
+  Map<String, dynamic> _dadosPadraoCliente({
+    required String uid,
+    required String nomeCliente,
+    String whatsapp = '',
+  }) {
+    return {
+      'uid': uid,
+      'cliente_nome': nomeCliente,
+      'nome_preferido': '',
+      'ddi': '55',
+      'whatsapp': whatsapp,
+      'telefone_principal': whatsapp,
+      'nome_contato_secundario': '',
+      'telefone_secundario': '',
+      'nome_indicacao': '',
+      'telefone_indicacao': '',
+      'categoria_origem': '',
+      'presenca_agenda': false,
+      'frequencia_historica_agenda': 0,
+      'ultima_data_agendada': null,
+      'ultimo_horario_agendado': '',
+      'ultimo_dia_semana_agendado': '',
+      'sugestao_cliente_fixo': false,
+      'agenda_fixa_semana': _agendaFixaSemanaPadrao(),
+      'agenda_historico': _agendaHistoricoPadrao(),
+      'cpf': '',
+      'cep': '',
+      'saldo_sessoes': 0,
+      'favoritos': <String>[],
+      'endereco': '',
+      'historico_medico': '',
+      'alergias': '',
+      'medicamentos': '',
+      'cirurgias': '',
+      'anamnese_ok': false,
+    };
+  }
 
   String _normalizarTelefone(String telefone) {
     return telefone.replaceAll(RegExp(r'[^0-9]'), '');
@@ -65,6 +147,235 @@ class FirestoreService {
         .replaceAll(RegExp(r'^_+|_+$'), '');
   }
 
+  String _normalizarCabecalhoImportacao(String valor) {
+    return valor
+        .trim()
+        .toLowerCase()
+        .replaceFirst('\ufeff', '')
+        .replaceAll(RegExp(r'[áàâãä]'), 'a')
+        .replaceAll(RegExp(r'[éèêë]'), 'e')
+        .replaceAll(RegExp(r'[íìîï]'), 'i')
+        .replaceAll(RegExp(r'[óòôõö]'), 'o')
+        .replaceAll(RegExp(r'[úùûü]'), 'u')
+        .replaceAll('ç', 'c')
+        .replaceAll(RegExp(r'[_\-.]+'), ' ')
+        .replaceAll(RegExp(r'[^a-z0-9 ]+'), '')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+  }
+
+  String? _mapearCampoImportacao(String cabecalhoNormalizado) {
+    switch (cabecalhoNormalizado) {
+      case 'uid':
+      case 'id':
+        return 'uid';
+      case 'nome principal':
+      case 'nome':
+      case 'nome cliente':
+      case 'cliente nome':
+        return 'cliente_nome';
+      case 'nome preferido':
+        return 'nome_preferido';
+      case 'ddi':
+        return 'ddi';
+      case 'telefone principal':
+      case 'telefone':
+      case 'celular':
+      case 'whatsapp':
+        return 'telefone_principal';
+      case 'nome contato secundario':
+      case 'nome secundario':
+        return 'nome_contato_secundario';
+      case 'telefone secundario':
+        return 'telefone_secundario';
+      case 'nome indicacao':
+      case 'nome indicado':
+        return 'nome_indicacao';
+      case 'telefone indicacao':
+      case 'telefone indicado':
+        return 'telefone_indicacao';
+      case 'categoria origem':
+        return 'categoria_origem';
+      case 'presenca agenda':
+        return 'presenca_agenda';
+      case 'frequencia historica agenda':
+        return 'frequencia_historica_agenda';
+      case 'ultima data agendada':
+        return 'ultima_data_agendada';
+      case 'ultimo horario agendado':
+        return 'ultimo_horario_agendado';
+      case 'ultimo dia semana agendado':
+      case 'ultimo dia da semana':
+        return 'ultimo_dia_semana_agendado';
+      case 'sugestao cliente fixo':
+        return 'sugestao_cliente_fixo';
+      case 'cpf':
+        return 'cpf';
+      case 'cep':
+        return 'cep';
+      case 'data nascimento':
+      case 'data de nascimento':
+        return 'data_nascimento';
+      case 'saldo sessoes':
+        return 'saldo_sessoes';
+      case 'favoritos':
+        return 'favoritos';
+      case 'endereco':
+        return 'endereco';
+      case 'historico medico':
+        return 'historico_medico';
+      case 'alergias':
+        return 'alergias';
+      case 'medicamentos':
+        return 'medicamentos';
+      case 'cirurgias':
+        return 'cirurgias';
+      case 'anamnese ok':
+        return 'anamnese_ok';
+      case 'horarios recorrentes':
+        return 'agenda_historico.horarios_recorrentes';
+      case 'outro horario 1':
+        return 'agenda_historico.outro_horario_1';
+      case 'outro horario 2':
+        return 'agenda_historico.outro_horario_2';
+      case 'outro horario 3':
+        return 'agenda_historico.outro_horario_3';
+      case 'outro horario 4':
+        return 'agenda_historico.outro_horario_4';
+      case 'outro horario 5':
+        return 'agenda_historico.outro_horario_5';
+      case 'domingo fixo':
+        return 'agenda_fixa_semana.domingo';
+      case 'segunda feira fixo':
+        return 'agenda_fixa_semana.segunda_feira';
+      case 'terca feira fixo':
+        return 'agenda_fixa_semana.terca_feira';
+      case 'quarta feira fixo':
+        return 'agenda_fixa_semana.quarta_feira';
+      case 'quinta feira fixo':
+        return 'agenda_fixa_semana.quinta_feira';
+      case 'sexta feira fixo':
+        return 'agenda_fixa_semana.sexta_feira';
+      case 'sabado fixo':
+        return 'agenda_fixa_semana.sabado';
+      case 'domingo':
+        return 'agenda_historico.dia_semana.domingo';
+      case 'segunda feira':
+        return 'agenda_historico.dia_semana.segunda_feira';
+      case 'terca feira':
+        return 'agenda_historico.dia_semana.terca_feira';
+      case 'quarta feira':
+        return 'agenda_historico.dia_semana.quarta_feira';
+      case 'quinta feira':
+        return 'agenda_historico.dia_semana.quinta_feira';
+      case 'sexta feira':
+        return 'agenda_historico.dia_semana.sexta_feira';
+      case 'sabado':
+        return 'agenda_historico.dia_semana.sabado';
+      default:
+        return null;
+    }
+  }
+
+  bool _valorImportacaoParaBool(dynamic valor) {
+    if (valor is bool) return valor;
+    if (valor is num) return valor != 0;
+    final normalizado = (valor ?? '').toString().trim().toLowerCase();
+    return normalizado == 'true' ||
+        normalizado == '1' ||
+        normalizado == 'sim' ||
+        normalizado == 'yes' ||
+        normalizado == 'verdadeiro';
+  }
+
+  int _valorImportacaoParaInt(dynamic valor, {int padrao = 0}) {
+    if (valor is int) return valor;
+    if (valor is num) return valor.toInt();
+    final parse = int.tryParse((valor ?? '').toString().trim());
+    return parse ?? padrao;
+  }
+
+  List<String> _valorImportacaoParaLista(dynamic valor) {
+    if (valor == null) return <String>[];
+
+    if (valor is List) {
+      return valor
+          .map((item) => item.toString().trim())
+          .where((item) => item.isNotEmpty)
+          .toList();
+    }
+
+    final bruto = valor.toString().trim();
+    if (bruto.isEmpty) return <String>[];
+
+    final separador = bruto.contains(';') ? ';' : ',';
+    return bruto
+        .split(separador)
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList();
+  }
+
+  Map<String, dynamic> _normalizarLinhaImportacao(
+    Map<String, dynamic> linha,
+  ) {
+    final resultado = <String, dynamic>{};
+    final agendaFixa = <String, bool>{};
+    final agendaHistorico = <String, dynamic>{};
+    final historicoPorDia = <String, String>{};
+
+    for (final entry in linha.entries) {
+      final campoNormalizado = _normalizarCabecalhoImportacao(
+        entry.key.toString(),
+      );
+      final campoMapeado = _mapearCampoImportacao(campoNormalizado);
+      if (campoMapeado == null) continue;
+
+      final valorTexto = (entry.value ?? '').toString().trim();
+      if (campoMapeado.startsWith('agenda_fixa_semana.')) {
+        if (valorTexto.isEmpty) continue;
+        final dia = campoMapeado.split('.').last;
+        agendaFixa[dia] = _valorImportacaoParaBool(entry.value);
+        continue;
+      }
+
+      if (campoMapeado.startsWith('agenda_historico.')) {
+        final subCampo = campoMapeado.substring('agenda_historico.'.length);
+        if (subCampo.startsWith('dia_semana.')) {
+          if (valorTexto.isEmpty) continue;
+          final dia = subCampo.substring('dia_semana.'.length);
+          historicoPorDia[dia] = valorTexto;
+          continue;
+        }
+
+        agendaHistorico[subCampo] = valorTexto;
+        continue;
+      }
+
+      resultado[campoMapeado] = entry.value;
+    }
+
+    if (historicoPorDia.isNotEmpty) {
+      final linhas = historicoPorDia.entries
+          .map((entry) => '${entry.key}: ${entry.value}')
+          .join(' | ');
+      final atual = (agendaHistorico['horarios_recorrentes'] ?? '')
+          .toString()
+          .trim();
+      agendaHistorico['horarios_recorrentes'] =
+          atual.isEmpty ? linhas : '$atual | $linhas';
+    }
+
+    if (agendaFixa.isNotEmpty) {
+      resultado['agenda_fixa_semana'] = agendaFixa;
+    }
+    if (agendaHistorico.isNotEmpty) {
+      resultado['agenda_historico'] = agendaHistorico;
+    }
+
+    return resultado;
+  }
+
   String _devEmailConfigurado() {
     try {
       final valorEnv = (dotenv.env['DEV_EMAIL'] ?? '').trim();
@@ -94,6 +405,29 @@ class FirestoreService {
       'PUSH_NOTIFICATION_FUNCTION_NAME',
       defaultValue: '',
     ).trim();
+  }
+
+  String _randomMessagesFunctionName() {
+    try {
+      final valorEnv = (dotenv.env['RANDOM_MESSAGES_FUNCTION_NAME'] ?? '')
+          .trim();
+      if (valorEnv.isNotEmpty) {
+        return valorEnv;
+      }
+    } catch (_) {
+      // dotenv pode nao estar inicializado em alguns contextos de teste.
+    }
+
+    final valorDefine = const String.fromEnvironment(
+      'RANDOM_MESSAGES_FUNCTION_NAME',
+      defaultValue: '',
+    ).trim();
+
+    if (valorDefine.isNotEmpty) {
+      return valorDefine;
+    }
+
+    return 'dispararMensagensAleatoriasClientesManual';
   }
 
   String _pushNotificationProxyUrl() {
@@ -128,9 +462,7 @@ class FirestoreService {
     String nomeExibicao = _tenantPadraoNomeExibicao,
   }) async {
     final tenantSlug = _normalizarSlug(tenantId);
-    final nome = nomeExibicao.trim().isNotEmpty
-        ? nomeExibicao.trim()
-        : _tenantPadraoNomeExibicao;
+    final nome = _nomeExibicaoTenantPadrao(nomeExibicao);
 
     await _db.collection('configuracoes_gerais').doc(tenantSlug).set({
       'id': tenantSlug,
@@ -156,13 +488,12 @@ class FirestoreService {
             ? valorId
             : (valorLegado.isNotEmpty ? valorLegado : _tenantPadraoId),
       );
-      final nomeExibicao = valorLegado.isNotEmpty
-          ? valorLegado
-          : _tenantPadraoNomeExibicao;
+      final nomeExibicao = _nomeExibicaoTenantPadrao(valorLegado);
 
       if (tenantId.isNotEmpty) {
         await _db.collection('configuracoes').doc('geral').set({
           'administradora_padrao_atrelada_id': tenantId,
+          'administradora_padrao_atrelada': nomeExibicao,
         }, SetOptions(merge: true));
 
         await _garantirConfiguracoesGeraisTenantPadrao(
@@ -196,6 +527,10 @@ class FirestoreService {
       if (e.code != 'permission-denied') {
         rethrow;
       }
+    }
+
+    if (tenantId == _tenantPadraoId) {
+      return _tenantPadraoNomeExibicao;
     }
 
     return adminId;
@@ -232,6 +567,10 @@ class FirestoreService {
       if (usuarioLegadoSnap.exists) {
         return usuarioLegadoRef;
       }
+
+      // Evita consultas amplas que podem ser bloqueadas por regras quando o
+      // documento do usuário ainda não existe.
+      return null;
     }
 
     final indiceEmail = await _db
@@ -380,11 +719,57 @@ class FirestoreService {
 
   // --- Clientes ---
   Future<void> salvarCliente(Cliente cliente) async {
-    // Usa o UID como ID do documento para facilitar a busca
+    // Usa merge para preservar campos administrativos/importados nao expostos na UI.
     await _db
         .collection('clientes')
         .doc(cliente.idCliente)
-        .set(cliente.toMap());
+        .set(cliente.toMap(), SetOptions(merge: true));
+  }
+
+  Future<void> sincronizarPerfilClienteNoUsuario(
+    String uid,
+    Cliente cliente,
+  ) async {
+    final usuarioRef = await _buscarUsuarioRefPorUid(uid);
+    if (usuarioRef == null) return;
+
+    final usuarioSnap = await usuarioRef.get();
+    final usuarioData = usuarioSnap.data() ?? const <String, dynamic>{};
+    final email = (usuarioData['email'] as String? ?? '').trim();
+    final tipo = (usuarioData['tipo'] as String? ?? 'cliente').trim();
+    final aprovado = usuarioData['aprovado'] as bool? ?? false;
+    final nomeCliente = (cliente.nomeCliente ?? '').trim();
+
+    final updates = <String, dynamic>{
+      'nome': nomeCliente,
+      'nome_cliente': nomeCliente,
+      'nome_cliente_normalizado': _normalizarNomeBusca(nomeCliente),
+      'nome_preferido': (cliente.nomePreferidoCliente ?? '').trim(),
+      'ddi': (cliente.ddiCliente ?? '55').trim(),
+      'whatsapp':
+          (cliente.whatsappCliente ?? cliente.telefonePrincipalCliente ?? '')
+              .trim(),
+      'telefone_principal':
+          (cliente.telefonePrincipalCliente ?? cliente.whatsappCliente ?? '')
+              .trim(),
+      'nome_contato_secundario': (cliente.nomeContatoSecundarioCliente ?? '')
+          .trim(),
+      'telefone_secundario': (cliente.telefoneSecundarioCliente ?? '').trim(),
+      'nome_indicacao': (cliente.nomeIndicacaoCliente ?? '').trim(),
+      'telefone_indicacao': (cliente.telefoneIndicacaoCliente ?? '').trim(),
+    };
+
+    await usuarioRef.set(updates, SetOptions(merge: true));
+
+    if (email.isNotEmpty) {
+      await _sincronizarIndiceHumanoUsuario(
+        uid: uid,
+        email: email,
+        nomeCliente: nomeCliente,
+        tipo: tipo,
+        aprovado: aprovado,
+      );
+    }
   }
 
   Future<Cliente?> getCliente(String uid) async {
@@ -395,17 +780,92 @@ class FirestoreService {
     return null;
   }
 
-  Stream<List<Cliente>> getClientesAprovados() {
-    // Busca usuários aprovados e cruza com a coleção de clientes se necessário
-    // Para simplificar, vamos assumir que todo usuário aprovado tem um doc em 'clientes'
-    // ou listar direto de 'clientes'.
+  Stream<List<Cliente>> getClientesAprovados() async* {
+    try {
+      yield* _streamClientesDaColecaoClientes();
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        rethrow;
+      }
+
+      debugPrint(
+        '[FirestoreService] Sem permissao para ler clientes. Aplicando fallback por usuarios aprovados. Erro: ${e.message ?? e.code}',
+      );
+      yield* _streamClientesAprovadosPorUsuarios();
+    }
+  }
+
+  Stream<List<Cliente>> _streamClientesDaColecaoClientes() {
     return _db
         .collection('clientes')
         .snapshots()
-        .map(
-          (snapshot) =>
-              snapshot.docs.map((doc) => Cliente.fromMap(doc.data())).toList(),
-        );
+        .map((snapshot) {
+          final clientes = snapshot.docs.map((doc) {
+            final data = Map<String, dynamic>.from(doc.data());
+
+            // Compatibilidade para registros legados sem uid/nome padronizado.
+            data['uid'] = (data['uid'] as String? ?? '').trim().isNotEmpty
+                ? data['uid']
+                : doc.id;
+            data['cliente_nome'] =
+                (data['cliente_nome'] as String? ?? '').trim().isNotEmpty
+                ? data['cliente_nome']
+                : ((data['nome'] as String?) ?? '');
+
+            return Cliente.fromMap(data);
+          }).toList();
+
+          clientes.sort(
+            (a, b) => _normalizarNomeBusca(a.nomeExibicao).compareTo(
+              _normalizarNomeBusca(b.nomeExibicao),
+            ),
+          );
+
+          return clientes;
+        });
+  }
+
+  Stream<List<Cliente>> _streamClientesAprovadosPorUsuarios() {
+    return _db
+        .collection('usuarios')
+        .where('aprovado', isEqualTo: true)
+        .where('tipo', isEqualTo: 'cliente')
+        .snapshots()
+        .map((snapshot) {
+          final clientes = snapshot.docs.map((doc) {
+            final data = Map<String, dynamic>.from(doc.data());
+            final uid = ((data['id'] as String?) ?? '').trim().isNotEmpty
+                ? (data['id'] as String).trim()
+                : doc.id;
+            final nome = ((data['nome_cliente'] as String?) ??
+                    (data['nome'] as String?) ??
+                    '')
+                .trim();
+            final telefone = ((data['telefone_principal'] as String?) ??
+                    (data['whatsapp'] as String?) ??
+                    '')
+                .trim();
+
+            return Cliente.fromMap({
+              'uid': uid,
+              'cliente_nome': nome,
+              'nome_preferido': ((data['nome_preferido'] as String?) ?? '')
+                  .trim(),
+              'ddi': ((data['ddi'] as String?) ?? '55').trim(),
+              'whatsapp': telefone,
+              'telefone_principal': telefone,
+              'saldo_sessoes': data['saldo_sessoes'] ?? 0,
+            });
+          }).toList();
+
+          clientes.sort(
+            (a, b) => _normalizarNomeBusca(a.nomeExibicao).compareTo(
+              _normalizarNomeBusca(b.nomeExibicao),
+            ),
+          );
+
+          return clientes;
+        });
   }
 
   Future<void> adicionarPacote(String uid, int quantidade) async {
@@ -635,7 +1095,31 @@ class FirestoreService {
 
   // --- Usuarios (Login) ---
   Future<UsuarioModel?> getUsuario(String uid) async {
-    final doc = await _buscarUsuarioSnapPorUid(uid);
+    final uidNormalizado = uid.trim();
+    if (uidNormalizado.isEmpty) return null;
+
+    final usuarioAtual = FirebaseAuth.instance.currentUser;
+    final bool uidEhDoUsuarioLogado =
+        usuarioAtual != null && usuarioAtual.uid == uidNormalizado;
+
+    if (uidEhDoUsuarioLogado) {
+      final emailAutenticado = _normalizarEmail(usuarioAtual.email ?? '');
+      if (emailAutenticado.isNotEmpty) {
+        final porEmail = await _db.collection('usuarios').doc(emailAutenticado).get();
+        if (porEmail.exists && porEmail.data() != null) {
+          return UsuarioModel.fromMap(porEmail.data()!);
+        }
+      }
+
+      final porUidLegado = await _db.collection('usuarios').doc(uidNormalizado).get();
+      if (porUidLegado.exists && porUidLegado.data() != null) {
+        return UsuarioModel.fromMap(porUidLegado.data()!);
+      }
+
+      return null;
+    }
+
+    final doc = await _buscarUsuarioSnapPorUid(uidNormalizado);
     if (doc != null && doc.data() != null) {
       return UsuarioModel.fromMap(doc.data()!);
     }
@@ -727,6 +1211,40 @@ class FirestoreService {
     );
   }
 
+  Future<void> salvarPerfilInicialClienteGoogle({
+    required String uid,
+    required String nomeCliente,
+    required String whatsapp,
+  }) async {
+    final uidNormalizado = uid.trim();
+    if (uidNormalizado.isEmpty) return;
+
+    final nome = nomeCliente.trim().isEmpty ? 'Cliente' : nomeCliente.trim();
+    final telefoneNormalizado = _normalizarTelefone(whatsapp);
+    final clienteRef = _db.collection('clientes').doc(uidNormalizado);
+    final clienteSnap = await clienteRef.get();
+
+    if (!clienteSnap.exists || clienteSnap.data() == null) {
+      await clienteRef.set(
+        _dadosPadraoCliente(
+          uid: uidNormalizado,
+          nomeCliente: nome,
+          whatsapp: telefoneNormalizado,
+        ),
+        SetOptions(merge: true),
+      );
+      return;
+    }
+
+    await clienteRef.set({
+      'cliente_nome': nome,
+      'nome': nome,
+      'ddi': '55',
+      'whatsapp': telefoneNormalizado,
+      'telefone_principal': telefoneNormalizado,
+    }, SetOptions(merge: true));
+  }
+
   Future<void> marcarChangelogComoVisto(String uid, String versao) async {
     final usuarioRef = await _buscarUsuarioRefPorUid(uid);
     if (usuarioRef == null) return;
@@ -809,6 +1327,7 @@ class FirestoreService {
     required String emailDigitado,
     required bool valorAtual,
     String? uid,
+    String origem = 'login_view',
   }) async {
     final proximoValor = !valorAtual;
     final usuarioAtual = FirebaseAuth.instance.currentUser;
@@ -822,7 +1341,7 @@ class FirestoreService {
       'ativo': proximoValor,
       'email_digitado': emailDigitado.isEmpty ? 'sem_email' : emailDigitado,
       'uid': uidEfetivo.isEmpty ? 'nao_autenticado' : uidEfetivo,
-      'origem': 'login_view',
+      'origem': origem,
       'criado_em': FieldValue.serverTimestamp(),
     });
 
@@ -861,12 +1380,15 @@ class FirestoreService {
 
     final usuarioSnap = await usuarioRef.get();
     final clienteSnap = await clienteRef.get();
+    final usuarioAprovadoAtual =
+      usuarioSnap.data()?['aprovado'] as bool? ?? aprovadoPadrao;
 
     if (!usuarioSnap.exists || usuarioSnap.data() == null) {
       await usuarioRef.set({
         'id': uid,
         'nome': nomePadrao,
         'nome_cliente': nomePadrao,
+        'nome_preferido': '',
         'email': email,
         'email_normalizado': _normalizarEmail(email),
         'nome_cliente_normalizado': _normalizarNomeBusca(nomePadrao),
@@ -877,6 +1399,13 @@ class FirestoreService {
         'visualiza_todos': false,
         'theme': 'AppThemeType.sistema',
         'whatsapp': '',
+        'ddi': '55',
+        'telefone_principal': '',
+        'nome_contato_secundario': '',
+        'telefone_secundario': '',
+        'nome_indicacao': '',
+        'telefone_indicacao': '',
+        'categoria_origem': '',
         'numero_e_whatsapp': true,
         'locale': 'pt',
         'admin_atrelada_id': tenantPadraoId,
@@ -912,6 +1441,29 @@ class FirestoreService {
       if (!usuarioData.containsKey('aprovado')) {
         updatesUsuario['aprovado'] = aprovadoPadrao;
       }
+      if (!usuarioData.containsKey('nome_preferido')) {
+        updatesUsuario['nome_preferido'] = '';
+      }
+      if (!usuarioData.containsKey('ddi')) updatesUsuario['ddi'] = '55';
+      if (!usuarioData.containsKey('telefone_principal')) {
+        updatesUsuario['telefone_principal'] =
+            (usuarioData['whatsapp'] as String? ?? '').trim();
+      }
+      if (!usuarioData.containsKey('nome_contato_secundario')) {
+        updatesUsuario['nome_contato_secundario'] = '';
+      }
+      if (!usuarioData.containsKey('telefone_secundario')) {
+        updatesUsuario['telefone_secundario'] = '';
+      }
+      if (!usuarioData.containsKey('nome_indicacao')) {
+        updatesUsuario['nome_indicacao'] = '';
+      }
+      if (!usuarioData.containsKey('telefone_indicacao')) {
+        updatesUsuario['telefone_indicacao'] = '';
+      }
+      if (!usuarioData.containsKey('categoria_origem')) {
+        updatesUsuario['categoria_origem'] = '';
+      }
       if (!usuarioData.containsKey('tipo')) updatesUsuario['tipo'] = tipoPadrao;
       if (!usuarioData.containsKey('theme')) {
         updatesUsuario['theme'] = 'AppThemeType.sistema';
@@ -944,23 +1496,14 @@ class FirestoreService {
       email: email,
       nomeCliente: nomePadrao,
       tipo: usuarioSnap.data()?['tipo'] as String? ?? tipoPadrao,
-      aprovado: usuarioSnap.data()?['aprovado'] as bool? ?? aprovadoPadrao,
+      aprovado: usuarioAprovadoAtual,
     );
 
     if (!clienteSnap.exists || clienteSnap.data() == null) {
-      await clienteRef.set({
-        'uid': uid,
-        'cliente_nome': nomePadrao,
-        'whatsapp': '',
-        'saldo_sessoes': 0,
-        'favoritos': <String>[],
-        'endereco': '',
-        'historico_medico': '',
-        'alergias': '',
-        'medicamentos': '',
-        'cirurgias': '',
-        'anamnese_ok': false,
-      }, SetOptions(merge: true));
+      await clienteRef.set(
+        _dadosPadraoCliente(uid: uid, nomeCliente: nomePadrao),
+        SetOptions(merge: true),
+      );
       return;
     }
 
@@ -975,6 +1518,89 @@ class FirestoreService {
 
     if (nomeClienteAtual.isEmpty) updatesCliente['cliente_nome'] = nomePadrao;
     if (!clienteData.containsKey('whatsapp')) updatesCliente['whatsapp'] = '';
+    if (!clienteData.containsKey('nome_preferido')) {
+      updatesCliente['nome_preferido'] = '';
+    }
+    if (!clienteData.containsKey('ddi')) updatesCliente['ddi'] = '55';
+    if (!clienteData.containsKey('telefone_principal')) {
+      updatesCliente['telefone_principal'] =
+          (clienteData['whatsapp'] as String? ?? '').trim();
+    }
+    if (!clienteData.containsKey('nome_contato_secundario')) {
+      updatesCliente['nome_contato_secundario'] = '';
+    }
+    if (!clienteData.containsKey('telefone_secundario')) {
+      updatesCliente['telefone_secundario'] = '';
+    }
+    if (!clienteData.containsKey('nome_indicacao')) {
+      updatesCliente['nome_indicacao'] = '';
+    }
+    if (!clienteData.containsKey('telefone_indicacao')) {
+      updatesCliente['telefone_indicacao'] = '';
+    }
+    if (!clienteData.containsKey('categoria_origem')) {
+      updatesCliente['categoria_origem'] = '';
+    }
+    if (!clienteData.containsKey('presenca_agenda')) {
+      updatesCliente['presenca_agenda'] = false;
+    }
+    if (!clienteData.containsKey('frequencia_historica_agenda')) {
+      updatesCliente['frequencia_historica_agenda'] = 0;
+    }
+    if (!clienteData.containsKey('ultimo_horario_agendado')) {
+      updatesCliente['ultimo_horario_agendado'] = '';
+    }
+    if (!clienteData.containsKey('ultimo_dia_semana_agendado')) {
+      updatesCliente['ultimo_dia_semana_agendado'] = '';
+    }
+    if (!clienteData.containsKey('sugestao_cliente_fixo')) {
+      updatesCliente['sugestao_cliente_fixo'] = false;
+    }
+    if (!clienteData.containsKey('agenda_fixa_semana') ||
+        clienteData['agenda_fixa_semana'] is! Map) {
+      updatesCliente['agenda_fixa_semana'] = _agendaFixaSemanaPadrao();
+    } else {
+      final agendaFixaAtual = Map<String, dynamic>.from(
+        clienteData['agenda_fixa_semana'] as Map,
+      );
+      final agendaFixaPadrao = _agendaFixaSemanaPadrao();
+      bool agendaFixaAlterada = false;
+
+      for (final dia in _diasSemanaAgenda) {
+        if (!agendaFixaAtual.containsKey(dia)) {
+          agendaFixaAtual[dia] = agendaFixaPadrao[dia] ?? false;
+          agendaFixaAlterada = true;
+        }
+      }
+
+      if (agendaFixaAlterada) {
+        updatesCliente['agenda_fixa_semana'] = agendaFixaAtual;
+      }
+    }
+
+    if (!clienteData.containsKey('agenda_historico') ||
+        clienteData['agenda_historico'] is! Map) {
+      updatesCliente['agenda_historico'] = _agendaHistoricoPadrao();
+    } else {
+      final agendaHistoricoAtual = Map<String, dynamic>.from(
+        clienteData['agenda_historico'] as Map,
+      );
+      final agendaHistoricoPadrao = _agendaHistoricoPadrao();
+      bool agendaHistoricoAlterado = false;
+
+      for (final chave in agendaHistoricoPadrao.keys) {
+        if (!agendaHistoricoAtual.containsKey(chave)) {
+          agendaHistoricoAtual[chave] = agendaHistoricoPadrao[chave];
+          agendaHistoricoAlterado = true;
+        }
+      }
+
+      if (agendaHistoricoAlterado) {
+        updatesCliente['agenda_historico'] = agendaHistoricoAtual;
+      }
+    }
+    if (!clienteData.containsKey('cpf')) updatesCliente['cpf'] = '';
+    if (!clienteData.containsKey('cep')) updatesCliente['cep'] = '';
     if (!clienteData.containsKey('favoritos')) {
       updatesCliente['favoritos'] = <String>[];
     }
@@ -989,6 +1615,12 @@ class FirestoreService {
     if (!clienteData.containsKey('cirurgias')) updatesCliente['cirurgias'] = '';
     if (!clienteData.containsKey('anamnese_ok')) {
       updatesCliente['anamnese_ok'] = false;
+    }
+
+    if (!usuarioAprovadoAtual) {
+      updatesCliente['agenda_fixa_semana'] = _agendaFixaSemanaPadrao();
+      updatesCliente['agenda_historico'] = _agendaHistoricoPadrao();
+      updatesCliente['sugestao_cliente_fixo'] = false;
     }
 
     if (updatesCliente.isNotEmpty) {
@@ -1037,19 +1669,17 @@ class FirestoreService {
       'admin_atrelada_id': adminAtreladaId,
     }, SetOptions(merge: true));
 
-    await _db.collection('clientes').doc(uid).set({
-      'uid': uid,
-      'cliente_nome': nomeCliente,
-      'whatsapp': whatsapp,
-      'saldo_sessoes': 0,
-      'favoritos': <String>[],
-      'endereco': '',
-      'historico_medico': '',
-      'alergias': '',
-      'medicamentos': '',
-      'cirurgias': '',
-      'anamnese_ok': false,
-    }, SetOptions(merge: true));
+    await _db
+        .collection('clientes')
+        .doc(uid)
+        .set(
+          _dadosPadraoCliente(
+            uid: uid,
+            nomeCliente: nomeCliente,
+            whatsapp: whatsapp,
+          ),
+          SetOptions(merge: true),
+        );
 
     await _sincronizarIndiceHumanoUsuario(
       uid: uid,
@@ -1238,12 +1868,76 @@ class FirestoreService {
     return Map<String, dynamic>.from(result.data as Map);
   }
 
+  Future<Map<String, dynamic>> dispararMensagensAleatoriasClientes({
+    bool dryRun = true,
+    int limite = 0,
+    int indiceMensagemSelecionada = -1,
+  }) async {
+    final callable = _functions.httpsCallable(_randomMessagesFunctionName());
+    final result = await callable.call(<String, dynamic>{
+      'dryRun': dryRun,
+      'limite': limite,
+      'indiceMensagemSelecionada': indiceMensagemSelecionada,
+    });
+
+    final data = result.data;
+    if (data is Map) {
+      return Map<String, dynamic>.from(data);
+    }
+
+    return <String, dynamic>{};
+  }
+
   // --- Lista de Espera ---
+  Future<int> _contarSolicitacoesListaEsperaAtivas(
+    String uid, {
+    String? ignorarAgendamentoId,
+  }) async {
+    final snapshot = await _db
+        .collection('agendamentos')
+        .where('lista_espera', arrayContains: uid)
+        .get();
+
+    int total = 0;
+    for (final doc in snapshot.docs) {
+      if (ignorarAgendamentoId != null && doc.id == ignorarAgendamentoId) {
+        continue;
+      }
+
+      final status = (doc.data()['status'] ?? '').toString();
+      final encerrado =
+          status == 'cancelado' ||
+          status == 'cancelado_tardio' ||
+          status == 'recusado';
+
+      if (!encerrado) {
+        total++;
+      }
+    }
+
+    return total;
+  }
+
   Future<void> toggleListaEspera(
     String agendamentoId,
     String uid,
     bool entrar,
   ) async {
+    if (entrar) {
+      final totalSolicitacoesAtivas = await _contarSolicitacoesListaEsperaAtivas(
+        uid,
+        ignorarAgendamentoId: agendamentoId,
+      );
+
+      if (totalSolicitacoesAtivas >= _limiteSolicitacoesListaEsperaPorCliente) {
+        throw StateError(
+          AppStrings.limiteSolicitacoesListaEspera(
+            _limiteSolicitacoesListaEsperaPorCliente,
+          ),
+        );
+      }
+    }
+
     final usuario = await getUsuario(uid);
     final nomeCliente = (usuario?.nomeCliente ?? usuario?.nome ?? 'Cliente')
         .trim();
@@ -1470,6 +2164,29 @@ class FirestoreService {
               .map((doc) => TransacaoFinanceira.fromMap(doc.data(), id: doc.id))
               .toList(),
         );
+  }
+
+  Stream<List<TransacaoFinanceira>> getTransacoesDoCliente(String clienteUid) {
+    final uidNormalizado = clienteUid.trim();
+    if (uidNormalizado.isEmpty) {
+      return Stream<List<TransacaoFinanceira>>.value(<TransacaoFinanceira>[]);
+    }
+
+    return _db
+        .collection('transacoes')
+        .where('cliente_uid', isEqualTo: uidNormalizado)
+        .snapshots()
+        .map((snapshot) {
+          final transacoes = snapshot.docs
+              .map((doc) => TransacaoFinanceira.fromMap(doc.data(), id: doc.id))
+              .toList();
+
+          transacoes.sort(
+            (a, b) => b.dataPagamento.compareTo(a.dataPagamento),
+          );
+
+          return transacoes;
+        });
   }
 
   Future<void> salvarTransacao(TransacaoFinanceira transacao) async {
@@ -1958,5 +2675,121 @@ class FirestoreService {
           ).toMap(),
           SetOptions(merge: true),
         );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Importação de planilha de clientes (XLSX / CSV)
+  // ---------------------------------------------------------------------------
+
+  /// Recebe as linhas da planilha como lista de mapas com os cabeçalhos
+  /// originais como chave, normaliza e persiste na coleção `clientes`.
+  ///
+  /// Retorna um mapa com as contagens: `importados`, `ignorados`, `erros`.
+  Future<Map<String, int>> importarPlanilhaClientes(
+    List<Map<String, dynamic>> linhas,
+  ) async {
+    int importados = 0;
+    int ignorados = 0;
+    int erros = 0;
+
+    final clientesParaSalvar = <Map<String, dynamic>>[];
+
+    for (final linhaOriginal in linhas) {
+      try {
+        final linha = _normalizarLinhaImportacao(linhaOriginal);
+
+        // Extrai e normaliza o telefone principal
+        final telRaw =
+            (linha['telefone_principal'] ??
+                    linha['whatsapp'] ??
+                    '')
+                .toString()
+                .trim();
+        final telDigits = telRaw.replaceAll(RegExp(r'\D'), '');
+
+        // Remove DDI 55 se o número tem mais de 11 dígitos
+        final telLocal = telDigits.length > 11 && telDigits.startsWith('55')
+            ? telDigits.substring(2)
+            : telDigits;
+
+        if (telLocal.isEmpty || telLocal.length < 8) {
+          ignorados++;
+          continue;
+        }
+
+        final uidInformado = (linha['uid'] ?? '').toString().trim();
+        final docId = uidInformado.isNotEmpty ? uidInformado : 'import_$telLocal';
+        final nomeImportado = (linha['cliente_nome'] ?? '').toString().trim();
+        final nomeCliente = nomeImportado.isNotEmpty ? nomeImportado : 'Cliente';
+
+        final agendaFixaSemana = _agendaFixaSemanaPadrao();
+        final agendaFixaImportada = linha['agenda_fixa_semana'];
+        if (agendaFixaImportada is Map) {
+          for (final dia in _diasSemanaAgenda) {
+            if (agendaFixaImportada.containsKey(dia)) {
+              agendaFixaSemana[dia] = _valorImportacaoParaBool(
+                agendaFixaImportada[dia],
+              );
+            }
+          }
+        }
+
+        final agendaHistorico = _agendaHistoricoPadrao();
+        final agendaHistoricoImportado = linha['agenda_historico'];
+        if (agendaHistoricoImportado is Map) {
+          for (final chave in agendaHistorico.keys) {
+            if (agendaHistoricoImportado.containsKey(chave)) {
+              agendaHistorico[chave] =
+                  (agendaHistoricoImportado[chave] ?? '').toString().trim();
+            }
+          }
+        }
+
+        // Prepara mapa normalizado
+        final mapaProcessado = _dadosPadraoCliente(
+          uid: docId,
+          nomeCliente: nomeCliente,
+          whatsapp: telLocal,
+        );
+        mapaProcessado.addAll(linha);
+        mapaProcessado['uid'] = docId;
+        mapaProcessado['cliente_nome'] = nomeCliente;
+        mapaProcessado['whatsapp'] = telLocal;
+        mapaProcessado['telefone_principal'] = telLocal;
+        final ddiInformado = (linha['ddi'] ?? '').toString().trim();
+        mapaProcessado['ddi'] = ddiInformado.isEmpty ? '55' : ddiInformado;
+        mapaProcessado['agenda_fixa_semana'] = agendaFixaSemana;
+        mapaProcessado['agenda_historico'] = agendaHistorico;
+        mapaProcessado['saldo_sessoes'] = _valorImportacaoParaInt(
+          linha['saldo_sessoes'],
+          padrao: 0,
+        );
+        mapaProcessado['favoritos'] = _valorImportacaoParaLista(
+          linha['favoritos'],
+        );
+
+        final cliente = Cliente.fromMap(mapaProcessado);
+        final dadosSalvar = cliente.toMap();
+        // Usado pelo importarColecao para definir o ID do documento
+        dadosSalvar['id'] = docId;
+        clientesParaSalvar.add(dadosSalvar);
+      } catch (e, stackTrace) {
+        debugPrint('[FirestoreService] Erro ao importar linha de cliente: $e');
+        debugPrintStack(stackTrace: stackTrace);
+        erros++;
+      }
+    }
+
+    // Escreve em lotes de 400 (limite do Firestore é 500)
+    const batchSize = 400;
+    for (int i = 0; i < clientesParaSalvar.length; i += batchSize) {
+      final fim = (i + batchSize) < clientesParaSalvar.length
+          ? i + batchSize
+          : clientesParaSalvar.length;
+      await importarColecao('clientes', clientesParaSalvar.sublist(i, fim));
+      importados += fim - i;
+    }
+
+    return {'importados': importados, 'ignorados': ignorados, 'erros': erros};
   }
 }
