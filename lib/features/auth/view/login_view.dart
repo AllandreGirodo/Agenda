@@ -39,7 +39,27 @@ class _LoginViewState extends State<LoginView> {
   void initState() {
     super.initState();
     _carregarCredenciaisSalvas();
+    _processarRetornoLoginGoogleRedirect();
     _verificarBiometriaAutomatica();
+  }
+
+  Future<void> _processarRetornoLoginGoogleRedirect() async {
+    if (!kIsWeb) return;
+
+    try {
+      final resultado = await FirebaseAuth.instance.getRedirectResult();
+      final usuarioRedirect = resultado.user ?? FirebaseAuth.instance.currentUser;
+      if (usuarioRedirect == null || !mounted) return;
+
+      setState(() => _isLoading = true);
+      await _loginController.logarComGoogleAutenticado(context);
+    } catch (e) {
+      debugPrint(AppStrings.erroGoogleLogin('$e'));
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Future<void> _carregarCredenciaisSalvas() async {
@@ -148,9 +168,12 @@ class _LoginViewState extends State<LoginView> {
   }
 
   Future<void> _cadastro() async {
+    final emailDigitado = _emailController.text.trim();
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const SignUpView()),
+      MaterialPageRoute(
+        builder: (_) => SignUpView(emailInicial: emailDigitado),
+      ),
     );
   }
 
@@ -243,12 +266,14 @@ class _LoginViewState extends State<LoginView> {
         try {
           await FirebaseAuth.instance.signInWithPopup(provider);
         } on FirebaseAuthException catch (e) {
-          if (e.code == 'popup-blocked') {
+          if (e.code == 'popup-blocked' ||
+              e.code == 'cancelled-popup-request' ||
+              e.code == 'operation-not-supported-in-this-environment') {
             await FirebaseAuth.instance.signInWithRedirect(provider);
             return;
           }
           if (e.code == 'popup-closed-by-user' ||
-              e.code == 'cancelled-popup-request') {
+              e.code == 'web-context-canceled') {
             return;
           }
           rethrow;
@@ -273,9 +298,32 @@ class _LoginViewState extends State<LoginView> {
       if (!mounted) return;
       await _loginController.logarComGoogleAutenticado(context);
     } catch (e) {
+      final erroPermissaoFirestore =
+          e is FirebaseException && e.code == 'permission-denied';
+      final emailDigitado = _emailController.text.trim();
+      if (!erroPermissaoFirestore) {
+        unawaited(
+          _loginController.auditarTentativaCredencial(
+            origem: 'login_google',
+            emailDigitado: emailDigitado,
+            senhaInformada: 'oauth_google_sem_senha',
+            inconformidade: true,
+            lgpdConsentido: true,
+            motivos: <String>['erro_google_auth'],
+            emailValido: Validadores.isEmailValido(emailDigitado),
+            senhaForte: false,
+            metodoEntrada: 'google',
+            provedorEntrada: 'google_oauth',
+          ),
+        );
+      }
+
       if (mounted) {
+        final mensagemErro = erroPermissaoFirestore
+            ? AppStrings.erroLoginAppCheck
+            : AppStrings.erroGoogleLogin('$e');
         messenger.showSnackBar(
-          SnackBar(content: Text(AppStrings.erroGoogleLogin('$e'))),
+          SnackBar(content: Text(mensagemErro)),
         );
       }
     } finally {

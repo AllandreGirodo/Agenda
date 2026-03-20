@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:agenda/features/agendamento/view/agendamento_view.dart';
 import 'package:agenda/features/agendamento/view/admin_agendamentos_view.dart';
 import 'package:agenda/features/auth/view/aguardando_aprovacao_view.dart';
-import 'package:agenda/features/auth/view/google_profile_completion_view.dart';
+import 'package:agenda/features/auth/view/signup_view.dart';
 import 'package:agenda/core/services/firestore_service.dart';
 import 'package:agenda/core/services/auth_security_service.dart';
 import 'package:agenda/core/models/usuario_model.dart';
@@ -27,7 +27,10 @@ class LoginController {
     required bool lgpdConsentido,
     required List<String> motivos,
     String? nomeClienteDigitado,
-    String? usuarioId,
+    String metodoEntrada = 'email_senha',
+    String provedorEntrada = 'firebase_auth',
+    String? emailAutenticado,
+    String? vinculoIdCliente,
     bool? emailValido,
     bool? senhaForte,
   }) async {
@@ -39,9 +42,26 @@ class LoginController {
       lgpdConsentido: lgpdConsentido,
       motivos: motivos,
       nomeClienteDigitado: nomeClienteDigitado,
-      usuarioId: usuarioId,
+      metodoEntrada: metodoEntrada,
+      provedorEntrada: provedorEntrada,
+      emailAutenticado: emailAutenticado,
+      vinculoIdCliente: vinculoIdCliente,
       emailValido: emailValido,
       senhaForte: senhaForte,
+    );
+  }
+
+  Future<VinculoClienteCadastroStatus> consultarStatusVinculoClientePorEmail({
+    required String email,
+    String? uidFallback,
+    String? nomeFallback,
+    String? telefoneFallback,
+  }) {
+    return _firestoreService.obterStatusVinculoClientePorEmail(
+      email: email,
+      uidFallback: uidFallback,
+      nomeFallback: nomeFallback,
+      telefoneFallback: telefoneFallback,
     );
   }
 
@@ -262,28 +282,58 @@ class LoginController {
     bool validarCadastroGoogle = false,
   }) async {
     final uid = authUser.uid;
+    var criouUsuarioAgora = false;
     UsuarioModel? usuario = await _firestoreService.getUsuario(uid);
 
     if (usuario == null && criarUsuarioSeAusente) {
       final dataAgora = DateTime.now();
       final email = (authUser.email ?? '').trim();
       final emailNormalizado = email.toLowerCase();
+      final nomeBaseResolvido = _resolverNomeBaseUsuario(
+        authUser,
+        emailNormalizado: emailNormalizado,
+      );
       final devMaster = _firestoreService.emailEhDevMaster(emailNormalizado);
+      VinculoClienteCadastroStatus? vinculoGoogleStatus;
 
-      if (!devMaster && validarCadastroGoogle) {
+      if (validarCadastroGoogle) {
+        vinculoGoogleStatus = await _firestoreService
+            .obterStatusVinculoClientePorEmail(
+              email: email,
+              uidFallback: uid,
+              nomeFallback: nomeBaseResolvido,
+            );
+      }
+
+      if (!devMaster &&
+          validarCadastroGoogle &&
+          vinculoGoogleStatus != null &&
+          !vinculoGoogleStatus.cadastroCompleto) {
         if (!context.mounted) return false;
         _abrirFluxoCompletarCadastroGoogle(
           context,
           authUser: authUser,
           usuarioExistente: null,
+          vinculoStatus: vinculoGoogleStatus,
         );
         return true;
       }
 
-      final nomeBase = _resolverNomeBaseUsuario(
-        authUser,
-        emailNormalizado: emailNormalizado,
-      );
+      final nomeBase =
+          vinculoGoogleStatus != null &&
+              vinculoGoogleStatus.nomeSugerido.trim().isNotEmpty
+          ? vinculoGoogleStatus.nomeSugerido.trim()
+          : nomeBaseResolvido;
+      final telefoneBase =
+          (vinculoGoogleStatus?.telefoneSugerido ?? '').replaceAll(
+            RegExp(r'[^0-9]'),
+            '',
+          );
+      final lgpdConsentido =
+          vinculoGoogleStatus == null ||
+          !vinculoGoogleStatus.camposObrigatoriosPendentes.contains(
+            'termos_uso',
+          );
       final adminAtreladaId = await _firestoreService
           .getAdministradoraPadraoAtreladaId();
       final tipoUsuario = devMaster ? 'admin' : 'cliente';
@@ -300,18 +350,19 @@ class LoginController {
         aprovado: aprovado,
         dataCadastro: dataAgora,
         theme: AppThemeType.sistema.toString(),
-        whatsapp: '',
+        whatsapp: telefoneBase,
         ddi: '55',
-        telefonePrincipal: '',
+        telefonePrincipal: telefoneBase,
         numeroEhWhatsapp: true,
         locale: 'pt',
         adminAtreladaId: adminAtreladaId,
         devMaster: devMaster,
-        lgpdConsentido: true,
-        lgpdConsentimentoEm: dataAgora,
+        lgpdConsentido: lgpdConsentido,
+        lgpdConsentimentoEm: lgpdConsentido ? dataAgora : null,
       );
 
       await _firestoreService.salvarUsuario(novoUsuario);
+      criouUsuarioAgora = true;
 
       // Mantem sincronizacao best-effort para nao bloquear login social.
       try {
@@ -331,14 +382,31 @@ class LoginController {
     }
 
     final usuarioAtual = usuario;
+    VinculoClienteCadastroStatus? statusCadastroGoogle;
+
+    if (validarCadastroGoogle) {
+      statusCadastroGoogle = await _firestoreService
+          .obterStatusVinculoClientePorEmail(
+            email: usuarioAtual.email,
+            uidFallback: uid,
+            nomeFallback: (usuarioAtual.nomeCliente ?? usuarioAtual.nome).trim(),
+            telefoneFallback:
+                (usuarioAtual.telefonePrincipal ?? usuarioAtual.whatsapp ?? '')
+                    .trim(),
+          );
+    }
 
     if (validarCadastroGoogle &&
-        _usuarioPrecisaCompletarCadastroGoogle(usuarioAtual)) {
+        _usuarioPrecisaCompletarCadastroGoogle(
+          usuarioAtual,
+          statusCadastroGoogle,
+        )) {
       if (!context.mounted) return false;
       _abrirFluxoCompletarCadastroGoogle(
         context,
         authUser: authUser,
         usuarioExistente: usuarioAtual,
+        vinculoStatus: statusCadastroGoogle,
       );
       return true;
     }
@@ -352,6 +420,22 @@ class LoginController {
     } catch (_) {}
 
     if (!context.mounted) return false;
+
+    if (validarCadastroGoogle &&
+        criouUsuarioAgora &&
+        statusCadastroGoogle != null &&
+        statusCadastroGoogle.cadastroCompleto &&
+        statusCadastroGoogle.vinculoIdCliente.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppStrings.vinculoClienteIdentificado(
+              statusCadastroGoogle.vinculoIdCliente,
+            ),
+          ),
+        ),
+      );
+    }
 
     // Sincronizar tema do usuário salvo no banco
     if (usuarioAtual.theme != null) {
@@ -404,35 +488,52 @@ class LoginController {
     BuildContext context, {
     required User authUser,
     required UsuarioModel? usuarioExistente,
+    VinculoClienteCadastroStatus? vinculoStatus,
   }) {
     final email = (authUser.email ?? usuarioExistente?.email ?? '').trim();
-    final nomeInicial = (usuarioExistente?.nomeCliente ??
+    final nomeInicial = (vinculoStatus?.nomeSugerido ??
+            usuarioExistente?.nomeCliente ??
             usuarioExistente?.nome ??
             _resolverNomeBaseUsuario(
               authUser,
               emailNormalizado: email.toLowerCase(),
             ))
         .trim();
-    final whatsappInicial =
-        (usuarioExistente?.telefonePrincipal ?? usuarioExistente?.whatsapp ?? '')
-            .trim();
+    final whatsappInicial = (vinculoStatus?.telefoneSugerido ??
+            usuarioExistente?.telefonePrincipal ??
+            usuarioExistente?.whatsapp ??
+            '')
+        .trim();
+    final vinculoIdCliente = (vinculoStatus?.vinculoIdCliente ?? '').trim();
 
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => GoogleProfileCompletionView(
+        builder: (context) => SignUpView(
+          emailInicial: email,
+          emailSomenteLeitura: true,
+          modoCompletarCadastroGoogle: true,
           nomeInicial: nomeInicial,
-          email: email,
           whatsappInicial: whatsappInicial,
           numeroEhWhatsappInicial: usuarioExistente?.numeroEhWhatsapp ?? true,
-          onSalvar: completarCadastroGoogleCliente,
+          vinculoIdCliente:
+              vinculoIdCliente.isEmpty ? null : vinculoIdCliente,
+          camposObrigatoriosPendentes:
+              vinculoStatus?.camposObrigatoriosPendentes ?? const <String>[],
         ),
       ),
     );
   }
 
-  bool _usuarioPrecisaCompletarCadastroGoogle(UsuarioModel usuario) {
+  bool _usuarioPrecisaCompletarCadastroGoogle(
+    UsuarioModel usuario,
+    VinculoClienteCadastroStatus? vinculoStatus,
+  ) {
     if (usuario.tipo != 'cliente') return false;
+
+    if (vinculoStatus != null && vinculoStatus.possuiVinculo) {
+      return !vinculoStatus.cadastroCompleto;
+    }
 
     final nome = (usuario.nomeCliente ?? usuario.nome).trim();
     final telefone =

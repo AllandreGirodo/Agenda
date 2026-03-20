@@ -55,6 +55,14 @@ class AppLocalizations {
       'signupLgpdConsentError':
           'É obrigatório ler e aceitar os Termos de Uso e Política de Privacidade para continuar.',
       'signupTermsReadButton': 'Ler Termos de Uso e Política de Privacidade',
+      'signupGooglePrefilledEmailHint':
+          'Complete os campos obrigatórios para concluir o vínculo deste e-mail.',
+      'signupLinkedClientId': 'vinculo_id_cliente: {id}',
+      'signupExistingClientLinkedMessage':
+          'Já existe um cadastro completo para este e-mail. vinculo_id_cliente: {id}',
+      'signupGoogleCompleteButton': 'CONCLUIR CADASTRO',
+      'signupPendingRequiredFields':
+          'Campos obrigatórios pendentes: {fields}',
       'registerButton': 'CADASTRAR',
       'registrationError': 'Erro ao cadastrar',
       // Agendamento
@@ -493,6 +501,15 @@ class AppLocalizations {
       _t('signupLgpdConsentAcceptedMessage');
   String get signupLgpdConsentError => _t('signupLgpdConsentError');
   String get signupTermsReadButton => _t('signupTermsReadButton');
+  String get signupGooglePrefilledEmailHint =>
+      _t('signupGooglePrefilledEmailHint');
+  String signupLinkedClientId(String id) =>
+      _t('signupLinkedClientId').replaceAll('{id}', id);
+  String signupExistingClientLinkedMessage(String id) =>
+      _t('signupExistingClientLinkedMessage').replaceAll('{id}', id);
+  String get signupGoogleCompleteButton => _t('signupGoogleCompleteButton');
+  String signupPendingRequiredFields(String fields) =>
+      _t('signupPendingRequiredFields').replaceAll('{fields}', fields);
   String get registerButton => _t('registerButton');
   String get registrationError => _t('registrationError');
   // Appointment

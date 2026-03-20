@@ -320,6 +320,9 @@ Service and package prices are subject to change. Payment must be made as agreed
       : 'Password reset email sent to $email';
   static String get cadastroUsuarioNaoEncontrado =>
       _isPt ? 'Cadastro de usuário não encontrado.' : 'User record not found.';
+  static String vinculoClienteIdentificado(String vinculoIdCliente) => _isPt
+      ? 'Vínculo identificado: vinculo_id_cliente $vinculoIdCliente'
+      : 'Link identified: client_link_id $vinculoIdCliente';
   static String erroLoginComDetalhe(String? erro) => _isPt
       ? 'Erro de login: ${erro ?? 'desconhecido'}'
       : 'Login error: ${erro ?? 'unknown'}';
@@ -331,6 +334,9 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get erroCadastroAppCheck => _isPt
       ? 'Erro de segurança do Firebase no cadastro. Em ambiente local web, registre o token de debug do App Check e tente novamente.'
       : 'Firebase security error during registration. In local web development, register the App Check debug token and try again.';
+  static String get erroLoginAppCheck => _isPt
+      ? 'Erro de seguranca do Firebase no login. Em ambiente local web, registre o token de debug do App Check e tente novamente.'
+      : 'Firebase security error during login. In local web development, register the App Check debug token and try again.';
   static String get biometriaBtn =>
       _isPt ? 'Entrar com Biometria' : 'Login with Biometrics';
   static String get biometriaErro => _isPt
@@ -1372,6 +1378,9 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String appCheckActivationFailure(String erro) => _isPt
       ? 'Aviso: falha ao ativar App Check: $erro'
       : 'Warning: failed to activate App Check: $erro';
+  static String get appCheckAlreadyInitialized => _isPt
+      ? 'App Check ja inicializado para este app. Mantendo instancia existente.'
+      : 'App Check already initialized for this app. Keeping existing instance.';
   static String get appCheckDisabledInDebug => _isPt
       ? 'App Check web desativado em debug. Defina FIREBASE_APPCHECK_DEBUG_TOKEN no .env ou use --dart-define=ENABLE_APPCHECK_IN_DEBUG=true para habilitar.'
       : 'Web App Check disabled in debug. Set FIREBASE_APPCHECK_DEBUG_TOKEN in .env or use --dart-define=ENABLE_APPCHECK_IN_DEBUG=true to enable it.';

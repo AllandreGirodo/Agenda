@@ -47,6 +47,39 @@ String _normalizeAppCheckDebugToken(String? raw) {
   return placeholderTokens.contains(lower) ? '' : token;
 }
 
+String _normalizeRecaptchaSiteKey(String? raw) {
+  final siteKey = (raw ?? '').trim();
+  if (siteKey.isEmpty) return '';
+
+  final lower = siteKey.toLowerCase();
+  final placeholderValues = <String>{
+    'agenda-horario-recaptcha-site-key',
+    'sua_recaptcha_site_key_publica',
+    'your_recaptcha_site_key_public',
+    'seu_site_key_publico',
+    '<seu_site_key_publico>',
+  };
+
+  return placeholderValues.contains(lower) ? '' : siteKey;
+}
+
+String _resolveRecaptchaSiteKey() {
+  final candidateEnvKeys = <String>[
+    'RECAPTCHA_SITE_KEY',
+    'RECAPTCHA_SITE_KEY_CLIENT',
+    'RECAPTCHA_SITE_KEY_CLIENT_V3',
+  ];
+
+  for (final envKey in candidateEnvKeys) {
+    final siteKey = _normalizeRecaptchaSiteKey(dotenv.env[envKey]);
+    if (siteKey.isNotEmpty) {
+      return siteKey;
+    }
+  }
+
+  return '';
+}
+
 List<String> _requiredFirebaseEnvKeysForCurrentPlatform() {
   final keys = <String>[
     'FIREBASE_PROJECT_ID',
@@ -224,20 +257,24 @@ void main() async {
       'ENABLE_APPCHECK_IN_DEBUG',
       defaultValue: false,
     );
-    final recaptchaKey = dotenv.env['RECAPTCHA_SITE_KEY'];
+    final recaptchaKey = _resolveRecaptchaSiteKey();
     final bool hasDebugAppCheckToken = appCheckDebugToken.isNotEmpty;
     final bool shouldEnableWebAppCheck =
         kIsWeb &&
         (kReleaseMode ||
             enableAppCheckInDebug ||
             (kDebugMode && hasDebugAppCheckToken));
-    if (shouldEnableWebAppCheck &&
-        recaptchaKey != null &&
-        recaptchaKey.isNotEmpty) {
+    if (shouldEnableWebAppCheck && recaptchaKey.isNotEmpty) {
       try {
         await FirebaseAppCheck.instance.activate(
           providerWeb: ReCaptchaV3Provider(recaptchaKey),
         );
+      } on FirebaseException catch (e) {
+        if (e.code == 'already-initialized') {
+          debugPrint(AppStrings.appCheckAlreadyInitialized);
+        } else {
+          debugPrint(AppStrings.appCheckActivationFailure(e.toString()));
+        }
       } catch (e) {
         debugPrint(AppStrings.appCheckActivationFailure(e.toString()));
       }

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:agenda/features/auth/controller/login_controller.dart';
 import 'package:agenda/app_localizations.dart';
 import 'package:agenda/core/widgets/language_selector.dart';
+import 'package:agenda/core/services/firestore_service.dart';
 import 'package:agenda/core/utils/app_strings.dart';
 import 'package:agenda/core/utils/validadores.dart';
 import 'package:agenda/core/utils/international_phone_input_formatter.dart';
@@ -14,11 +15,27 @@ import 'package:agenda/view/termos_uso_view.dart';
 class SignUpView extends StatefulWidget {
   final String ddiPadrao;
   final int maxPhoneDigits;
+  final String? emailInicial;
+  final String? nomeInicial;
+  final String? whatsappInicial;
+  final bool numeroEhWhatsappInicial;
+  final bool emailSomenteLeitura;
+  final bool modoCompletarCadastroGoogle;
+  final String? vinculoIdCliente;
+  final List<String> camposObrigatoriosPendentes;
 
   const SignUpView({
     super.key,
     this.ddiPadrao = InternationalPhoneInputFormatter.defaultDdi,
     this.maxPhoneDigits = InternationalPhoneInputFormatter.defaultMaxLocalDigits,
+    this.emailInicial,
+    this.nomeInicial,
+    this.whatsappInicial,
+    this.numeroEhWhatsappInicial = true,
+    this.emailSomenteLeitura = false,
+    this.modoCompletarCadastroGoogle = false,
+    this.vinculoIdCliente,
+    this.camposObrigatoriosPendentes = const <String>[],
   });
 
   @override
@@ -41,6 +58,8 @@ class _SignUpViewState extends State<SignUpView> {
   bool _mostrarAvisoLimiteCelular = false;
   bool _avisoLimiteCelularVisivel = false;
   bool _avisoTermosVisivel = true;
+  String? _vinculoIdCliente;
+  List<String> _camposObrigatoriosPendentes = const <String>[];
   Timer? _timerFadeLimiteCelular;
   Timer? _timerOcultarLimiteCelular;
   Timer? _timerFadeAvisoTermos;
@@ -59,11 +78,44 @@ class _SignUpViewState extends State<SignUpView> {
   @override
   void initState() {
     super.initState();
+
+    _nomeController.text = (widget.nomeInicial ?? '').trim();
+    _emailController.text = (widget.emailInicial ?? '').trim();
+
+    final whatsappInicial = InternationalPhoneInputFormatter.localDigits(
+      widget.whatsappInicial ?? '',
+      ddi: _ddiPadrao,
+      maxLocalDigits: _maxPhoneDigits,
+    );
+    _whatsappController.text = InternationalPhoneInputFormatter.formatLocal(
+      whatsappInicial,
+      ddi: _ddiPadrao,
+      maxLocalDigits: _maxPhoneDigits,
+    );
+
+    _isWhatsappNumber = widget.numeroEhWhatsappInicial;
+    final vinculoInicial = (widget.vinculoIdCliente ?? '').trim();
+    _vinculoIdCliente = vinculoInicial.isEmpty ? null : vinculoInicial;
+    _camposObrigatoriosPendentes = List<String>.from(
+      widget.camposObrigatoriosPendentes,
+    );
+
     _emailController.addListener(_refreshFormState);
     _senhaController.addListener(_refreshFormState);
     _whatsappController.addListener(_refreshFormState);
     _whatsappFocusNode.addListener(_refreshFormState);
     _senhaFocusNode.addListener(_refreshFormState);
+
+    if (widget.modoCompletarCadastroGoogle &&
+        _emailController.text.trim().isNotEmpty) {
+      unawaited(
+        _atualizarStatusVinculoPorEmail(
+          email: _emailController.text.trim(),
+          nome: _nomeController.text.trim(),
+          telefoneLocal: whatsappInicial,
+        ),
+      );
+    }
   }
 
   @override
@@ -92,6 +144,9 @@ class _SignUpViewState extends State<SignUpView> {
     final email = _emailController.text.trim();
     final phoneDigits = _countPhoneDigits(_whatsappController.text);
     final senha = _senhaController.text;
+    final ehFluxoGoogle = widget.modoCompletarCadastroGoogle;
+    final emailSomenteLeitura = widget.emailSomenteLeitura || ehFluxoGoogle;
+    final vinculoIdCliente = (_vinculoIdCliente ?? '').trim();
     final nomeValido = nome.isNotEmpty;
     final emailValido = email.isNotEmpty && Validadores.isEmailValido(email);
     final numeroLabel = _isWhatsappNumber
@@ -112,7 +167,7 @@ class _SignUpViewState extends State<SignUpView> {
         senhaTemMinuscula &&
         senhaTemNumero &&
         senhaTemEspecial;
-    final podeCadastrar = senhaValida;
+    final podeCadastrar = ehFluxoGoogle ? true : senhaValida;
     final currentLocale = Localizations.localeOf(context);
     final placeholderTelefone =
       _ddiPadrao == InternationalPhoneInputFormatter.defaultDdi
@@ -168,6 +223,7 @@ class _SignUpViewState extends State<SignUpView> {
                 ),
                 counterText: '',
               ),
+              readOnly: emailSomenteLeitura,
               keyboardType: TextInputType.emailAddress,
             ),
             if (emailInvalidoDigitando)
@@ -178,6 +234,60 @@ class _SignUpViewState extends State<SignUpView> {
                   child: Text(
                     localizations.signupInvalidEmailTyping,
                     style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+                  ),
+                ),
+              ),
+            if (ehFluxoGoogle)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    localizations.signupGooglePrefilledEmailHint,
+                    style: TextStyle(
+                      color: Colors.teal.shade700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            if (vinculoIdCliente.isNotEmpty)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.teal.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.teal.shade200),
+                ),
+                child: Text(
+                  localizations.signupLinkedClientId(vinculoIdCliente),
+                  style: TextStyle(
+                    color: Colors.teal.shade900,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            if (ehFluxoGoogle && _camposObrigatoriosPendentes.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, left: 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    localizations.signupPendingRequiredFields(
+                      _descricaoCamposObrigatoriosPendentes(),
+                    ),
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -291,126 +401,134 @@ class _SignUpViewState extends State<SignUpView> {
                 });
               },
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _senhaController,
-              focusNode: _senhaFocusNode,
-              maxLength: 20,
-              inputFormatters: [LengthLimitingTextInputFormatter(20)],
-              decoration: InputDecoration(
-                labelText: localizations.passwordLabel,
-                border: const OutlineInputBorder(),
-                prefixIcon: Icon(
-                  senhaValida ? Icons.lock_open_outlined : Icons.lock_outline,
-                  color: senhaValida
-                      ? Colors.green.shade600
-                      : Colors.grey.shade400,
-                ),
-                counterText: '',
-                suffixIcon: IconButton(
-                  icon: Icon(
-                    _senhaVisivel ? Icons.visibility : Icons.visibility_off,
+            if (!ehFluxoGoogle) ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: _senhaController,
+                focusNode: _senhaFocusNode,
+                maxLength: 20,
+                inputFormatters: [LengthLimitingTextInputFormatter(20)],
+                decoration: InputDecoration(
+                  labelText: localizations.passwordLabel,
+                  border: const OutlineInputBorder(),
+                  prefixIcon: Icon(
+                    senhaValida ? Icons.lock_open_outlined : Icons.lock_outline,
+                    color: senhaValida
+                        ? Colors.green.shade600
+                        : Colors.grey.shade400,
                   ),
-                  onPressed: () {
-                    setState(() {
-                      _senhaVisivel = !_senhaVisivel;
-                    });
-                  },
+                  counterText: '',
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _senhaVisivel ? Icons.visibility : Icons.visibility_off,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _senhaVisivel = !_senhaVisivel;
+                      });
+                    },
+                  ),
                 ),
+                obscureText: !_senhaVisivel,
               ),
-              obscureText: !_senhaVisivel,
-            ),
-            AnimatedSize(
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeInOut,
-              child: AnimatedOpacity(
-                opacity: _senhaFocusNode.hasFocus || senha.isNotEmpty
-                    ? 1.0
-                    : 0.0,
-                duration: const Duration(milliseconds: 220),
-                child: _senhaFocusNode.hasFocus || senha.isNotEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 400),
-                          switchInCurve: Curves.easeInOut,
-                          switchOutCurve: Curves.easeInOut,
-                          transitionBuilder: (child, animation) {
-                            return FadeTransition(
-                              opacity: animation,
-                              child: child,
-                            );
-                          },
-                          child: senhaValida
-                              ? Row(
-                                  key: const ValueKey('senha_valida_feedback'),
-                                  children: [
-                                    Icon(
-                                      Icons.check_circle,
-                                      size: 16,
-                                      color: Colors.green.shade700,
+              AnimatedSize(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeInOut,
+                child: AnimatedOpacity(
+                  opacity: _senhaFocusNode.hasFocus || senha.isNotEmpty
+                      ? 1.0
+                      : 0.0,
+                  duration: const Duration(milliseconds: 220),
+                  child: _senhaFocusNode.hasFocus || senha.isNotEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 400),
+                            switchInCurve: Curves.easeInOut,
+                            switchOutCurve: Curves.easeInOut,
+                            transitionBuilder: (child, animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              );
+                            },
+                            child: senhaValida
+                                ? Row(
+                                    key: const ValueKey(
+                                      'senha_valida_feedback',
                                     ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle,
+                                        size: 16,
+                                        color: Colors.green.shade700,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          localizations
+                                              .signupPasswordReadyMessage,
+                                          style: TextStyle(
+                                            color: Colors.green.shade700,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                : Column(
+                                    key: const ValueKey(
+                                      'senha_regras_feedback',
+                                    ),
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
                                         localizations
-                                            .signupPasswordReadyMessage,
+                                            .signupPasswordCriteriaTitle,
                                         style: TextStyle(
-                                          color: Colors.green.shade700,
+                                          color: theme.colorScheme.onSurface
+                                              .withValues(alpha: 0.75),
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                )
-                              : Column(
-                                  key: const ValueKey('senha_regras_feedback'),
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      localizations.signupPasswordCriteriaTitle,
-                                      style: TextStyle(
-                                        color: theme.colorScheme.onSurface
-                                            .withValues(alpha: 0.75),
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
+                                      const SizedBox(height: 4),
+                                      _PasswordRuleItem(
+                                        text: localizations
+                                            .signupPasswordRuleLength,
+                                        ok: senhaTemTamanhoValido,
                                       ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    _PasswordRuleItem(
-                                      text: localizations
-                                          .signupPasswordRuleLength,
-                                      ok: senhaTemTamanhoValido,
-                                    ),
-                                    _PasswordRuleItem(
-                                      text: localizations
-                                          .signupPasswordRuleUppercase,
-                                      ok: senhaTemMaiuscula,
-                                    ),
-                                    _PasswordRuleItem(
-                                      text: localizations
-                                          .signupPasswordRuleLowercase,
-                                      ok: senhaTemMinuscula,
-                                    ),
-                                    _PasswordRuleItem(
-                                      text: localizations
-                                          .signupPasswordRuleNumber,
-                                      ok: senhaTemNumero,
-                                    ),
-                                    _PasswordRuleItem(
-                                      text:
-                                          '${localizations.signupPasswordRuleSpecial}  ex: ! @ # \$ % & *',
-                                      ok: senhaTemEspecial,
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      )
-                    : const SizedBox.shrink(),
+                                      _PasswordRuleItem(
+                                        text: localizations
+                                            .signupPasswordRuleUppercase,
+                                        ok: senhaTemMaiuscula,
+                                      ),
+                                      _PasswordRuleItem(
+                                        text: localizations
+                                            .signupPasswordRuleLowercase,
+                                        ok: senhaTemMinuscula,
+                                      ),
+                                      _PasswordRuleItem(
+                                        text: localizations
+                                            .signupPasswordRuleNumber,
+                                        ok: senhaTemNumero,
+                                      ),
+                                      _PasswordRuleItem(
+                                        text:
+                                            '${localizations.signupPasswordRuleSpecial}  ex: ! @ # \$ % & *',
+                                        ok: senhaTemEspecial,
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
+            ],
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
@@ -524,7 +642,49 @@ class _SignUpViewState extends State<SignUpView> {
                 onPressed: podeCadastrar
                     ? () async {
                         final nome = _nomeController.text.trim();
+                        final telefoneLocal =
+                            InternationalPhoneInputFormatter.localDigits(
+                              _whatsappController.text,
+                              ddi: _ddiPadrao,
+                              maxLocalDigits: _maxPhoneDigits,
+                            );
                         final emailValido = Validadores.isEmailValido(email);
+                        var vinculoIdAuditoria =
+                            (_vinculoIdCliente ?? '').trim().isEmpty
+                            ? null
+                            : (_vinculoIdCliente ?? '').trim();
+
+                        if ((ehFluxoGoogle || widget.emailSomenteLeitura) &&
+                            emailValido) {
+                          final statusVinculo = await _atualizarStatusVinculoPorEmail(
+                            email: email,
+                            nome: nome,
+                            telefoneLocal: telefoneLocal,
+                          );
+                          final vinculoAtualizado =
+                              statusVinculo.vinculoIdCliente.trim();
+                          if (vinculoAtualizado.isNotEmpty) {
+                            vinculoIdAuditoria = vinculoAtualizado;
+                          }
+
+                          if (!mounted) return;
+
+                          if (!ehFluxoGoogle &&
+                              statusVinculo.cadastroCompleto &&
+                              vinculoAtualizado.isNotEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  localizations.signupExistingClientLinkedMessage(
+                                    vinculoAtualizado,
+                                  ),
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+                        }
+
                         final motivos = <String>[];
 
                         if (nome.isEmpty) {
@@ -539,7 +699,7 @@ class _SignUpViewState extends State<SignUpView> {
                         if (phoneDigits < 10) {
                           motivos.add('telefone_minimo_digitos');
                         }
-                        if (!senhaValida) {
+                        if (!ehFluxoGoogle && !senhaValida) {
                           motivos.add('senha_fraca');
                         }
                         if (!_lgpdConsentido) {
@@ -548,15 +708,26 @@ class _SignUpViewState extends State<SignUpView> {
 
                         if (motivos.isNotEmpty) {
                           await _controller.auditarTentativaCredencial(
-                            origem: 'cadastro_formulario',
+                            origem: ehFluxoGoogle
+                                ? 'cadastro_google_complemento'
+                                : 'cadastro_formulario',
                             emailDigitado: email,
-                            senhaInformada: senha,
+                            senhaInformada: ehFluxoGoogle
+                                ? 'oauth_google_sem_senha'
+                                : senha,
                             inconformidade: true,
                             lgpdConsentido: _lgpdConsentido,
                             motivos: motivos,
                             nomeClienteDigitado: nome,
                             emailValido: emailValido,
                             senhaForte: senhaValida,
+                            metodoEntrada: ehFluxoGoogle
+                                ? 'google'
+                                : 'email_senha',
+                            provedorEntrada: ehFluxoGoogle
+                                ? 'google_oauth'
+                                : 'firebase_auth',
+                            vinculoIdCliente: vinculoIdAuditoria,
                           );
 
                           if (!mounted) return;
@@ -571,7 +742,7 @@ class _SignUpViewState extends State<SignUpView> {
                               ? localizations.signupPhoneMinDigitsSubmitMessage(
                                   numeroLabel,
                                 )
-                              : !senhaValida
+                              : (!ehFluxoGoogle && !senhaValida)
                               ? localizations.signupPasswordWeakMessage
                               : localizations.signupLgpdConsentError;
 
@@ -581,16 +752,23 @@ class _SignUpViewState extends State<SignUpView> {
                           return;
                         }
 
+                        if (ehFluxoGoogle) {
+                          await _controller.completarCadastroGoogleCliente(
+                            context,
+                            nome,
+                            telefoneLocal,
+                            _isWhatsappNumber,
+                            currentLocale.languageCode,
+                          );
+                          return;
+                        }
+
                         await _controller.cadastrar(
                           context,
                           nome,
                           email,
                           senha,
-                          InternationalPhoneInputFormatter.localDigits(
-                            _whatsappController.text,
-                            ddi: _ddiPadrao,
-                            maxLocalDigits: _maxPhoneDigits,
-                          ),
+                          telefoneLocal,
                           _isWhatsappNumber,
                           _lgpdConsentido,
                           currentLocale.languageCode,
@@ -603,7 +781,11 @@ class _SignUpViewState extends State<SignUpView> {
                   disabledBackgroundColor: Colors.grey.shade400,
                   disabledForegroundColor: Colors.white70,
                 ),
-                child: Text(localizations.registerButton),
+                child: Text(
+                  ehFluxoGoogle
+                      ? localizations.signupGoogleCompleteButton
+                      : localizations.registerButton,
+                ),
               ),
             ),
           ],
@@ -626,6 +808,38 @@ class _SignUpViewState extends State<SignUpView> {
     ).push<bool>(MaterialPageRoute(builder: (_) => const TermosUsoView()));
 
     return aceitouTermos ?? false;
+  }
+
+  String _descricaoCamposObrigatoriosPendentes() {
+    final labels = AppStrings.labelsConfig;
+    return _camposObrigatoriosPendentes
+        .map((campo) => labels[campo] ?? campo)
+        .toSet()
+        .join(', ');
+  }
+
+  Future<VinculoClienteCadastroStatus> _atualizarStatusVinculoPorEmail({
+    required String email,
+    String? nome,
+    String? telefoneLocal,
+  }) async {
+    final status = await _controller.consultarStatusVinculoClientePorEmail(
+      email: email,
+      nomeFallback: nome,
+      telefoneFallback: telefoneLocal,
+    );
+
+    if (!mounted) return status;
+
+    setState(() {
+      final vinculo = status.vinculoIdCliente.trim();
+      _vinculoIdCliente = vinculo.isEmpty ? null : vinculo;
+      _camposObrigatoriosPendentes = List<String>.from(
+        status.camposObrigatoriosPendentes,
+      );
+    });
+
+    return status;
   }
 
   void _refreshFormState() {

@@ -25,6 +25,30 @@ import 'package:agenda/core/utils/app_strings.dart';
 import 'package:agenda/core/utils/massage_type_catalog.dart';
 import 'package:agenda/core/models/cliente_model.dart';
 
+class VinculoClienteCadastroStatus {
+  final String emailNormalizado;
+  final String vinculoIdCliente;
+  final String nomeSugerido;
+  final String telefoneSugerido;
+  final bool possuiUsuario;
+  final bool possuiCliente;
+  final bool cadastroCompleto;
+  final List<String> camposObrigatoriosPendentes;
+
+  const VinculoClienteCadastroStatus({
+    required this.emailNormalizado,
+    required this.vinculoIdCliente,
+    required this.nomeSugerido,
+    required this.telefoneSugerido,
+    required this.possuiUsuario,
+    required this.possuiCliente,
+    required this.cadastroCompleto,
+    required this.camposObrigatoriosPendentes,
+  });
+
+  bool get possuiVinculo => vinculoIdCliente.trim().isNotEmpty;
+}
+
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
@@ -124,6 +148,108 @@ class FirestoreService {
 
   String _normalizarNomeBusca(String nome) {
     return nome.trim().toLowerCase().replaceAll(RegExp(r'\s+'), ' ');
+  }
+
+  String _primeiroTextoPreenchido(
+    Map<String, dynamic> dados,
+    List<String> chaves,
+  ) {
+    for (final chave in chaves) {
+      final valor = (dados[chave] as String? ?? '').trim();
+      if (valor.isNotEmpty) {
+        return valor;
+      }
+    }
+    return '';
+  }
+
+  bool _campoTextoPreenchido(
+    Map<String, dynamic> dados,
+    List<String> chaves,
+  ) {
+    return _primeiroTextoPreenchido(dados, chaves).isNotEmpty;
+  }
+
+  bool _campoDataPreenchida(dynamic valor) {
+    if (valor == null) return false;
+    if (valor is Timestamp || valor is DateTime) return true;
+    if (valor is String) {
+      final texto = valor.trim();
+      if (texto.isEmpty) return false;
+      final textoNormalizado = texto.toLowerCase();
+      return textoNormalizado != 'null' && textoNormalizado != 'none';
+    }
+    return false;
+  }
+
+  List<String> _resolverCamposObrigatoriosPendentes({
+    required Map<String, bool> camposObrigatorios,
+    required Map<String, dynamic> usuarioData,
+    required Map<String, dynamic> clienteData,
+  }) {
+    bool campoAtivo(String chave) => camposObrigatorios[chave] == true;
+
+    final telefoneCliente = _normalizarTelefone(
+      _primeiroTextoPreenchido(
+        clienteData,
+        const ['telefone_principal', 'whatsapp'],
+      ),
+    );
+    final telefoneUsuario = _normalizarTelefone(
+      _primeiroTextoPreenchido(
+        usuarioData,
+        const ['telefone_principal', 'whatsapp'],
+      ),
+    );
+
+    final pendentes = <String>[];
+
+    if (campoAtivo('whatsapp')) {
+      final telefoneEfetivo =
+          telefoneCliente.isNotEmpty ? telefoneCliente : telefoneUsuario;
+      if (telefoneEfetivo.length < 10) {
+        pendentes.add('whatsapp');
+      }
+    }
+
+    if (campoAtivo('endereco') &&
+        !_campoTextoPreenchido(clienteData, const ['endereco'])) {
+      pendentes.add('endereco');
+    }
+
+    if (campoAtivo('data_nascimento') &&
+        !_campoDataPreenchida(clienteData['data_nascimento'])) {
+      pendentes.add('data_nascimento');
+    }
+
+    if (campoAtivo('historico_medico') &&
+        !_campoTextoPreenchido(clienteData, const ['historico_medico'])) {
+      pendentes.add('historico_medico');
+    }
+
+    if (campoAtivo('alergias') &&
+        !_campoTextoPreenchido(clienteData, const ['alergias'])) {
+      pendentes.add('alergias');
+    }
+
+    if (campoAtivo('medicamentos') &&
+        !_campoTextoPreenchido(clienteData, const ['medicamentos'])) {
+      pendentes.add('medicamentos');
+    }
+
+    if (campoAtivo('cirurgias') &&
+        !_campoTextoPreenchido(clienteData, const ['cirurgias'])) {
+      pendentes.add('cirurgias');
+    }
+
+    if (campoAtivo('termos_uso')) {
+      final consentiuLgpd = usuarioData['lgpd_consentido'] == true;
+      if (!consentiuLgpd) {
+        pendentes.add('termos_uso');
+      }
+    }
+
+    return pendentes;
   }
 
   String _normalizarSlug(String valor) {
@@ -632,6 +758,33 @@ class FirestoreService {
     return crypto.sha256.convert(utf8.encode(valor)).toString();
   }
 
+  Future<String?> _coletarIpPublico() async {
+    try {
+      final resposta = await http
+          .get(Uri.parse('https://api.ipify.org?format=json'))
+          .timeout(const Duration(milliseconds: 1800));
+
+      if (resposta.statusCode != 200 || resposta.body.trim().isEmpty) {
+        return null;
+      }
+
+      final dados = jsonDecode(resposta.body);
+      if (dados is Map<String, dynamic>) {
+        final ip = (dados['ip'] as String? ?? '').trim();
+        if (ip.isNotEmpty) {
+          return ip;
+        }
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
+  String _plataformaAuditoria() {
+    if (kIsWeb) return 'web';
+    return defaultTargetPlatform.name;
+  }
+
   String _normalizarVersaoSoftware(String versao) {
     final partes = _partesVersao(versao);
     while (partes.length < 4) {
@@ -778,6 +931,116 @@ class FirestoreService {
       return Cliente.fromMap(doc.data()!);
     }
     return null;
+  }
+
+  Future<VinculoClienteCadastroStatus> obterStatusVinculoClientePorEmail({
+    required String email,
+    String? uidFallback,
+    String? nomeFallback,
+    String? telefoneFallback,
+  }) async {
+    final emailNormalizado = _normalizarEmail(email);
+    final uidFallbackNormalizado = (uidFallback ?? '').trim();
+    final nomeFallbackNormalizado = (nomeFallback ?? '').trim();
+    final telefoneFallbackNormalizado = _normalizarTelefone(
+      telefoneFallback ?? '',
+    );
+
+    Map<String, dynamic> usuarioData = const <String, dynamic>{};
+    Map<String, dynamic> clienteData = const <String, dynamic>{};
+
+    if (emailNormalizado.isNotEmpty) {
+      try {
+        final usuarioPorEmail = await _db
+            .collection('usuarios')
+            .doc(emailNormalizado)
+            .get();
+        if (usuarioPorEmail.exists && usuarioPorEmail.data() != null) {
+          usuarioData = Map<String, dynamic>.from(usuarioPorEmail.data()!);
+        }
+      } on FirebaseException catch (e) {
+        if (e.code != 'permission-denied') {
+          rethrow;
+        }
+      }
+    }
+
+    if (usuarioData.isEmpty && uidFallbackNormalizado.isNotEmpty) {
+      final usuarioPorUid = await _buscarUsuarioSnapPorUid(uidFallbackNormalizado);
+      if (usuarioPorUid != null && usuarioPorUid.data() != null) {
+        usuarioData = Map<String, dynamic>.from(usuarioPorUid.data()!);
+      }
+    }
+
+    var vinculoIdCliente = _primeiroTextoPreenchido(usuarioData, const ['id']);
+    if (vinculoIdCliente.isEmpty) {
+      vinculoIdCliente = uidFallbackNormalizado;
+    }
+
+    if (vinculoIdCliente.isNotEmpty) {
+      try {
+        final clienteSnap = await _db
+            .collection('clientes')
+            .doc(vinculoIdCliente)
+            .get();
+        if (clienteSnap.exists && clienteSnap.data() != null) {
+          clienteData = Map<String, dynamic>.from(clienteSnap.data()!);
+        }
+      } on FirebaseException catch (e) {
+        if (e.code != 'permission-denied') {
+          rethrow;
+        }
+      }
+    }
+
+    final config = await getConfiguracao();
+    final camposObrigatoriosPendentes = _resolverCamposObrigatoriosPendentes(
+      camposObrigatorios: config.camposObrigatorios,
+      usuarioData: usuarioData,
+      clienteData: clienteData,
+    );
+
+    final nomeCliente = _primeiroTextoPreenchido(
+      clienteData,
+      const ['nome_preferido', 'cliente_nome', 'nome'],
+    );
+    final nomeUsuario = _primeiroTextoPreenchido(
+      usuarioData,
+      const ['nome_preferido', 'nome_cliente', 'nome'],
+    );
+
+    final telefoneCliente = _normalizarTelefone(
+      _primeiroTextoPreenchido(
+        clienteData,
+        const ['telefone_principal', 'whatsapp'],
+      ),
+    );
+    final telefoneUsuario = _normalizarTelefone(
+      _primeiroTextoPreenchido(
+        usuarioData,
+        const ['telefone_principal', 'whatsapp'],
+      ),
+    );
+
+    final nomeSugerido = nomeCliente.isNotEmpty
+        ? nomeCliente
+        : (nomeUsuario.isNotEmpty ? nomeUsuario : nomeFallbackNormalizado);
+    final telefoneSugerido = telefoneCliente.isNotEmpty
+        ? telefoneCliente
+        : (telefoneUsuario.isNotEmpty
+              ? telefoneUsuario
+              : telefoneFallbackNormalizado);
+
+    return VinculoClienteCadastroStatus(
+      emailNormalizado: emailNormalizado,
+      vinculoIdCliente: vinculoIdCliente,
+      nomeSugerido: nomeSugerido,
+      telefoneSugerido: telefoneSugerido,
+      possuiUsuario: usuarioData.isNotEmpty,
+      possuiCliente: clienteData.isNotEmpty,
+      cadastroCompleto: camposObrigatoriosPendentes.isEmpty,
+      camposObrigatoriosPendentes: camposObrigatoriosPendentes,
+    );
   }
 
   Stream<List<Cliente>> getClientesAprovados() async* {
@@ -1274,26 +1537,57 @@ class FirestoreService {
     required bool lgpdConsentido,
     required List<String> motivos,
     String? nomeClienteDigitado,
-    String? usuarioId,
+    String metodoEntrada = 'email_senha',
+    String provedorEntrada = 'firebase_auth',
+    String? emailAutenticado,
+    String? vinculoIdCliente,
     bool? emailValido,
     bool? senhaForte,
   }) async {
     final emailNormalizado = _normalizarEmail(emailDigitado);
+    final usuarioAtual = FirebaseAuth.instance.currentUser;
+    final emailAutenticadoEfetivo =
+        (emailAutenticado ?? usuarioAtual?.email ?? '').trim();
+    final emailAutenticadoNormalizado = _normalizarEmail(
+      emailAutenticadoEfetivo,
+    );
+    final vinculoIdClienteNormalizado = (vinculoIdCliente ?? '').trim();
+    final ipColetado = await _coletarIpPublico();
+    final metodoEntradaNormalizado = metodoEntrada.trim().isEmpty
+        ? 'nao_informado'
+        : metodoEntrada.trim().toLowerCase();
+    final provedorEntradaNormalizado = provedorEntrada.trim().isEmpty
+        ? 'nao_informado'
+        : provedorEntrada.trim().toLowerCase();
 
     try {
       await _db.collection('auditoria_credenciais').add({
         'origem': origem,
+        'metodo_entrada': metodoEntradaNormalizado,
+        'provedor_entrada': provedorEntradaNormalizado,
         'email_digitado': emailDigitado,
         'email_normalizado': emailNormalizado,
+        'email_autenticado':
+            emailAutenticadoEfetivo.isEmpty ? null : emailAutenticadoEfetivo,
+        'email_autenticado_normalizado': emailAutenticadoNormalizado.isEmpty
+            ? null
+            : emailAutenticadoNormalizado,
+        'email_corresponde_auth':
+            emailAutenticadoNormalizado.isNotEmpty &&
+            emailAutenticadoNormalizado == emailNormalizado,
         'nome_cliente_digitado': (nomeClienteDigitado ?? '').trim(),
         'senha_hash': _hashValorSensivel(senhaInformada),
         'senha_tamanho': senhaInformada.length,
+        'ip': ipColetado,
+        'ip_status': ipColetado == null ? 'indisponivel' : 'coletado',
+        'dispositivo_plataforma': _plataformaAuditoria(),
         'motivos': motivos,
         'inconformidade': inconformidade,
         'lgpd_consentido': lgpdConsentido,
         'email_valido': emailValido ?? emailNormalizado.isNotEmpty,
         'senha_forte': senhaForte ?? false,
-        'usuario_id': usuarioId,
+        'vinculo_id_cliente':
+            vinculoIdClienteNormalizado.isEmpty ? null : vinculoIdClienteNormalizado,
         'criado_em': FieldValue.serverTimestamp(),
       });
     } catch (e) {

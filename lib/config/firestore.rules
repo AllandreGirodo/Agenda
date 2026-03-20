@@ -162,22 +162,32 @@ service cloud.firestore {
     function auditoriaCredencialValida() {
       return request.resource.data.keys().hasOnly([
           'origem',
+          'metodo_entrada',
+          'provedor_entrada',
           'email_digitado',
           'email_normalizado',
+          'email_autenticado',
+          'email_autenticado_normalizado',
+          'email_corresponde_auth',
           'nome_cliente_digitado',
           'senha_hash',
           'senha_tamanho',
+          'ip',
+          'ip_status',
+          'dispositivo_plataforma',
           'motivos',
           'inconformidade',
           'lgpd_consentido',
           'email_valido',
           'senha_forte',
           'usuario_id',
+          'vinculo_id_cliente',
           'criado_em',
         ])
         && request.resource.data.origem is string
         && request.resource.data.email_digitado is string
         && request.resource.data.email_normalizado is string
+        && request.resource.data.email_normalizado == request.resource.data.email_digitado.lower()
         && request.resource.data.nome_cliente_digitado is string
         && request.resource.data.senha_hash is string
         && request.resource.data.senha_tamanho is int
@@ -186,7 +196,16 @@ service cloud.firestore {
         && request.resource.data.lgpd_consentido is bool
         && request.resource.data.email_valido is bool
         && request.resource.data.senha_forte is bool
+        && (!('metodo_entrada' in request.resource.data) || request.resource.data.metodo_entrada is string)
+        && (!('provedor_entrada' in request.resource.data) || request.resource.data.provedor_entrada is string)
+        && (!('email_autenticado' in request.resource.data) || request.resource.data.email_autenticado == null || request.resource.data.email_autenticado is string)
+        && (!('email_autenticado_normalizado' in request.resource.data) || request.resource.data.email_autenticado_normalizado == null || request.resource.data.email_autenticado_normalizado is string)
+        && (!('email_corresponde_auth' in request.resource.data) || request.resource.data.email_corresponde_auth is bool)
+        && (!('ip' in request.resource.data) || request.resource.data.ip == null || request.resource.data.ip is string)
+        && (!('ip_status' in request.resource.data) || request.resource.data.ip_status is string)
+        && (!('dispositivo_plataforma' in request.resource.data) || request.resource.data.dispositivo_plataforma is string)
         && (request.resource.data.usuario_id == null || request.resource.data.usuario_id is string)
+        && (!('vinculo_id_cliente' in request.resource.data) || request.resource.data.vinculo_id_cliente == null || request.resource.data.vinculo_id_cliente is string)
         && request.resource.data.criado_em is timestamp;
     }
 

@@ -1,4 +1,5 @@
 plugins {
+    // The order of these plugins is important; do not change the order.
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -11,13 +12,19 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    // Build configuration using JDK 25.
+
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.toVersion(25)
+        targetCompatibility = JavaVersion.toVersion(25)
     }
 
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "24"
+    }
+
+    buildFeatures {
+        viewBinding = true
     }
 
     defaultConfig {
