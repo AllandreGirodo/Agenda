@@ -26,6 +26,8 @@ class UsuarioModel {
   final String? locale;
   final String? adminAtreladaId;
   final bool devMaster;
+  final bool reprovado;
+  final DateTime? dataReprovacao;
   final bool lgpdConsentido;
   final DateTime? lgpdConsentimentoEm;
   final String? lastChangelogSeen;
@@ -57,6 +59,8 @@ class UsuarioModel {
     this.locale,
     this.adminAtreladaId,
     this.devMaster = false,
+    this.reprovado = false,
+    this.dataReprovacao,
     this.lgpdConsentido = false,
     this.lgpdConsentimentoEm,
     this.lastChangelogSeen,
@@ -94,6 +98,10 @@ class UsuarioModel {
       'locale': locale,
       'admin_atrelada_id': adminAtreladaId,
       'dev_master': devMaster,
+        'reprovado': reprovado,
+        'data_reprovacao': dataReprovacao != null
+          ? Timestamp.fromDate(dataReprovacao!)
+          : null,
       'lgpd_consentido': lgpdConsentido,
       'lgpd_consentimento_em': lgpdConsentimentoEm != null
           ? Timestamp.fromDate(lgpdConsentimentoEm!)
@@ -137,6 +145,10 @@ class UsuarioModel {
       locale: map['locale'] as String?,
       adminAtreladaId: map['admin_atrelada_id'] as String?,
       devMaster: map['dev_master'] as bool? ?? false,
+        reprovado: map['reprovado'] as bool? ?? false,
+        dataReprovacao: map['data_reprovacao'] != null
+          ? (map['data_reprovacao'] as Timestamp).toDate()
+          : null,
       lgpdConsentido: map['lgpd_consentido'] as bool? ?? false,
       lgpdConsentimentoEm: map['lgpd_consentimento_em'] != null
           ? (map['lgpd_consentimento_em'] as Timestamp).toDate()

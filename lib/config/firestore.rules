@@ -29,8 +29,16 @@ service cloud.firestore {
       let email = emailAuthNormalizado();
       return !estaLogado() || email == ''
         ? false
-        : (exists(/databases/$(database)/documents/usuarios_por_email/$(email))
-            && get(/databases/$(database)/documents/usuarios_por_email/$(email)).data.get('tipo', '') == 'admin');
+        : (
+            (exists(/databases/$(database)/documents/usuarios_por_email/$(email))
+              && get(/databases/$(database)/documents/usuarios_por_email/$(email)).data.get('tipo', '') == 'admin')
+            ||
+            (exists(/databases/$(database)/documents/usuarios/$(email))
+              && get(/databases/$(database)/documents/usuarios/$(email)).data.get('tipo', '') == 'admin')
+            ||
+            (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+              && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('tipo', '') == 'admin')
+          );
     }
 
     function podeVisualizarTudo() {
@@ -105,7 +113,7 @@ service cloud.firestore {
         && request.resource.data.preco == request.resource.data.valor_final
         && (
           (
-            request.resource.data.cupom_aplicado == null
+            (!('cupom_aplicado' in request.resource.data) || request.resource.data.cupom_aplicado == null)
             && request.resource.data.valor_final == request.resource.data.valor_original
           )
           ||
@@ -293,6 +301,8 @@ service cloud.firestore {
           'email_normalizado',
           'nome_cliente_normalizado',
           'aprovado',
+          'reprovado',
+          'data_reprovacao',
           'fcm_token',
           'theme',
           'whatsapp',
@@ -349,6 +359,8 @@ service cloud.firestore {
         && (request.resource.data.categoria_origem == null || request.resource.data.categoria_origem is string)
         && (request.resource.data.numero_e_whatsapp == null || request.resource.data.numero_e_whatsapp is bool)
         && (request.resource.data.locale == null || request.resource.data.locale is string)
+        && (request.resource.data.reprovado == null || request.resource.data.reprovado is bool)
+        && (request.resource.data.data_reprovacao == null || request.resource.data.data_reprovacao is timestamp)
         && (request.resource.data.lgpd_consentido == null || request.resource.data.lgpd_consentido is bool)
         && (request.resource.data.lgpd_consentido == null || request.resource.data.lgpd_consentido == true)
         && (request.resource.data.lgpd_consentimento_em == null || request.resource.data.lgpd_consentimento_em is timestamp)
@@ -593,7 +605,7 @@ service cloud.firestore {
         || (estaLogado()
           && request.auth.uid == request.resource.data.uid
           && indiceUsuarioPorEmailValido(emailId));
-      allow read: if estaLogado() && resource.data.uid == request.auth.uid;
+      allow read: if eAdmin() || (estaLogado() && resource.data.uid == request.auth.uid);
       allow delete: if eAdmin();
     }
 

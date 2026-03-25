@@ -686,9 +686,20 @@ Service and package prices are subject to change. Payment must be made as agreed
       : 'No permission to read clients. Check Firestore rules for the admin user.';
   static String saldoSessoesLabel(int saldo) =>
       _isPt ? 'Saldo de Sessões: $saldo' : 'Session Balance: $saldo';
+  static String telefoneLabel(String telefone) =>
+      _isPt ? 'Telefone: $telefone' : 'Phone: $telefone';
+  static String uidLabel(String uid) =>
+      _isPt ? 'UID: $uid' : 'UID: $uid';
   static String emailCadastroLabel(String email, String dataCadastro) => _isPt
       ? 'Email: $email\nCadastrado em: $dataCadastro'
       : 'Email: $email\nRegistered on: $dataCadastro';
+    static String emailTelefoneCadastroLabel(
+        String email,
+        String telefone,
+        String dataCadastro,
+    ) => _isPt
+            ? 'Email: $email\nTelefone: $telefone\nCadastrado em: $dataCadastro'
+            : 'Email: $email\nPhone: $telefone\nRegistered on: $dataCadastro';
   static String get aprovarCadastro =>
       _isPt ? 'Aprovar Cadastro' : 'Approve Registration';
   static String get permitirVerTodosHorarios =>
@@ -1481,4 +1492,46 @@ Service and package prices are subject to change. Payment must be made as agreed
       _isPt ? 'Exportar para Web' : 'Export to Web';
   static String get tooltipImportarJson =>
       _isPt ? 'Importar dados de um arquivo JSON' : 'Import data from a JSON file';
+
+  // Admin - Usuários Pendentes
+  static String get reprovarCadastro =>
+      _isPt ? 'Reprovar Cadastro' : 'Reject Registration';
+  static String usuarioReprovadoSucesso(String nome) => _isPt
+      ? 'Usuário $nome reprovado com sucesso!'
+      : 'User $nome rejected successfully!';
+  static String get confirmarReprovacao =>
+      _isPt ? 'Confirmar Reprovação' : 'Confirm Rejection';
+  static String get confirmarAprovacao =>
+      _isPt ? 'Confirmar Aprovação' : 'Confirm Approval';
+  static String get mensagemConfirmarReprovacao => _isPt
+      ? 'Tem certeza que deseja reprovar este cadastro? Esta ação não pode ser desfeita.'
+      : 'Are you sure you want to reject this registration? This action cannot be undone.';
+  static String get mensagemConfirmarAprovacao => _isPt
+      ? 'Tem certeza que deseja aprovar este cadastro? O usuário poderá acessar o sistema.'
+      : 'Are you sure you want to approve this registration? The user will be able to access the system.';
+  static String get simWord => _isPt ? 'Sim' : 'Yes';
+  static String get naoWord => _isPt ? 'Não' : 'No';
+  static String retornoAcaoCadastro(String acao, String resposta) => _isPt
+      ? 'Ação: $acao | Resposta: $resposta'
+      : 'Action: $acao | Response: $resposta';
+  static String get usuarioAprovado =>
+      _isPt ? 'Usuário aprovado' : 'User approved';
+  static String get usuarioReprovado =>
+      _isPt ? 'Usuário reprovado' : 'User rejected';
+  static String get statusPendenteCadastro =>
+      _isPt ? 'Cadastro pendente' : 'Pending registration';
+  static String get erroPermissaoBanco =>
+      _isPt ? 'Erro de permissão no banco de dados' : 'Database permission error';
+
+  // UI Action Strings
+  static String get cancelarButton =>
+      _isPt ? 'Cancelar' : 'Cancel';
+  static String get importarButton =>
+      _isPt ? 'Importar' : 'Import';
+  static String formatoExtensaoNaoSuportado(String ext) =>
+      _isPt ? 'Formato $ext não suportado ainda' : 'Format $ext not supported yet';
+  static String get erroValidacao =>
+      _isPt ? 'Erro na validação' : 'Validation error';
+  static String get buscarPorIdNomeEmail =>
+      _isPt ? 'Buscar por ID, Nome ou Email...' : 'Search by ID, Name or Email...';
 }

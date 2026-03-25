@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:agenda/core/utils/app_strings.dart';
 
 /// Helper para validar e mostrar preview de importacao
 class ImportPreviewHelper {
@@ -201,13 +202,13 @@ class ImportPreviewHelper {
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancelar'),
+                      child: Text(AppStrings.cancelarButton),
                     ),
                     const SizedBox(width: 12),
                     ElevatedButton.icon(
                       onPressed: () => Navigator.pop(ctx, true),
                       icon: const Icon(Icons.upload),
-                      label: const Text('Importar'),
+                      label: Text(AppStrings.importarButton),
                     ),
                   ],
                 ),

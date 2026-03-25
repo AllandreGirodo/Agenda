@@ -1044,48 +1044,7 @@ class FirestoreService {
   }
 
   Stream<List<Cliente>> getClientesAprovados() async* {
-    try {
-      yield* _streamClientesDaColecaoClientes();
-    } on FirebaseException catch (e) {
-      if (e.code != 'permission-denied') {
-        rethrow;
-      }
-
-      debugPrint(
-        '[FirestoreService] Sem permissao para ler clientes. Aplicando fallback por usuarios aprovados. Erro: ${e.message ?? e.code}',
-      );
-      yield* _streamClientesAprovadosPorUsuarios();
-    }
-  }
-
-  Stream<List<Cliente>> _streamClientesDaColecaoClientes() {
-    return _db
-        .collection('clientes')
-        .snapshots()
-        .map((snapshot) {
-          final clientes = snapshot.docs.map((doc) {
-            final data = Map<String, dynamic>.from(doc.data());
-
-            // Compatibilidade para registros legados sem uid/nome padronizado.
-            data['uid'] = (data['uid'] as String? ?? '').trim().isNotEmpty
-                ? data['uid']
-                : doc.id;
-            data['cliente_nome'] =
-                (data['cliente_nome'] as String? ?? '').trim().isNotEmpty
-                ? data['cliente_nome']
-                : ((data['nome'] as String?) ?? '');
-
-            return Cliente.fromMap(data);
-          }).toList();
-
-          clientes.sort(
-            (a, b) => _normalizarNomeBusca(a.nomeExibicao).compareTo(
-              _normalizarNomeBusca(b.nomeExibicao),
-            ),
-          );
-
-          return clientes;
-        });
+    yield* _streamClientesAprovadosPorUsuarios();
   }
 
   Stream<List<Cliente>> _streamClientesAprovadosPorUsuarios() {
@@ -1128,7 +1087,8 @@ class FirestoreService {
           );
 
           return clientes;
-        });
+        })
+        .asBroadcastStream();
   }
 
   Future<void> adicionarPacote(String uid, int quantidade) async {
@@ -1389,6 +1349,39 @@ class FirestoreService {
     return null;
   }
 
+  Future<UsuarioModel?> getUsuarioPorEmail(String email) async {
+    final emailNormalizado = _normalizarEmail(email);
+    if (emailNormalizado.isEmpty) return null;
+
+    try {
+      // Tenta buscar por email (chave do documento)
+      final docPorEmail = await _db.collection('usuarios').doc(emailNormalizado).get();
+      if (docPorEmail.exists && docPorEmail.data() != null) {
+        return UsuarioModel.fromMap(docPorEmail.data()!);
+      }
+
+      // Fallback: busca por email em usuarios_por_email (índice)
+      final indiceEmail = await _db
+          .collection('usuarios_por_email')
+          .where('email', isEqualTo: emailNormalizado)
+          .limit(1)
+          .get();
+
+      if (indiceEmail.docs.isNotEmpty) {
+        final uid = indiceEmail.docs.first.data()['uid'] as String?;
+        if (uid != null && uid.trim().isNotEmpty) {
+          return getUsuario(uid.trim());
+        }
+      }
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        rethrow;
+      }
+    }
+
+    return null;
+  }
+
   Stream<UsuarioModel?> getUsuarioStream(String uid) {
     final uidNormalizado = uid.trim();
     if (uidNormalizado.isEmpty) {
@@ -1544,7 +1537,8 @@ class FirestoreService {
     bool? emailValido,
     bool? senhaForte,
   }) async {
-    final emailNormalizado = _normalizarEmail(emailDigitado);
+    final emailDigitadoNormalizadoInput = emailDigitado.trim();
+    final emailNormalizado = _normalizarEmail(emailDigitadoNormalizadoInput);
     final usuarioAtual = FirebaseAuth.instance.currentUser;
     final emailAutenticadoEfetivo =
         (emailAutenticado ?? usuarioAtual?.email ?? '').trim();
@@ -1565,7 +1559,7 @@ class FirestoreService {
         'origem': origem,
         'metodo_entrada': metodoEntradaNormalizado,
         'provedor_entrada': provedorEntradaNormalizado,
-        'email_digitado': emailDigitado,
+        'email_digitado': emailDigitadoNormalizadoInput,
         'email_normalizado': emailNormalizado,
         'email_autenticado':
             emailAutenticadoEfetivo.isEmpty ? null : emailAutenticadoEfetivo,
@@ -1590,6 +1584,10 @@ class FirestoreService {
             vinculoIdClienteNormalizado.isEmpty ? null : vinculoIdClienteNormalizado,
         'criado_em': FieldValue.serverTimestamp(),
       });
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        debugPrint('Falha ao registrar auditoria de credenciais: $e');
+      }
     } catch (e) {
       debugPrint('Falha ao registrar auditoria de credenciais: $e');
     }
@@ -1925,7 +1923,6 @@ class FirestoreService {
   Stream<List<UsuarioModel>> getUsuariosPendentes() {
     return _db
         .collection('usuarios')
-        .where('aprovado', isEqualTo: false)
         .where('tipo', isEqualTo: 'cliente')
         .snapshots()
         .map(
@@ -1957,6 +1954,8 @@ class FirestoreService {
 
     await usuarioRef.set({
       'aprovado': true,
+      'reprovado': false,
+      'data_reprovacao': FieldValue.delete(),
       'nome_cliente': nomeCliente,
       'email_normalizado': _normalizarEmail(email),
       'nome_cliente_normalizado': _normalizarNomeBusca(nomeCliente),
@@ -1981,6 +1980,41 @@ class FirestoreService {
       nomeCliente: nomeCliente,
       tipo: 'cliente',
       aprovado: true,
+    );
+  }
+
+  Future<void> reprovarUsuario(String uid) async {
+    final usuarioRef = await _buscarUsuarioRefPorUid(uid);
+    if (usuarioRef == null) {
+      throw StateError('Usuario nao encontrado para reprovacao: $uid');
+    }
+
+    final usuarioSnap = await usuarioRef.get();
+    final usuarioData = usuarioSnap.data() ?? <String, dynamic>{};
+    final email = (usuarioData['email'] as String? ?? '').trim();
+    final nomeCliente =
+        (usuarioData['nome_cliente'] as String? ??
+                usuarioData['nome'] as String? ??
+                'Cliente')
+            .trim();
+
+    await usuarioRef.set({
+      'aprovado': false,
+      'reprovado': true,
+      'data_reprovacao': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    // Remove o documento de cliente se existir
+    await _db.collection('clientes').doc(uid).delete().catchError((_) {
+      // Ignore se não existir
+    });
+
+    await _sincronizarIndiceHumanoUsuario(
+      uid: uid,
+      email: email,
+      nomeCliente: nomeCliente,
+      tipo: 'cliente',
+      aprovado: false,
     );
   }
 

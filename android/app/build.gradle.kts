@@ -12,15 +12,13 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
-    // Build configuration using JDK 25.
-
     compileOptions {
-        sourceCompatibility = JavaVersion.toVersion(25)
-        targetCompatibility = JavaVersion.toVersion(25)
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "24"
+        jvmTarget = "17"
     }
 
     buildFeatures {

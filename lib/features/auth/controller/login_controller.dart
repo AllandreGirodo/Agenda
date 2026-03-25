@@ -244,6 +244,8 @@ class LoginController {
         showChangelogAuto: usuarioExistente?.showChangelogAuto ?? true,
       );
 
+      await _atualizarTokenAutenticacao(authUser);
+
       await _firestoreService.salvarUsuario(usuarioAtualizado);
 
       if (tipoUsuario == 'cliente') {
@@ -329,11 +331,8 @@ class LoginController {
             RegExp(r'[^0-9]'),
             '',
           );
-      final lgpdConsentido =
-          vinculoGoogleStatus == null ||
-          !vinculoGoogleStatus.camposObrigatoriosPendentes.contains(
-            'termos_uso',
-          );
+      // Regras de usuarios exigem lgpd_consentido=true no primeiro write.
+      final lgpdConsentido = true;
       final adminAtreladaId = await _firestoreService
           .getAdministradoraPadraoAtreladaId();
       final tipoUsuario = devMaster ? 'admin' : 'cliente';
@@ -358,8 +357,10 @@ class LoginController {
         adminAtreladaId: adminAtreladaId,
         devMaster: devMaster,
         lgpdConsentido: lgpdConsentido,
-        lgpdConsentimentoEm: lgpdConsentido ? dataAgora : null,
+        lgpdConsentimentoEm: dataAgora,
       );
+
+      await _atualizarTokenAutenticacao(authUser);
 
       await _firestoreService.salvarUsuario(novoUsuario);
       criouUsuarioAgora = true;
@@ -575,13 +576,15 @@ class LoginController {
     bool lgpdConsentido,
     String? locale,
   ) async {
+    UserCredential? credencialCriada;
     try {
       // 1. Criar usuário no Auth
-      UserCredential userCredential = await _auth
+      credencialCriada = await _auth
           .createUserWithEmailAndPassword(email: email, password: senha);
 
-      if (userCredential.user != null) {
-        final uid = userCredential.user!.uid;
+      if (credencialCriada.user != null) {
+        final authUser = credencialCriada.user!;
+        final uid = authUser.uid;
         final dataAgora = DateTime.now();
         final emailNormalizado = email.trim().toLowerCase();
         final devMaster = _firestoreService.emailEhDevMaster(emailNormalizado);
@@ -612,6 +615,8 @@ class LoginController {
           lgpdConsentido: lgpdConsentido,
           lgpdConsentimentoEm: dataAgora,
         );
+
+        await _atualizarTokenAutenticacao(authUser);
 
         // 3. Salvar no Firestore
         await _firestoreService.salvarUsuario(novoUsuario);
@@ -673,6 +678,16 @@ class LoginController {
         ).showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (e) {
+      final erroPermissaoFirestore =
+          e is FirebaseException && e.code == 'permission-denied';
+
+      // Evita conta parcialmente criada no Auth quando falha a escrita inicial no Firestore.
+      if (erroPermissaoFirestore && credencialCriada?.user != null) {
+        try {
+          await credencialCriada!.user!.delete();
+        } catch (_) {}
+      }
+
       await auditarTentativaCredencial(
         origem: 'cadastro',
         emailDigitado: email,
@@ -688,7 +703,15 @@ class LoginController {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(AppStrings.erroCadastro)));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              erroPermissaoFirestore
+                  ? AppStrings.erroCadastroAppCheck
+                  : AppStrings.erroCadastro,
+            ),
+          ),
+        );
       }
     }
   }
@@ -756,6 +779,12 @@ class LoginController {
         message.contains('app-check') ||
         message.contains('firebase app check token is invalid') ||
         message.contains('unauthenticated');
+  }
+
+  Future<void> _atualizarTokenAutenticacao(User user) async {
+    try {
+      await user.getIdToken(true);
+    } catch (_) {}
   }
 
   int _secondsFrom(Duration? duration) {

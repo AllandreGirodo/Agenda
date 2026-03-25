@@ -745,7 +745,7 @@ class _DevToolsViewState extends State<DevToolsView> {
         }
       } else if (ext == 'xlsx' || ext == 'xls') {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Formato $ext nao suportado ainda')),
+          SnackBar(content: Text(AppStrings.formatoExtensaoNaoSuportado(ext))),
         );
         return;
       } else {
@@ -765,7 +765,7 @@ class _DevToolsViewState extends State<DevToolsView> {
         showDialog(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: Text('Erro na validacao'),
+            title: Text(AppStrings.erroValidacao),
             content: Text(validacao['erro'] ?? 'Erro desconhecido'),
             actions: [
               TextButton(
@@ -840,9 +840,9 @@ class _DevToolsViewState extends State<DevToolsView> {
               return Scaffold(
                 appBar: AppBar(
                   title: TextField(
-                    decoration: const InputDecoration(
-                      hintText: 'Buscar por ID, Nome ou Email...',
-                      hintStyle: TextStyle(color: Colors.white70),
+                    decoration: InputDecoration(
+                      hintText: AppStrings.buscarPorIdNomeEmail,
+                      hintStyle: const TextStyle(color: Colors.white70),
                       border: InputBorder.none,
                       icon: Icon(Icons.search, color: Colors.white),
                     ),
