@@ -42,7 +42,8 @@ class SignUpView extends StatefulWidget {
   State<SignUpView> createState() => _SignUpViewState();
 }
 
-class _SignUpViewState extends State<SignUpView> {
+class _SignUpViewState extends State<SignUpView>
+    with SingleTickerProviderStateMixin {
   final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
@@ -58,11 +59,35 @@ class _SignUpViewState extends State<SignUpView> {
   bool _mostrarAvisoLimiteCelular = false;
   bool _avisoLimiteCelularVisivel = false;
   bool _avisoTermosVisivel = true;
+  bool _ultimoPodeCadastrar = false;
   String? _vinculoIdCliente;
   List<String> _camposObrigatoriosPendentes = const <String>[];
   Timer? _timerFadeLimiteCelular;
   Timer? _timerOcultarLimiteCelular;
   Timer? _timerFadeAvisoTermos;
+  bool _mostrarInformeNome = true;
+  bool _mostrarInformeEmail = true;
+  bool _mostrarInformeTelefone = true;
+  bool _mostrarInformeLgpd = true;
+  bool _opacidadeInformeNome = true;
+  bool _opacidadeInformeEmail = true;
+  bool _opacidadeInformeTelefone = true;
+  bool _opacidadeInformeLgpd = true;
+  Timer? _timerDesaparecerNome;
+  Timer? _timerDesaparecerEmail;
+  Timer? _timerDesaparecerTelefone;
+  Timer? _timerDesaparecerLgpd;
+  bool _ultimoNomeValido = false;
+  bool _ultimoEmailValido = false;
+  bool _ultimoTelefoneValido = false;
+  bool _ultimoLgpdConsentido = false;
+  late final AnimationController _animacaoConclusaoController;
+  late final Animation<double> _fadeNome;
+  late final Animation<double> _fadeEmail;
+  late final Animation<double> _fadeTelefone;
+  late final Animation<double> _fadeSenha;
+  late final Animation<double> _fadeLgpd;
+  late final Animation<double> _fadeResumoCadastro;
 
   String get _ddiPadrao {
     return InternationalPhoneInputFormatter.normalizeDdi(widget.ddiPadrao);
@@ -100,6 +125,36 @@ class _SignUpViewState extends State<SignUpView> {
       widget.camposObrigatoriosPendentes,
     );
 
+    _animacaoConclusaoController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _fadeNome = CurvedAnimation(
+      parent: _animacaoConclusaoController,
+      curve: const Interval(0.00, 0.18, curve: Curves.easeInOut),
+    );
+    _fadeEmail = CurvedAnimation(
+      parent: _animacaoConclusaoController,
+      curve: const Interval(0.16, 0.34, curve: Curves.easeInOut),
+    );
+    _fadeTelefone = CurvedAnimation(
+      parent: _animacaoConclusaoController,
+      curve: const Interval(0.32, 0.50, curve: Curves.easeInOut),
+    );
+    _fadeSenha = CurvedAnimation(
+      parent: _animacaoConclusaoController,
+      curve: const Interval(0.48, 0.66, curve: Curves.easeInOut),
+    );
+    _fadeLgpd = CurvedAnimation(
+      parent: _animacaoConclusaoController,
+      curve: const Interval(0.64, 0.82, curve: Curves.easeInOut),
+    );
+    _fadeResumoCadastro = CurvedAnimation(
+      parent: _animacaoConclusaoController,
+      curve: const Interval(0.82, 1.00, curve: Curves.easeInOut),
+    );
+
+    _nomeController.addListener(_refreshFormState);
     _emailController.addListener(_refreshFormState);
     _senhaController.addListener(_refreshFormState);
     _whatsappController.addListener(_refreshFormState);
@@ -123,6 +178,11 @@ class _SignUpViewState extends State<SignUpView> {
     _timerFadeLimiteCelular?.cancel();
     _timerOcultarLimiteCelular?.cancel();
     _timerFadeAvisoTermos?.cancel();
+    _timerDesaparecerNome?.cancel();
+    _timerDesaparecerEmail?.cancel();
+    _timerDesaparecerTelefone?.cancel();
+    _timerDesaparecerLgpd?.cancel();
+    _animacaoConclusaoController.dispose();
     _nomeController.dispose();
     _emailController.dispose();
     _senhaController.dispose();
@@ -167,7 +227,49 @@ class _SignUpViewState extends State<SignUpView> {
         senhaTemMinuscula &&
         senhaTemNumero &&
         senhaTemEspecial;
-    final podeCadastrar = ehFluxoGoogle ? true : senhaValida;
+    final telefoneValido = !_phoneHasInvalidInput && phoneDigits >= 10;
+    final senhaAtendeRegra = ehFluxoGoogle ? true : senhaValida;
+    final podeCadastrar =
+      nomeValido &&
+      emailValido &&
+      telefoneValido &&
+      _lgpdConsentido &&
+      senhaAtendeRegra;
+    final mensagemStatusCadastro = nome.isEmpty
+      ? localizations.signupNameRequiredMessage
+      : !emailValido
+      ? localizations.signupInvalidEmailTyping
+      : _phoneHasInvalidInput
+      ? localizations.signupPhoneOnlyDigitsMessage
+      : phoneDigits < 10
+      ? localizations.signupPhoneMinDigitsSubmitMessage(numeroLabel)
+      : (!ehFluxoGoogle && !senhaValida)
+      ? localizations.signupPasswordWeakMessage
+      : !_lgpdConsentido
+      ? localizations.signupLgpdConsentError
+      : localizations.signupPasswordReadyMessage;
+    
+    // Detectar mudanças de validação e agendar desaparecimentos
+    if (nomeValido && !_ultimoNomeValido) {
+      _agendarDesaparecimentoNome();
+    }
+    if (emailValido && !_ultimoEmailValido) {
+      _agendarDesaparecimentoEmail();
+    }
+    if (telefoneValido && !_ultimoTelefoneValido) {
+      _agendarDesaparecimentoTelefone();
+    }
+    if (_lgpdConsentido && !_ultimoLgpdConsentido) {
+      _agendarDesaparecimentoLgpd();
+    }
+    
+    // Atualizar estados anteriores
+    _ultimoNomeValido = nomeValido;
+    _ultimoEmailValido = emailValido;
+    _ultimoTelefoneValido = telefoneValido;
+    _ultimoLgpdConsentido = _lgpdConsentido;
+    
+    _sincronizarAnimacaoConclusao(podeCadastrar);
     final currentLocale = Localizations.localeOf(context);
     final placeholderTelefone =
       _ddiPadrao == InternationalPhoneInputFormatter.defaultDdi
@@ -207,6 +309,14 @@ class _SignUpViewState extends State<SignUpView> {
                 counterText: '',
               ),
             ),
+            _buildInformeValido(
+              mostrar: nomeValido,
+              texto: AppStrings.signupNomePreenchidoValido,
+              animacao: _fadeNome,
+              animarSequencia: podeCadastrar,
+              mostrandoAgora: _mostrarInformeNome,
+              opacidadeVisivel: _opacidadeInformeNome,
+            ),
             const SizedBox(height: 16),
             TextField(
               controller: _emailController,
@@ -225,6 +335,14 @@ class _SignUpViewState extends State<SignUpView> {
               ),
               readOnly: emailSomenteLeitura,
               keyboardType: TextInputType.emailAddress,
+            ),
+            _buildInformeValido(
+              mostrar: emailValido,
+              texto: AppStrings.signupEmailValido,
+              animacao: _fadeEmail,
+              animarSequencia: podeCadastrar,
+              mostrandoAgora: _mostrarInformeEmail,
+              opacidadeVisivel: _opacidadeInformeEmail,
             ),
             if (emailInvalidoDigitando)
               Padding(
@@ -368,6 +486,14 @@ class _SignUpViewState extends State<SignUpView> {
                   ),
                 ),
               ),
+            _buildInformeValido(
+              mostrar: telefoneValido,
+              texto: AppStrings.signupTelefoneValido,
+              animacao: _fadeTelefone,
+              animarSequencia: podeCadastrar,
+              mostrandoAgora: _mostrarInformeTelefone,
+              opacidadeVisivel: _opacidadeInformeTelefone,
+            ),
             if (_mostrarAvisoLimiteCelular)
               Padding(
                 padding: const EdgeInsets.only(top: 6, left: 4),
@@ -453,29 +579,35 @@ class _SignUpViewState extends State<SignUpView> {
                               );
                             },
                             child: senhaValida
-                                ? Row(
+                                ? FadeTransition(
                                     key: const ValueKey(
                                       'senha_valida_feedback',
                                     ),
-                                    children: [
-                                      Icon(
-                                        Icons.check_circle,
-                                        size: 16,
-                                        color: Colors.green.shade700,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          localizations
-                                              .signupPasswordReadyMessage,
-                                          style: TextStyle(
-                                            color: Colors.green.shade700,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
+                                    opacity: podeCadastrar
+                                        ? _fadeSenha
+                                        : const AlwaysStoppedAnimation(1.0),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.check_circle,
+                                          size: 16,
+                                          color: Colors.green.shade700,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Flexible(
+                                          child: Text(
+                                            AppStrings.signupSenhaValida,
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              color: Colors.green.shade700,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   )
                                 : Column(
                                     key: const ValueKey(
@@ -564,6 +696,14 @@ class _SignUpViewState extends State<SignUpView> {
                 _atualizarConsentimentoLgpd(aceitouTermos);
               },
             ),
+            _buildInformeValido(
+              mostrar: _lgpdConsentido,
+              texto: AppStrings.signupLgpdAceitoValido,
+              animacao: _fadeLgpd,
+              animarSequencia: podeCadastrar,
+              mostrandoAgora: _mostrarInformeLgpd,
+              opacidadeVisivel: _opacidadeInformeLgpd,
+            ),
             const SizedBox(height: 24),
             // Seletor de idioma no final
             Row(
@@ -635,6 +775,26 @@ class _SignUpViewState extends State<SignUpView> {
               ),
             ),
             const SizedBox(height: 24),
+            FadeTransition(
+              opacity: podeCadastrar
+                  ? _fadeResumoCadastro
+                  : const AlwaysStoppedAnimation(1.0),
+              child: Align(
+                alignment: Alignment.center,
+                child: Text(
+                  mensagemStatusCadastro,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: podeCadastrar
+                        ? Colors.green.shade700
+                        : Colors.red.shade700,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -788,10 +948,59 @@ class _SignUpViewState extends State<SignUpView> {
                 ),
               ),
             ),
+
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildInformeValido({
+    required bool mostrar,
+    required String texto,
+    required Animation<double> animacao,
+    required bool animarSequencia,
+    required bool mostrandoAgora,
+    required bool opacidadeVisivel,
+  }) {
+    if (!mostrar || !mostrandoAgora) return const SizedBox.shrink();
+
+    final informe = Padding(
+      padding: const EdgeInsets.only(top: 6, left: 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          texto,
+          textAlign: TextAlign.left,
+          style: TextStyle(color: Colors.green.shade700, fontSize: 12),
+        ),
+      ),
+    );
+
+    final widgetComFade = FadeTransition(
+      opacity: animarSequencia ? animacao : const AlwaysStoppedAnimation(1.0),
+      child: informe,
+    );
+
+    return AnimatedOpacity(
+      opacity: opacidadeVisivel ? 1.0 : 0.0,
+      duration: const Duration(milliseconds: 300),
+      child: widgetComFade,
+    );
+  }
+
+  void _sincronizarAnimacaoConclusao(bool podeCadastrar) {
+    if (_ultimoPodeCadastrar == podeCadastrar) return;
+    _ultimoPodeCadastrar = podeCadastrar;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (podeCadastrar) {
+        _animacaoConclusaoController.forward(from: 0);
+      } else {
+        _animacaoConclusaoController.value = 0;
+      }
+    });
   }
 
   int _countPhoneDigits(String value) {
@@ -907,6 +1116,90 @@ class _SignUpViewState extends State<SignUpView> {
       if (!mounted) return;
       setState(() {
         _avisoTermosVisivel = true;
+      });
+    });
+  }
+
+  void _agendarDesaparecimentoNome() {
+    _timerDesaparecerNome?.cancel();
+    setState(() {
+      _opacidadeInformeNome = true;
+    });
+
+    _timerDesaparecerNome = Timer(const Duration(milliseconds: 2200), () {
+      if (!mounted) return;
+      setState(() {
+        _opacidadeInformeNome = false;
+      });
+
+      Timer(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+        setState(() {
+          _mostrarInformeNome = false;
+        });
+      });
+    });
+  }
+
+  void _agendarDesaparecimentoEmail() {
+    _timerDesaparecerEmail?.cancel();
+    setState(() {
+      _opacidadeInformeEmail = true;
+    });
+
+    _timerDesaparecerEmail = Timer(const Duration(milliseconds: 2200), () {
+      if (!mounted) return;
+      setState(() {
+        _opacidadeInformeEmail = false;
+      });
+
+      Timer(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+        setState(() {
+          _mostrarInformeEmail = false;
+        });
+      });
+    });
+  }
+
+  void _agendarDesaparecimentoTelefone() {
+    _timerDesaparecerTelefone?.cancel();
+    setState(() {
+      _opacidadeInformeTelefone = true;
+    });
+
+    _timerDesaparecerTelefone = Timer(const Duration(milliseconds: 2200), () {
+      if (!mounted) return;
+      setState(() {
+        _opacidadeInformeTelefone = false;
+      });
+
+      Timer(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+        setState(() {
+          _mostrarInformeTelefone = false;
+        });
+      });
+    });
+  }
+
+  void _agendarDesaparecimentoLgpd() {
+    _timerDesaparecerLgpd?.cancel();
+    setState(() {
+      _opacidadeInformeLgpd = true;
+    });
+
+    _timerDesaparecerLgpd = Timer(const Duration(milliseconds: 2200), () {
+      if (!mounted) return;
+      setState(() {
+        _opacidadeInformeLgpd = false;
+      });
+
+      Timer(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+        setState(() {
+          _mostrarInformeLgpd = false;
+        });
       });
     });
   }

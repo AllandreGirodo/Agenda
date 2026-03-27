@@ -131,7 +131,7 @@ O sistema automaticamente:
 ### Telefone
 
 - **Obrigatorio**: Cada cliente precisa de um telefone valido
-- **Valido**: Minimo 8 dígitos após normalizacao
+- **Valido**: Minimo 10 dígitos após normalizacao
 - **Multiplos nomes**: Aceita "Telefone Principal", "WhatsApp", "Telefone", etc
 
 ### Nome

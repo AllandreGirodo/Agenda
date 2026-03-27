@@ -46,6 +46,7 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
   bool _devGravarMetricas = false; // Flag para ativar gravação de histórico
   bool _podeAcessarPainelDev = false;
   bool _governancaVersionadaVerificada = false;
+  String? _usuarioAprovandoId;
 
   String _normalizarTextoBusca(String texto) {
     return texto
@@ -1406,8 +1407,16 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
                   ),
                 ),
                 trailing: IconButton(
-                  icon: const Icon(Icons.check_circle, color: Colors.green),
-                  onPressed: () => _aprovarUsuario(usuario),
+                  icon: _usuarioAprovandoId == usuario.id
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.check_circle, color: Colors.green),
+                  onPressed: _usuarioAprovandoId == usuario.id
+                      ? null
+                      : () => _aprovarUsuario(usuario),
                   tooltip: AppStrings.aprovarCadastro,
                 ),
               ),
@@ -1441,13 +1450,31 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
   }
 
   Future<void> _aprovarUsuario(UsuarioModel usuario) async {
-    await _firestoreService.aprovarUsuario(usuario.id);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppStrings.usuarioAprovadoSucesso(usuario.nome)),
-        ),
-      );
+    setState(() {
+      _usuarioAprovandoId = usuario.id;
+    });
+
+    try {
+      await _firestoreService.aprovarUsuario(usuario.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppStrings.usuarioAprovadoSucesso(usuario.nome)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.erroCarregar('$e'))),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _usuarioAprovandoId = null;
+        });
+      }
     }
   }
 }

@@ -79,10 +79,11 @@ class DbSeeder {
     });
 
     // Cria o usuário de login correspondente
-    await _db.collection('usuarios').doc('cliente_teste').set({
+    await _db.collection('usuarios').doc('cliente@teste.com').set({
       'id': 'cliente_teste',
       'nome': 'Cliente Teste',
       'email': 'cliente@teste.com',
+      'email_normalizado': 'cliente@teste.com',
       'tipo': 'cliente',
       'aprovado': true,
       'data_cadastro': FieldValue.serverTimestamp(),

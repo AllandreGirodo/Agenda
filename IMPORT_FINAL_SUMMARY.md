@@ -99,7 +99,7 @@ Template de exemplo:
 - Nome Principal (obrigatorio) ✓
 
 ### ✅ Dados Por Registro
-- Telefone: minimo 8 dígitos
+- Telefone: minimo 10 dígitos
 - Remove não-dígitos automaticamente
 - Remove DDI 55 se necessário
 - Ignora registros incompletos

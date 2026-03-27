@@ -6,13 +6,20 @@
 graph TD
     A[Firebase Firestore] --> B[clientes]
     A --> C[usuarios]
+  A --> C1[usuarios_por_email]
     A --> D[agendamentos]
     A --> E[transacoes]
     A --> F[cupons]
     A --> G[estoque]
     A --> H[logs]
-    A --> I[changelog]
+  A --> I[app_changelog/changelogs]
     A --> J[configuracoes]
+  A --> K[configuracoes_gerais]
+  A --> L[auditoria_credenciais]
+  A --> M[metricas_diarias]
+  A --> N[app_software]
+  A --> O[lgpd_logs]
+  A --> P[teste]
     
     D --> D1[mensagens subcollection]
     
@@ -116,7 +123,7 @@ Por isso a coleção `clientes` passa a concentrar não só anamnese, mas també
 ---
 
 ### 2. `usuarios` Collection
-**Documento ID:** Auto-gerado ou `{uid}`
+**Documento ID:** `{email_normalizado}`
 
 ```javascript
 {
@@ -152,10 +159,37 @@ Por isso a coleção `clientes` passa a concentrar não só anamnese, mas també
 }
 ```
 
+Observações importantes de modelagem (estado atual):
+- A identidade de autenticação/autorização está em `usuarios/{email_normalizado}`.
+- O campo `id` segue armazenando o UID do Firebase Auth.
+- Clientes (`tipo == 'cliente'`) são sincronizados com `clientes/{uid}` no backend para manter consistência operacional.
+
 **Índices Necessários:**
 - `email` (ASC)
 - `tipo` + `aprovado` (ASC, ASC)
 - `telefone_principal` (ASC)
+
+---
+
+### 2.1 `usuarios_por_email` Collection
+**Documento ID:** `{email_normalizado}`
+
+```javascript
+{
+  uid: string,                    // UID do Firebase Auth
+  email: string,
+  email_normalizado: string,
+  nome_cliente: string,
+  nome_cliente_normalizado: string,
+  tipo: string,                   // 'admin' | 'cliente'
+  aprovado: boolean,
+  atualizado_em: Timestamp
+}
+```
+
+Uso principal:
+- Índice para resolução rápida de usuário por e-mail.
+- Base para função de autorização administrativa (`eAdmin`) nas regras.
 
 ---
 
@@ -395,82 +429,31 @@ Por isso a coleção `clientes` passa a concentrar não só anamnese, mas també
 
 ## 🔒 Regras de Segurança (Security Rules)
 
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    
-    // Função auxiliar: verifica se é admin
-    function isAdmin() {
-      return request.auth != null && 
-             get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.tipo == 'admin';
-    }
-    
-    // Função auxiliar: verifica se é o próprio usuário
-    function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
-    }
-    
-    // Clientes - admin pode tudo, cliente só seus dados
-    match /clientes/{clienteId} {
-      allow read, write: if isAdmin();
-      allow read, update: if isOwner(clienteId);
-    }
-    
-    // Usuários - admin pode tudo, cliente só seus dados
-    match /usuarios/{userId} {
-      allow read, write: if isAdmin();
-      allow read, update: if isOwner(userId);
-    }
-    
-    // Agendamentos - admin pode tudo, cliente só seus agendamentos
-    match /agendamentos/{agendamentoId} {
-      allow read, write: if isAdmin();
-      allow read: if request.auth != null && 
-                     resource.data.cliente_id == request.auth.uid;
-      allow create: if request.auth != null;
-      
-      // Mensagens do agendamento
-      match /mensagens/{mensagemId} {
-        allow read, write: if isAdmin();
-        allow read, create: if request.auth != null;
-      }
-    }
-    
-    // Transações - apenas admin
-    match /transacoes/{transacaoId} {
-      allow read, write: if isAdmin();
-    }
-    
-    // Cupons - leitura pública, escrita admin
-    match /cupons/{cupomId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-    
-    // Estoque - apenas admin
-    match /estoque/{itemId} {
-      allow read, write: if isAdmin();
-    }
-    
-    // Logs - apenas admin
-    match /logs/{logId} {
-      allow read, write: if isAdmin();
-    }
-    
-    // Changelog - leitura pública, escrita admin
-    match /changelog/{version} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-    
-    // Configurações - apenas admin
-    match /configuracoes/{doc} {
-      allow read, write: if isAdmin();
-    }
-  }
-}
-```
+Fonte de verdade: `lib/config/firestore.rules`.
+
+Resumo das regras vigentes (Março/2026):
+- `usuarios/{userId}`
+  - create: dono do auth (`request.auth.uid == request.resource.data.id`) com doc em `userId == email_normalizado`
+  - read/update: dono ou admin
+  - delete: admin
+- `usuarios_por_email/{emailId}`
+  - create/update: admin ou próprio dono do uid com payload validado
+  - read: admin ou dono
+- `clientes/{clienteId}`
+  - create/update: dono (`uid`) com validações de campos ou admin
+  - read: dono ou admin
+- `agendamentos/{agendamentoId}`
+  - create: cliente autenticado (com validações) ou admin
+  - read: admin, usuário com `visualiza_todos`, ou dono do agendamento
+  - subcoleção `mensagens`: leitura por participantes, escrita controlada
+- `configuracoes/*`, `estoque`, `transacoes`, `metricas_diarias`
+  - escrita: admin
+- `app_software/config`, `app_changelog/*`, `changelogs/*`
+  - leitura autenticada; escrita admin
+- `auditoria_credenciais/*`
+  - create com schema validado; leitura apenas admin
+- fallback global `match /{document=**}`
+  - tudo negado por padrão
 
 ---
 
@@ -517,7 +500,8 @@ erDiagram
     AGENDAMENTOS ||--o{ MENSAGENS : "contém"
     AGENDAMENTOS ||--o| TRANSACOES : "gera"
     AGENDAMENTOS }o--|| CUPONS : "usa"
-    USUARIOS ||--|| CLIENTES : "é"
+    USUARIOS ||--|| USUARIOS_EMAIL : "indexa"
+    USUARIOS ||--|| CLIENTES : "sincroniza perfil"
     CONFIGURACOES ||--|| GERAL : "tem"
     CONFIGURACOES ||--|| SEGURANCA : "tem"
     CONFIGURACOES ||--|| SERVICOS : "tem"
@@ -543,6 +527,13 @@ erDiagram
         string agendamento_id FK
         number valor_liquido
         string status_pagamento
+    }
+
+    USUARIOS_EMAIL {
+      string email_normalizado PK
+      string uid
+      string tipo
+      bool aprovado
     }
     
     MENSAGENS {
@@ -573,5 +564,5 @@ Este sistema garante:
 
 ---
 
-**Última atualização:** Março 2026  
-**Versão do documento:** 1.0
+**Última atualização:** Março 2026 (revisado com rules vigentes)  
+**Versão do documento:** 1.1

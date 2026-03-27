@@ -619,13 +619,23 @@ class LoginController {
         await _atualizarTokenAutenticacao(authUser);
 
         // 3. Salvar no Firestore
-        await _firestoreService.salvarUsuario(novoUsuario);
+        try {
+          await _firestoreService.salvarUsuario(novoUsuario);
+        } catch (firebaseError) {
+          debugPrint('❌ ERRO ao salvar usuário no Firestore: $firebaseError');
+          debugPrint('   Tipo de erro: ${firebaseError.runtimeType}');
+          debugPrint('   Email: $email');
+          debugPrint('   UID: $uid');
+          rethrow;
+        }
 
         // Sincroniza o numero de encaminhamento via WHATSAPP_ADMIN quando houver permissao.
         // Mantem fluxo de cadastro mesmo se falhar por indisponibilidade temporaria.
         try {
           await _firestoreService.sincronizarWhatsappAdminPadrao();
-        } catch (_) {}
+        } catch (whatsappError) {
+          debugPrint('⚠️ Aviso: Erro ao sincronizar WhatsApp (não crítico): $whatsappError');
+        }
 
         if (context.mounted) {
           // 4. Redirecionar conforme perfil.
@@ -648,6 +658,8 @@ class LoginController {
         }
       }
     } on FirebaseAuthException catch (e) {
+      debugPrint('❌ ERRO Firebase Auth durante cadastro: ${e.code} - ${e.message}');
+      
       await auditarTentativaCredencial(
         origem: 'cadastro',
         emailDigitado: email,
@@ -678,14 +690,21 @@ class LoginController {
         ).showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (e) {
+      debugPrint('❌ ERRO GENÉRICO no cadastro: $e (tipo: ${e.runtimeType})');
+      debugPrint('   Credencial criada: ${credencialCriada != null}');
+      debugPrint('   UID da credencial: ${credencialCriada?.user?.uid}');
+      
       final erroPermissaoFirestore =
           e is FirebaseException && e.code == 'permission-denied';
 
       // Evita conta parcialmente criada no Auth quando falha a escrita inicial no Firestore.
       if (erroPermissaoFirestore && credencialCriada?.user != null) {
         try {
-          await credencialCriada!.user!.delete();
-        } catch (_) {}
+          debugPrint('🧹 Deletando usuário orphan do Auth (UID: ${credencialCriada?.user?.uid})');
+          await credencialCriada?.user?.delete();
+        } catch (deleteError) {
+          debugPrint('⚠️ Aviso: Não foi possível deletar usuário orphan: $deleteError');
+        }
       }
 
       await auditarTentativaCredencial(
@@ -694,22 +713,25 @@ class LoginController {
         senhaInformada: senha,
         inconformidade: true,
         lgpdConsentido: lgpdConsentido,
-        motivos: <String>['erro_generico_cadastro'],
+        motivos: <String>['erro_generico_cadastro', e.toString()],
         nomeClienteDigitado: nome,
         emailValido: email.contains('@'),
         senhaForte: senha.length >= 6,
       );
 
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        String mensagem = AppStrings.erroCadastro;
+        
+        if (erroPermissaoFirestore) {
+          mensagem = AppStrings.erroCadastroAppCheck;
+        } else if (e is FirebaseException) {
+          mensagem = AppStrings.erroCadastroComDetalhe(e.message ?? e.code);
+        }
+        
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              erroPermissaoFirestore
-                  ? AppStrings.erroCadastroAppCheck
-                  : AppStrings.erroCadastro,
-            ),
+            content: Text(mensagem),
+            duration: const Duration(seconds: 4),
           ),
         );
       }

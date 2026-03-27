@@ -1534,4 +1534,18 @@ Service and package prices are subject to change. Payment must be made as agreed
       _isPt ? 'Erro na validação' : 'Validation error';
   static String get buscarPorIdNomeEmail =>
       _isPt ? 'Buscar por ID, Nome ou Email...' : 'Search by ID, Name or Email...';
+
+  // Signup - Regras válidas
+  static String get signupNomePreenchidoValido =>
+      _isPt ? 'Nome preenchido' : 'Name filled';
+  static String get signupEmailValido =>
+      _isPt ? 'Email válido' : 'Valid email';
+  static String get signupTelefoneValido =>
+      _isPt
+          ? 'Telefone válido (dígitos de 0-9 e mínimo de 10 dígitos)'
+          : 'Valid phone (digits of 0-9 and minimum of 10 digits)';
+  static String get signupLgpdAceitoValido =>
+      _isPt ? 'Termos e condições aceitos' : 'Terms and conditions of accepted';
+  static String get signupSenhaValida =>
+      _isPt ? 'Senha válida' : 'Valid password';
 }

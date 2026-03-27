@@ -1449,22 +1449,110 @@ class FirestoreService {
   }
 
   Future<void> salvarUsuario(UsuarioModel usuario) async {
-    final emailDocId = _normalizarEmail(
-      usuario.emailNormalizado ?? usuario.email,
-    );
-    final docId = emailDocId.isNotEmpty ? emailDocId : usuario.id;
+    try {
+      final emailDocId = _normalizarEmail(
+        usuario.emailNormalizado ?? usuario.email,
+      );
+      
+      // 🔴 CRÍTICO: Regra de Firestore exige userId == email_normalizado
+      // Não usar UID como fallback - sempre usar email normalizado como docId
+      if (emailDocId.isEmpty) {
+        throw StateError(
+          '❌ Email normalizado vazio. Não é possível salvar usuário sem email válido. '
+          'Email original: ${usuario.email}, Email normalizado: ${usuario.emailNormalizado}'
+        );
+      }
+      
+      final docId = emailDocId;
 
-    await _db
-        .collection('usuarios')
-        .doc(docId)
-        .set(usuario.toMap(), SetOptions(merge: true));
-    await _sincronizarIndiceHumanoUsuario(
-      uid: usuario.id,
-      email: usuario.email,
-      nomeCliente: usuario.nomeCliente ?? usuario.nome,
-      tipo: usuario.tipo,
-      aprovado: usuario.aprovado,
+      debugPrint('💾 Salvando usuário: email=$emailDocId, docId=$docId (tipo: ${usuario.tipo})');
+      debugPrint('   Email normalizado (esperado): ${usuario.emailNormalizado}');
+      debugPrint('   Email original: ${usuario.email}');
+      debugPrint('   UID (para validação): ${usuario.id}');
+      
+      // Salva documento principal
+      final usuarioMap = usuario.toMap();
+      debugPrint('   Campos no documento: ${usuarioMap.keys.toList()}');
+      
+      await _db
+          .collection('usuarios')
+          .doc(docId)
+          .set(usuarioMap, SetOptions(merge: true));
+      
+      debugPrint('✅ Usuário salvo com sucesso em usuarios/$docId');
+
+      // Unifica persistencia entre usuario e cliente para reduzir divergencia.
+      if (usuario.tipo == 'cliente') {
+        await _sincronizarClienteComUsuario(usuario);
+      }
+
+      // Sincroniza índice de busca
+      try {
+        await _sincronizarIndiceHumanoUsuario(
+          uid: usuario.id,
+          email: usuario.email,
+          nomeCliente: usuario.nomeCliente ?? usuario.nome,
+          tipo: usuario.tipo,
+          aprovado: usuario.aprovado,
+        );
+        debugPrint('✅ Índice de busca sincronizado');
+      } catch (indiceError) {
+        debugPrint('⚠️ Aviso: Erro ao sincronizar índice (não crítico): $indiceError');
+        // Não falha o cadastro se o índice falhar - dados principais foram salvos
+      }
+    } catch (e) {
+      debugPrint('❌ ERRO ao salvar usuário: $e (tipo: ${e.runtimeType})');
+      debugPrint('   Email: ${usuario.email}');
+      debugPrint('   Email normalizado: ${usuario.emailNormalizado}');
+      debugPrint('   UID: ${usuario.id}');
+      rethrow;
+    }
+  }
+
+  Future<void> _sincronizarClienteComUsuario(UsuarioModel usuario) async {
+    final uidNormalizado = usuario.id.trim();
+    if (uidNormalizado.isEmpty) {
+      throw StateError('UID obrigatorio para sincronizar cliente.');
+    }
+
+    final nomeCliente = (usuario.nomeCliente ?? usuario.nome).trim().isEmpty
+        ? 'Cliente'
+        : (usuario.nomeCliente ?? usuario.nome).trim();
+    final telefoneNormalizado = _normalizarTelefone(
+      (usuario.telefonePrincipal ?? usuario.whatsapp ?? '').trim(),
     );
+
+    final clienteRef = _db.collection('clientes').doc(uidNormalizado);
+    final clienteSnap = await clienteRef.get();
+
+    if (!clienteSnap.exists || clienteSnap.data() == null) {
+      await clienteRef.set(
+        _dadosPadraoCliente(
+          uid: uidNormalizado,
+          nomeCliente: nomeCliente,
+          whatsapp: telefoneNormalizado,
+        ),
+        SetOptions(merge: true),
+      );
+      debugPrint('✅ Cliente criado/sincronizado em clientes/$uidNormalizado');
+      return;
+    }
+
+    await clienteRef.set({
+      'uid': uidNormalizado,
+      'cliente_nome': nomeCliente,
+      'nome': nomeCliente,
+      'ddi': (usuario.ddi ?? '55').trim().isEmpty ? '55' : usuario.ddi,
+      'whatsapp': telefoneNormalizado,
+      'telefone_principal': telefoneNormalizado,
+      'nome_contato_secundario': usuario.nomeContatoSecundario ?? '',
+      'telefone_secundario': usuario.telefoneSecundario ?? '',
+      'nome_indicacao': usuario.nomeIndicacao ?? '',
+      'telefone_indicacao': usuario.telefoneIndicacao ?? '',
+      'categoria_origem': usuario.categoriaOrigem ?? '',
+    }, SetOptions(merge: true));
+
+    debugPrint('✅ Cliente atualizado/sincronizado em clientes/$uidNormalizado');
   }
 
   Future<void> salvarPerfilInicialClienteGoogle({
@@ -1660,14 +1748,15 @@ class FirestoreService {
     required String nomePadrao,
   }) async {
     final emailNormalizado = _normalizarEmail(email);
+    if (emailNormalizado.isEmpty) {
+      throw StateError('Email obrigatorio para salvar usuario em usuarios/{email}.');
+    }
     final tenantPadraoId = await getAdministradoraPadraoAtreladaId();
     final devMaster = emailEhDevMaster(emailNormalizado);
     final tipoPadrao = devMaster ? 'admin' : 'cliente';
     final aprovadoPadrao = devMaster;
 
-    final usuarioRef = emailNormalizado.isNotEmpty
-        ? _usuarioRefPorEmail(emailNormalizado)
-        : _db.collection('usuarios').doc(uid);
+    final usuarioRef = _usuarioRefPorEmail(emailNormalizado);
     final clienteRef = _db.collection('clientes').doc(uid);
 
     final usuarioSnap = await usuarioRef.get();
@@ -1925,11 +2014,18 @@ class FirestoreService {
         .collection('usuarios')
         .where('tipo', isEqualTo: 'cliente')
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => UsuarioModel.fromMap(doc.data()))
-              .toList(),
-        );
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) {
+                final data = Map<String, dynamic>.from(doc.data());
+                final idAtual = (data['id'] as String? ?? '').trim();
+                final uidLegado = (data['uid'] as String? ?? '').trim();
+                data['id'] = idAtual.isNotEmpty ? idAtual : uidLegado;
+                return UsuarioModel.fromMap(data);
+              })
+              .where((usuario) => !usuario.aprovado && !usuario.reprovado)
+              .toList();
+        });
   }
 
   Future<void> aprovarUsuario(String uid) async {

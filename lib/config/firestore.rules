@@ -218,7 +218,8 @@ service cloud.firestore {
     }
 
     function donoPodeCriarUsuario(userId) {
-      return eDono(userId)
+      return estaLogado()
+        && request.resource.data.id == request.auth.uid
         && request.resource.data.keys().hasOnly([
           'id',
           'nome',
@@ -245,14 +246,18 @@ service cloud.firestore {
           'locale',
           'admin_atrelada_id',
           'dev_master',
+          'reprovado',
+          'data_reprovacao',
           'lgpd_consentido',
           'lgpd_consentimento_em',
           'last_changelog_seen',
           'show_changelog_auto',
         ])
-        && request.resource.data.id == request.auth.uid
         && request.resource.data.email is string
-        && request.resource.data.email.lower() == emailAuthNormalizado()
+        && (
+          emailAuthNormalizado() == ''
+          || request.resource.data.email.lower() == emailAuthNormalizado()
+        )
         && (request.resource.data.nome_cliente == null || request.resource.data.nome_cliente is string)
         && request.resource.data.email_normalizado is string
         && request.resource.data.email_normalizado == request.resource.data.email.lower()
@@ -270,6 +275,8 @@ service cloud.firestore {
           || (request.resource.data.dev_master == true && request.resource.data.aprovado == true)
         )
         && request.resource.data.visualiza_todos == false
+        && (request.resource.data.reprovado == null || request.resource.data.reprovado == false)
+        && (request.resource.data.data_reprovacao == null)
         && (request.resource.data.nome == null || request.resource.data.nome is string)
         && (request.resource.data.data_cadastro == request.time || request.resource.data.data_cadastro is timestamp)
         && (request.resource.data.fcm_token == null || request.resource.data.fcm_token is string)
