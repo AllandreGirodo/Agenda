@@ -28,10 +28,10 @@ Este documento serve como guia de referência para a nomenclatura de variáveis 
 | (Inexistente) | (Inexistente) | `valor_sessao_snapshot` | **FINANCEIRO:** O preço pode mudar, o histórico não. |
 | (Inexistente) | (Inexistente) | `data_criacao` | Auditoria (quem criou e quando). |
 
-### Coleção: `clientes`
+### Perfil do cliente: `usuarios/{email_normalizado}/perfil/cliente`
 | Variável Dart | Campo Firestore Atual | Sugestão de Melhoria | Motivo |
 | :--- | :--- | :--- | :--- |
-| `idCliente` | `uid` | `uid` | Mantido para compatibilidade com Auth e regras atuais. |
+| `idCliente` | `uid` | `uid` | Mantido para compatibilidade com Auth e relacoes em agendamentos. |
 | `nomeCliente` | `cliente_nome` | `cliente_nome` | Nome civil/principal do cadastro. |
 | `nomePreferidoCliente` | `nome_preferido` | `nome_preferido` | Nome de exibição, apelido ou nome social. |
 | `whatsappCliente` | `whatsapp` | `whatsapp` + `telefone_principal` | Compatibilidade com legado e transição para telefone principal explícito. |
@@ -54,7 +54,7 @@ Este documento serve como guia de referência para a nomenclatura de variáveis 
 | `saldoSessoesCliente`| `saldo_sessoes` | `saldo_sessoes` | Mantido por compatibilidade funcional atual. |
 | `anamneseOkCliente` | `anamnese_ok` | `anamnese_ok` | Mantido para não quebrar código e regras existentes. |
 
-### Campos admin/import-only em `clientes`
+### Campos admin/import-only em `usuarios/{email_normalizado}/perfil/cliente`
 
 Mesmo morando no documento do cliente, estes campos devem ser tratados como dados de apoio operacional e não como dados livres para edição pelo próprio cliente:
 
@@ -67,6 +67,21 @@ Mesmo morando no documento do cliente, estes campos devem ser tratados como dado
 - `sugestao_cliente_fixo`
 - `agenda_fixa_semana`
 - `agenda_historico`
+
+### Coleção: `usuarios`
+
+| Variável Dart | Campo Firestore Atual | Sugestão de Melhoria | Motivo |
+| :--- | :--- | :--- | :--- |
+| `ordemCriacao` | `ordem_criacao` | `ordem_criacao` | Sequencial incremental para ordenacao de cadastro de clientes. |
+| `ordemCriacaoEm` | `ordem_criacao_em` | `ordem_criacao_em` | Timestamp do cadastro associado ao sequencial. |
+
+### Documento técnico: `configuracoes/log_clientes`
+
+| Campo Firestore | Tipo | Regra |
+| :--- | :--- | :--- |
+| `sequencial_clientes` | number | Incrementa exatamente +1 por novo cliente. |
+| `ultimo_horario_cadastro` | timestamp | Nunca pode ser menor que o ultimo valor salvo. |
+| `atualizado_em` | timestamp | Carimbo técnico de atualização. |
 
 ---
 
@@ -117,7 +132,7 @@ No documento da transação, não salvamos apenas `cliente_uid: "123"`. Salvamos
 }
 ```
 
-Dessa forma, mesmo que o documento original em `clientes/123` vire "Anonimizado", o relatório financeiro continuará mostrando que "Maria Joaquina da Silva" pagou R$ 100,00 naquela data.
+Dessa forma, mesmo que o perfil em `usuarios/{email}/perfil/cliente` seja anonimizado, o relatório financeiro continuará mostrando que "Maria Joaquina da Silva" pagou R$ 100,00 naquela data.
 
 ---
 *Documento para padronização do TCC - Agenda Massoterapia.*

@@ -33,6 +33,12 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Logs e artefatos locais de execução
+firestore-debug.log
+TERMINAL_COMMANDS.log
+_TERMINAL_COMMANDS.log
+saida_projeto.txt
+
 # Symbolication related
 app.*.symbols
 

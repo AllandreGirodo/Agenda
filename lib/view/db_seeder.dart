@@ -29,8 +29,21 @@ class DbSeeder {
   }
 
   static Future<void> seedClientes() async {
-    // Cria um cliente de teste
-    await _db.collection('clientes').doc('cliente_teste').set({
+    // Cria o cadastro base unificado em usuarios/{email}
+    final usuarioRef = _db.collection('usuarios').doc('cliente@teste.com');
+    await usuarioRef.set({
+      'id': 'cliente_teste',
+      'nome': 'Cliente Teste',
+      'nome_cliente': 'Cliente Teste',
+      'email': 'cliente@teste.com',
+      'email_normalizado': 'cliente@teste.com',
+      'tipo': 'cliente',
+      'aprovado': true,
+      'data_cadastro': FieldValue.serverTimestamp(),
+    });
+
+    // Cria o perfil de cliente como subcoleção no mesmo cadastro
+    await usuarioRef.collection('perfil').doc('cliente').set({
       'uid': 'cliente_teste',
       'cliente_nome': 'Cliente Teste',
       'email': 'cliente@teste.com',
@@ -76,17 +89,6 @@ class DbSeeder {
       'cirurgias': '',
       'anamnese_ok': true,
       'favoritos': [],
-    });
-
-    // Cria o usuário de login correspondente
-    await _db.collection('usuarios').doc('cliente@teste.com').set({
-      'id': 'cliente_teste',
-      'nome': 'Cliente Teste',
-      'email': 'cliente@teste.com',
-      'email_normalizado': 'cliente@teste.com',
-      'tipo': 'cliente',
-      'aprovado': true,
-      'data_cadastro': FieldValue.serverTimestamp(),
     });
   }
 

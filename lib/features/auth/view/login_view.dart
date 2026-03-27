@@ -35,6 +35,36 @@ class _LoginViewState extends State<LoginView> {
   bool _lembrarCredenciais = false;
   final LocalAuthentication auth = LocalAuthentication();
 
+  void _setLoadingSafely(bool value) {
+    if (!mounted) return;
+    setState(() => _isLoading = value);
+  }
+
+  bool _isGoogleCancelCode(String? code) {
+    final normalizado = (code ?? '').trim().toLowerCase();
+    return normalizado == 'popup-closed-by-user' ||
+        normalizado == 'popup_closed_by_user' ||
+        normalizado == 'cancelled-popup-request' ||
+        normalizado == 'cancelled_popup_request' ||
+        normalizado == 'web-context-canceled' ||
+        normalizado == 'web_context_canceled' ||
+        normalizado == 'user-cancelled' ||
+        normalizado == 'user_cancelled' ||
+        normalizado == 'canceled' ||
+        normalizado == 'cancelled';
+  }
+
+        bool _isFirestorePermissionLikelyAppCheck(Object e) {
+          if (e is! FirebaseException) return false;
+
+          final message = (e.message ?? '').toLowerCase();
+          return message.contains('app check') ||
+          message.contains('app-check') ||
+          message.contains('appcheck') ||
+          message.contains('firebase app check token is invalid') ||
+          message.contains('identitytoolkit');
+        }
+
   @override
   void initState() {
     super.initState();
@@ -48,17 +78,27 @@ class _LoginViewState extends State<LoginView> {
 
     try {
       final resultado = await FirebaseAuth.instance.getRedirectResult();
-      final usuarioRedirect = resultado.user ?? FirebaseAuth.instance.currentUser;
-      if (usuarioRedirect == null || !mounted) return;
+      final temRetornoValido =
+          resultado.user != null || resultado.credential != null;
+      if (!temRetornoValido || !mounted) return;
 
-      setState(() => _isLoading = true);
-      await _loginController.logarComGoogleAutenticado(context);
+      _setLoadingSafely(true);
+      await _loginController
+          .logarComGoogleAutenticado(context)
+          .timeout(const Duration(seconds: 25));
+    } on TimeoutException {
+      // Evita estado de carregamento preso se o retorno do redirect demorar indefinidamente.
+      await FirebaseAuth.instance.signOut();
+    } on FirebaseAuthException catch (e) {
+      if (_isGoogleCancelCode(e.code)) {
+        await FirebaseAuth.instance.signOut();
+        return;
+      }
+      debugPrint(AppStrings.erroGoogleLogin('${e.code}: ${e.message}'));
     } catch (e) {
       debugPrint(AppStrings.erroGoogleLogin('$e'));
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      _setLoadingSafely(false);
     }
   }
 
@@ -256,7 +296,8 @@ class _LoginViewState extends State<LoginView> {
   }
 
   Future<void> _googleLogin() async {
-    setState(() => _isLoading = true);
+    if (_isLoading) return;
+    _setLoadingSafely(true);
     final messenger = ScaffoldMessenger.of(context);
     try {
       if (kIsWeb) {
@@ -272,8 +313,8 @@ class _LoginViewState extends State<LoginView> {
             await FirebaseAuth.instance.signInWithRedirect(provider);
             return;
           }
-          if (e.code == 'popup-closed-by-user' ||
-              e.code == 'web-context-canceled') {
+          if (_isGoogleCancelCode(e.code)) {
+            await FirebaseAuth.instance.signOut();
             return;
           }
           rethrow;
@@ -282,6 +323,7 @@ class _LoginViewState extends State<LoginView> {
         final googleSignIn = GoogleSignIn();
         final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
+          await FirebaseAuth.instance.signOut();
           return;
         }
 
@@ -297,9 +339,17 @@ class _LoginViewState extends State<LoginView> {
 
       if (!mounted) return;
       await _loginController.logarComGoogleAutenticado(context);
+    } on TimeoutException {
+      await FirebaseAuth.instance.signOut();
     } catch (e) {
       final erroPermissaoFirestore =
           e is FirebaseException && e.code == 'permission-denied';
+      if (erroPermissaoFirestore) {
+        debugPrint(
+          '⚠️ permission-denied no login Google (possivel rules/AppCheck): '
+          '${(e as FirebaseException?)?.message}',
+        );
+      }
       final emailDigitado = _emailController.text.trim();
       if (!erroPermissaoFirestore) {
         unawaited(
@@ -320,14 +370,16 @@ class _LoginViewState extends State<LoginView> {
 
       if (mounted) {
         final mensagemErro = erroPermissaoFirestore
-            ? AppStrings.erroLoginAppCheck
+            ? (_isFirestorePermissionLikelyAppCheck(e)
+                  ? AppStrings.erroLoginAppCheck
+                  : AppStrings.erroLoginPermissaoFirestore)
             : AppStrings.erroGoogleLogin('$e');
         messenger.showSnackBar(
           SnackBar(content: Text(mensagemErro)),
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      _setLoadingSafely(false);
     }
   }
 

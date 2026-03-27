@@ -666,6 +666,24 @@ class FirestoreService {
     return _db.collection('usuarios').doc(_normalizarEmail(email));
   }
 
+  DocumentReference<Map<String, dynamic>> _logClientesRef() {
+    return _db.collection('configuracoes').doc('log_clientes');
+  }
+
+  DocumentReference<Map<String, dynamic>> _perfilClienteRefPorUsuarioRef(
+    DocumentReference<Map<String, dynamic>> usuarioRef,
+  ) {
+    return usuarioRef.collection('perfil').doc('cliente');
+  }
+
+  Future<DocumentReference<Map<String, dynamic>>?> _perfilClienteRefPorUid(
+    String uid,
+  ) async {
+    final usuarioRef = await _buscarUsuarioRefPorUid(uid);
+    if (usuarioRef == null) return null;
+    return _perfilClienteRefPorUsuarioRef(usuarioRef);
+  }
+
   Future<DocumentReference<Map<String, dynamic>>?> _buscarUsuarioRefPorUid(
     String uid,
   ) async {
@@ -872,11 +890,13 @@ class FirestoreService {
 
   // --- Clientes ---
   Future<void> salvarCliente(Cliente cliente) async {
+    final perfilClienteRef = await _perfilClienteRefPorUid(cliente.idCliente);
+    if (perfilClienteRef == null) {
+      throw StateError('Cadastro base do usuario nao encontrado para o UID informado.');
+    }
+
     // Usa merge para preservar campos administrativos/importados nao expostos na UI.
-    await _db
-        .collection('clientes')
-        .doc(cliente.idCliente)
-        .set(cliente.toMap(), SetOptions(merge: true));
+    await perfilClienteRef.set(cliente.toMap(), SetOptions(merge: true));
   }
 
   Future<void> sincronizarPerfilClienteNoUsuario(
@@ -926,10 +946,20 @@ class FirestoreService {
   }
 
   Future<Cliente?> getCliente(String uid) async {
-    final doc = await _db.collection('clientes').doc(uid).get();
-    if (doc.exists && doc.data() != null) {
-      return Cliente.fromMap(doc.data()!);
+    final perfilClienteRef = await _perfilClienteRefPorUid(uid);
+    if (perfilClienteRef != null) {
+      final doc = await perfilClienteRef.get();
+      if (doc.exists && doc.data() != null) {
+        return Cliente.fromMap(doc.data()!);
+      }
     }
+
+    // Compatibilidade com base legada.
+    final docLegado = await _db.collection('clientes').doc(uid).get();
+    if (docLegado.exists && docLegado.data() != null) {
+      return Cliente.fromMap(docLegado.data()!);
+    }
+
     return null;
   }
 
@@ -979,12 +1009,22 @@ class FirestoreService {
 
     if (vinculoIdCliente.isNotEmpty) {
       try {
-        final clienteSnap = await _db
-            .collection('clientes')
-            .doc(vinculoIdCliente)
-            .get();
-        if (clienteSnap.exists && clienteSnap.data() != null) {
-          clienteData = Map<String, dynamic>.from(clienteSnap.data()!);
+        final perfilClienteRef = await _perfilClienteRefPorUid(vinculoIdCliente);
+        if (perfilClienteRef != null) {
+          final clienteSnap = await perfilClienteRef.get();
+          if (clienteSnap.exists && clienteSnap.data() != null) {
+            clienteData = Map<String, dynamic>.from(clienteSnap.data()!);
+          }
+        }
+
+        if (clienteData.isEmpty) {
+          final clienteLegadoSnap = await _db
+              .collection('clientes')
+              .doc(vinculoIdCliente)
+              .get();
+          if (clienteLegadoSnap.exists && clienteLegadoSnap.data() != null) {
+            clienteData = Map<String, dynamic>.from(clienteLegadoSnap.data()!);
+          }
         }
       } on FirebaseException catch (e) {
         if (e.code != 'permission-denied') {
@@ -1092,13 +1132,18 @@ class FirestoreService {
   }
 
   Future<void> adicionarPacote(String uid, int quantidade) async {
-    await _db.collection('clientes').doc(uid).update({
+    final perfilClienteRef = await _perfilClienteRefPorUid(uid);
+    if (perfilClienteRef == null) return;
+
+    await perfilClienteRef.update({
       'saldo_sessoes': FieldValue.increment(quantidade),
     });
   }
 
   Future<void> toggleFavorito(String uid, String tipo) async {
-    final docRef = _db.collection('clientes').doc(uid);
+    final docRef = await _perfilClienteRefPorUid(uid);
+    if (docRef == null) return;
+
     final doc = await docRef.get();
     if (doc.exists) {
       final favoritosExistentes = List<String>.from(
@@ -1472,12 +1517,115 @@ class FirestoreService {
       
       // Salva documento principal
       final usuarioMap = usuario.toMap();
-      debugPrint('   Campos no documento: ${usuarioMap.keys.toList()}');
-      
-      await _db
-          .collection('usuarios')
-          .doc(docId)
-          .set(usuarioMap, SetOptions(merge: true));
+      final usuarioRef = _db.collection('usuarios').doc(docId);
+      DocumentSnapshot<Map<String, dynamic>>? usuarioExistente;
+      try {
+        usuarioExistente = await usuarioRef.get();
+      } on FirebaseException catch (e) {
+        if (e.code != 'permission-denied') {
+          rethrow;
+        }
+        debugPrint(
+          '⚠️ Aviso: sem permissao para leitura previa de usuarios/$docId. '
+          'Tentando escrita direta para concluir cadastro.',
+        );
+      }
+
+      if (usuarioExistente != null &&
+          usuarioExistente.exists &&
+          usuarioExistente.data() != null) {
+        final existente = usuarioExistente.data()!;
+        final idExistente = (existente['id'] as String? ?? '').trim();
+
+        if (idExistente.isNotEmpty && idExistente != usuario.id.trim()) {
+          throw StateError(
+            'Já existe um cadastro para este e-mail vinculado a outro UID. '
+            'UID existente: $idExistente, UID informado: ${usuario.id.trim()}',
+          );
+        }
+
+        // Em updates, preserva campos imutáveis para evitar bloqueio nas rules.
+        if (existente['data_cadastro'] != null) {
+          usuarioMap['data_cadastro'] = existente['data_cadastro'];
+        }
+        if (idExistente.isNotEmpty) {
+          usuarioMap['id'] = idExistente;
+        }
+        if (existente['email'] != null) {
+          usuarioMap['email'] = existente['email'];
+        }
+        if (existente['email_normalizado'] != null) {
+          usuarioMap['email_normalizado'] = existente['email_normalizado'];
+        }
+        if (existente['tipo'] != null) {
+          usuarioMap['tipo'] = existente['tipo'];
+        }
+        if (existente['visualiza_todos'] != null) {
+          usuarioMap['visualiza_todos'] = existente['visualiza_todos'];
+        }
+      }
+
+      bool usuarioPersistidoEmTransacao = false;
+
+      if (usuario.tipo == 'cliente') {
+        final precisaGerarOrdem =
+            usuarioMap['ordem_criacao'] == null ||
+            usuarioMap['ordem_criacao_em'] == null;
+
+        if (precisaGerarOrdem) {
+          final logRef = _logClientesRef();
+          await _db.runTransaction((transaction) async {
+            final logSnap = await transaction.get(logRef);
+            final logData = logSnap.data();
+
+            final ultimoSequencial =
+                (logData?['sequencial_clientes'] as int?) ?? 0;
+            final proximoSequencial = ultimoSequencial + 1;
+
+            final ultimoHorario = logData?['ultimo_horario_cadastro'] as Timestamp?;
+            var novoHorario = Timestamp.now();
+
+            if (ultimoHorario != null &&
+                novoHorario.toDate().isBefore(ultimoHorario.toDate())) {
+              final horarioAjustado = ultimoHorario
+                  .toDate()
+                  .add(const Duration(milliseconds: 1));
+              novoHorario = Timestamp.fromDate(horarioAjustado);
+            }
+
+            final ordemCriacao = {
+              'ordem_criacao': proximoSequencial,
+              'ordem_criacao_em': novoHorario,
+            };
+            usuarioMap.addAll(ordemCriacao);
+
+            transaction.set(logRef, {
+              'sequencial_clientes': proximoSequencial,
+              'ultimo_horario_cadastro': novoHorario,
+              'atualizado_em': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+
+            transaction.set(usuarioRef, usuarioMap, SetOptions(merge: true));
+            usuarioPersistidoEmTransacao = true;
+
+            debugPrint(
+              '🔢 Ordem de criação reservada para cliente: ${ordemCriacao['ordem_criacao']} em ${ordemCriacao['ordem_criacao_em']}',
+            );
+          });
+
+          debugPrint(
+            '✅ Usuário salvo com ordem de criação em transação atômica',
+          );
+        }
+
+        if (!usuarioPersistidoEmTransacao) {
+          debugPrint('   Campos no documento: ${usuarioMap.keys.toList()}');
+          await usuarioRef.set(usuarioMap, SetOptions(merge: true));
+        }
+      } else {
+        debugPrint('   Campos no documento: ${usuarioMap.keys.toList()}');
+        await usuarioRef.set(usuarioMap, SetOptions(merge: true));
+      }
       
       debugPrint('✅ Usuário salvo com sucesso em usuarios/$docId');
 
@@ -1522,7 +1670,8 @@ class FirestoreService {
       (usuario.telefonePrincipal ?? usuario.whatsapp ?? '').trim(),
     );
 
-    final clienteRef = _db.collection('clientes').doc(uidNormalizado);
+    final usuarioRef = _usuarioRefPorEmail(usuario.emailNormalizado ?? usuario.email);
+    final clienteRef = _perfilClienteRefPorUsuarioRef(usuarioRef);
     final clienteSnap = await clienteRef.get();
 
     if (!clienteSnap.exists || clienteSnap.data() == null) {
@@ -1534,7 +1683,7 @@ class FirestoreService {
         ),
         SetOptions(merge: true),
       );
-      debugPrint('✅ Cliente criado/sincronizado em clientes/$uidNormalizado');
+      debugPrint('✅ Cliente criado/sincronizado em usuarios/*/perfil/cliente (uid=$uidNormalizado)');
       return;
     }
 
@@ -1552,7 +1701,7 @@ class FirestoreService {
       'categoria_origem': usuario.categoriaOrigem ?? '',
     }, SetOptions(merge: true));
 
-    debugPrint('✅ Cliente atualizado/sincronizado em clientes/$uidNormalizado');
+    debugPrint('✅ Cliente atualizado/sincronizado em usuarios/*/perfil/cliente (uid=$uidNormalizado)');
   }
 
   Future<void> salvarPerfilInicialClienteGoogle({
@@ -1565,7 +1714,10 @@ class FirestoreService {
 
     final nome = nomeCliente.trim().isEmpty ? 'Cliente' : nomeCliente.trim();
     final telefoneNormalizado = _normalizarTelefone(whatsapp);
-    final clienteRef = _db.collection('clientes').doc(uidNormalizado);
+    final usuarioRef = await _buscarUsuarioRefPorUid(uidNormalizado);
+    if (usuarioRef == null) return;
+
+    final clienteRef = _perfilClienteRefPorUsuarioRef(usuarioRef);
     final clienteSnap = await clienteRef.get();
 
     if (!clienteSnap.exists || clienteSnap.data() == null) {
@@ -1757,7 +1909,7 @@ class FirestoreService {
     final aprovadoPadrao = devMaster;
 
     final usuarioRef = _usuarioRefPorEmail(emailNormalizado);
-    final clienteRef = _db.collection('clientes').doc(uid);
+    final clienteRef = _perfilClienteRefPorUsuarioRef(usuarioRef);
 
     final usuarioSnap = await usuarioRef.get();
     final clienteSnap = await clienteRef.get();
@@ -2058,17 +2210,15 @@ class FirestoreService {
       'admin_atrelada_id': adminAtreladaId,
     }, SetOptions(merge: true));
 
-    await _db
-        .collection('clientes')
-        .doc(uid)
-        .set(
-          _dadosPadraoCliente(
-            uid: uid,
-            nomeCliente: nomeCliente,
-            whatsapp: whatsapp,
-          ),
-          SetOptions(merge: true),
-        );
+    final clienteRef = _perfilClienteRefPorUsuarioRef(usuarioRef);
+    await clienteRef.set(
+      _dadosPadraoCliente(
+        uid: uid,
+        nomeCliente: nomeCliente,
+        whatsapp: whatsapp,
+      ),
+      SetOptions(merge: true),
+    );
 
     await _sincronizarIndiceHumanoUsuario(
       uid: uid,
@@ -2100,8 +2250,9 @@ class FirestoreService {
       'data_reprovacao': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
-    // Remove o documento de cliente se existir
-    await _db.collection('clientes').doc(uid).delete().catchError((_) {
+    // Remove o documento de perfil de cliente se existir
+    final clienteRef = _perfilClienteRefPorUsuarioRef(usuarioRef);
+    await clienteRef.delete().catchError((_) {
       // Ignore se não existir
     });
 
@@ -2139,11 +2290,9 @@ class FirestoreService {
   Future<void> salvarAgendamento(Agendamento agendamento) async {
     // RF009: Snapshotting para Integridade Histórica
     // Antes de salvar, buscamos os dados atuais do cliente para "congelar" no agendamento
-    final clienteDoc = await _db
-        .collection('clientes')
-        .doc(agendamento.idCliente)
-        .get();
-    final clienteData = clienteDoc.data();
+    final clienteRef = await _perfilClienteRefPorUid(agendamento.idCliente);
+    final clienteDoc = await clienteRef?.get();
+    final clienteData = clienteDoc?.data();
     final administradoraPadrao = await getAdministradoraPadraoAtreladaId();
 
     final dadosParaSalvar = agendamento.toMap();
@@ -2225,13 +2374,15 @@ class FirestoreService {
       final usuarioClienteRef = await _buscarUsuarioRefPorUid(clienteId);
 
       await _db.runTransaction((transaction) async {
-        final clienteRef = _db.collection('clientes').doc(clienteId);
-        final clienteDoc = await transaction.get(clienteRef);
+        final clienteRef = await _perfilClienteRefPorUid(clienteId);
+        if (clienteRef != null) {
+          final clienteDoc = await transaction.get(clienteRef);
 
-        if (clienteDoc.exists) {
-          final saldo = clienteDoc.data()?['saldo_sessoes'] ?? 0;
-          if (saldo > 0) {
-            transaction.update(clienteRef, {'saldo_sessoes': saldo - 1});
+          if (clienteDoc.exists) {
+            final saldo = clienteDoc.data()?['saldo_sessoes'] ?? 0;
+            if (saldo > 0) {
+              transaction.update(clienteRef, {'saldo_sessoes': saldo - 1});
+            }
           }
         }
 
@@ -2646,18 +2797,20 @@ class FirestoreService {
     final batch = _db.batch();
 
     // 1. Anonimizar dados do Cliente (Remove PII, mantém ID e Saldo para auditoria)
-    final clienteRef = _db.collection('clientes').doc(uid);
-    batch.update(clienteRef, {
-      'cliente_nome': 'Usuário Anonimizado (LGPD)',
-      'whatsapp': '',
-      'endereco': '',
-      'historico_medico': 'Dados excluídos por solicitação do titular',
-      'alergias': '',
-      'medicamentos': '',
-      'cirurgias': '',
-      'anamnese_ok': false,
-      // 'saldo_sessoes': Mantemos o saldo pois pode haver pendência financeira ou crédito
-    });
+    final clienteRef = await _perfilClienteRefPorUid(uid);
+    if (clienteRef != null) {
+      batch.update(clienteRef, {
+        'cliente_nome': 'Usuário Anonimizado (LGPD)',
+        'whatsapp': '',
+        'endereco': '',
+        'historico_medico': 'Dados excluídos por solicitação do titular',
+        'alergias': '',
+        'medicamentos': '',
+        'cirurgias': '',
+        'anamnese_ok': false,
+        // 'saldo_sessoes': Mantemos o saldo pois pode haver pendência financeira ou crédito
+      });
+    }
 
     // 2. Anonimizar dados de Usuário (Login)
     final usuarioRef = await _buscarUsuarioRefPorUid(uid);
@@ -2762,8 +2915,22 @@ class FirestoreService {
   Future<String> gerarBackupJson() async {
     final dados = <String, dynamic>{};
 
-    // Exporta coleções principais
-    dados['clientes'] = await getFullCollection('clientes');
+    // Exporta perfis de cliente a partir da coleção unificada de usuarios.
+    final usuariosClientes = await _db
+        .collection('usuarios')
+        .where('tipo', isEqualTo: 'cliente')
+        .get();
+    final clientes = <Map<String, dynamic>>[];
+    for (final usuarioDoc in usuariosClientes.docs) {
+      final perfilSnap = await _perfilClienteRefPorUsuarioRef(usuarioDoc.reference).get();
+      if (perfilSnap.exists && perfilSnap.data() != null) {
+        final item = Map<String, dynamic>.from(perfilSnap.data()!);
+        item['id'] = usuarioDoc.data()['id'] ?? '';
+        clientes.add(item);
+      }
+    }
+
+    dados['clientes'] = clientes;
     dados['agendamentos'] = await getFullCollection('agendamentos');
     dados['estoque'] = await getFullCollection('estoque');
     dados['configuracoes'] = await getFullCollection('configuracoes');
@@ -2775,10 +2942,16 @@ class FirestoreService {
     final dados = jsonDecode(jsonString) as Map<String, dynamic>;
 
     if (dados.containsKey('clientes')) {
-      await importarColecao(
-        'clientes',
-        List<Map<String, dynamic>>.from(dados['clientes']),
-      );
+      final clientes = List<Map<String, dynamic>>.from(dados['clientes']);
+      for (final cliente in clientes) {
+        final uid = (cliente['uid'] ?? cliente['id'] ?? '').toString().trim();
+        if (uid.isEmpty) continue;
+        final ref = await _perfilClienteRefPorUid(uid);
+        if (ref == null) continue;
+
+        final payload = Map<String, dynamic>.from(cliente)..remove('id');
+        await ref.set(payload, SetOptions(merge: true));
+      }
     }
     if (dados.containsKey('agendamentos')) {
       await importarColecao(
@@ -3106,7 +3279,10 @@ class FirestoreService {
   // ---------------------------------------------------------------------------
 
   /// Recebe as linhas da planilha como lista de mapas com os cabeçalhos
-  /// originais como chave, normaliza e persiste na coleção `clientes`.
+  /// originais como chave, normaliza e persiste na coleção `clientes` (legado).
+  ///
+  /// Observação: o modelo principal atual de cliente fica em
+  /// `usuarios/{email_normalizado}/perfil/cliente`.
   ///
   /// Retorna um mapa com as contagens: `importados`, `ignorados`, `erros`.
   Future<Map<String, int>> importarPlanilhaClientes(

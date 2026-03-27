@@ -126,11 +126,13 @@ Funcionalidades mapeadas que não entraram no MVP (Mínimo Produto Viável) mas 
 
 Documentação das coleções utilizadas:
 
-*   **`usuarios`**: Dados de login, tipo de acesso (admin/cliente) e token de notificação.
-*   **`clientes`**: Dados pessoais, anamnese, saldo de sessões e endereço.
+*   **`usuarios`** (`usuarios/{email_normalizado}`): Identidade, tipo de acesso (admin/cliente), aprovacoes e metadados de cadastro.
+*   **`usuarios/{email_normalizado}/perfil/cliente`**: Dados de cliente (anamnese, contatos, saldo de sessoes, historico de recorrencia).
+*   **`usuarios_por_email`**: Indice auxiliar para resolucao por e-mail e verificacoes de acesso.
 *   **`agendamentos`**: Data, hora, status (pendente/aprovado/cancelado), motivo e lista de espera.
 *   **`estoque`**: Produtos, quantidade e flag de consumo automático.
 *   **`configuracoes`**: Variáveis globais do sistema.
+*   **`configuracoes/log_clientes`**: Sequencial incremental de cadastro de clientes e ultimo horario de cadastro monotônico.
 *   **`logs`**: Auditoria de ações críticas (quem cancelou, quem aprovou).
 *   **`lgpd_logs`**: Registro de solicitações de exclusão/anonimização (Retenção: 5 anos).
 

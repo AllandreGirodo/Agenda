@@ -11,10 +11,10 @@ servers:
         default: agenda-massoterapia-tcc
 
 paths:
-  /clientes:
+  /usuarios:
     get:
-      summary: Lista todos os clientes
-      tags: [Clientes]
+      summary: Lista usuarios
+      tags: [Usuarios]
       responses:
         '200':
           description: Sucesso
@@ -23,19 +23,43 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Cliente'
-    post:
-      summary: Cria um novo cliente
-      tags: [Clientes]
+                  $ref: '#/components/schemas/Usuario'
+
+  /usuarios/{email_normalizado}/perfil/cliente:
+    get:
+      summary: Consulta perfil de cliente por usuario
+      tags: [Usuarios]
+      parameters:
+        - in: path
+          name: email_normalizado
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Perfil retornado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerfilCliente'
+    patch:
+      summary: Atualiza perfil de cliente
+      tags: [Usuarios]
+      parameters:
+        - in: path
+          name: email_normalizado
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Cliente'
+              $ref: '#/components/schemas/PerfilCliente'
       responses:
-        '201':
-          description: Cliente criado
+        '200':
+          description: Perfil atualizado
 
   /agendamentos:
     get:
@@ -63,7 +87,7 @@ paths:
         '201':
           description: Agendamento criado com sucesso
 
-  /transacoes_financeiras:
+  /transacoes:
     get:
       summary: Lista transações financeiras
       tags: [Financeiro]
@@ -77,39 +101,76 @@ paths:
                 items:
                   $ref: '#/components/schemas/TransacaoFinanceira'
 
+  /configuracoes/log_clientes:
+    get:
+      summary: Consulta sequencial de clientes
+      tags: [Configuracoes]
+      responses:
+        '200':
+          description: Documento de log de clientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogClientes'
+
 components:
   schemas:
-    Cliente:
+    Usuario:
       type: object
       properties:
-        idCliente:
+        id:
           type: string
-          description: UID do usuário no Firebase Auth
-        nomeCliente:
+          description: UID do usuario no Firebase Auth
+        email:
           type: string
-        whatsappCliente:
+        email_normalizado:
           type: string
-        saldoSessoesCliente:
+        tipo:
+          type: string
+          enum: [admin, cliente]
+        aprovado:
+          type: boolean
+        ordem_criacao:
           type: integer
-          default: 0
-        dataNascimentoCliente:
+        ordem_criacao_em:
           type: string
           format: date-time
-        favoritosCliente:
+
+    PerfilCliente:
+      type: object
+      properties:
+        uid:
+          type: string
+          description: UID do usuário no Firebase Auth
+        cliente_nome:
+          type: string
+        nome_preferido:
+          type: string
+        whatsapp:
+          type: string
+        telefone_principal:
+          type: string
+        saldo_sessoes:
+          type: integer
+          default: 0
+        data_nascimento:
+          type: string
+          format: date-time
+        favoritos:
           type: array
           items:
             type: string
-        enderecoCliente:
+        endereco:
           type: string
-        historicoMedicoCliente:
+        historico_medico:
           type: string
-        alergiasCliente:
+        alergias:
           type: string
-        medicamentosCliente:
+        medicamentos:
           type: string
-        cirurgiasCliente:
+        cirurgias:
           type: string
-        anamneseOkCliente:
+        anamnese_ok:
           type: boolean
 
     Agendamento:
@@ -188,3 +249,15 @@ components:
           format: date-time
         idUsuarioCriador:
           type: string
+
+    LogClientes:
+      type: object
+      properties:
+        sequencial_clientes:
+          type: integer
+        ultimo_horario_cadastro:
+          type: string
+          format: date-time
+        atualizado_em:
+          type: string
+          format: date-time

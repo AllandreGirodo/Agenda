@@ -324,6 +324,42 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
     }
   }
 
+  Future<void> _abrirSwaggerYaml() async {
+    try {
+      final conteudo = await rootBundle.loadString('lib/documents/swagger.yaml');
+      if (!mounted) return;
+
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => Scaffold(
+            appBar: AppBar(
+              title: Text(AppStrings.swaggerYamlTitulo),
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            body: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: SelectableText(
+                conteudo,
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.erroAbrirSwagger('$e'))),
+      );
+    }
+  }
+
   Future<void> _executarGovernancaPosLogin() async {
     if (_governancaVersionadaVerificada || !mounted) return;
     _governancaVersionadaVerificada = true;
@@ -392,6 +428,14 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
                               builder: (context) => const DevToolsView(),
                             ),
                           );
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.description_outlined),
+                        title: Text(AppStrings.swaggerYamlTitulo),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _abrirSwaggerYaml();
                         },
                       ),
                     ],

@@ -4,8 +4,8 @@
 
 ```mermaid
 graph TD
-    A[Firebase Firestore] --> B[clientes]
-    A --> C[usuarios]
+  A[Firebase Firestore] --> C[usuarios]
+  A --> C0[usuarios/{email}/perfil/cliente]
   A --> C1[usuarios_por_email]
     A --> D[agendamentos]
     A --> E[transacoes]
@@ -21,13 +21,14 @@ graph TD
   A --> O[lgpd_logs]
   A --> P[teste]
     
-    D --> D1[mensagens subcollection]
+    D --> D1[mensagens subcoleção]
     
     J --> J1[geral]
     J --> J2[seguranca]
     J --> J3[servicos]
     J --> J4[notificacoes]
     J --> J5[pagamento]
+    J --> J6[log_clientes]
     
     style A fill:#ff6b6b
     style J fill:#4ecdc4
@@ -53,10 +54,14 @@ O arquivo `base_tcc_agenda_outros_horarios.xlsx` trouxe 1.918 registros úteis, 
 - sinais históricos de recorrência (`Frequência Histórica`, `Última Data`, `Último Horário`, `Último Dia da Semana`)
 - sugestão booleana de cliente fixo
 
-Por isso a coleção `clientes` passa a concentrar não só anamnese, mas também CRM leve, contato alternativo e leitura histórica de recorrência.
+Por isso o perfil do cliente em `usuarios/{email_normalizado}/perfil/cliente` concentra não só anamnese, mas também CRM leve, contato alternativo e leitura histórica de recorrência.
 
 ### 1. `clientes` Collection
 **Documento ID:** `{uid}` (Firebase Auth UID)
+
+> Status atual: **descontinuada para novos cadastros**.  
+> O sistema usa `usuarios/{email_normalizado}/perfil/cliente` como fonte principal.  
+> Esta seção permanece apenas para compatibilidade histórica/migração.
 
 ```javascript
 {
@@ -154,6 +159,8 @@ Por isso a coleção `clientes` passa a concentrar não só anamnese, mas també
   dev_master: boolean,
   lgpd_consentido: boolean,
   lgpd_consentimento_em: Timestamp,
+  ordem_criacao: number,          // Somente quando tipo = 'cliente'
+  ordem_criacao_em: Timestamp,    // Somente quando tipo = 'cliente'
   last_changelog_seen: string,
   show_changelog_auto: boolean
 }
@@ -162,7 +169,8 @@ Por isso a coleção `clientes` passa a concentrar não só anamnese, mas també
 Observações importantes de modelagem (estado atual):
 - A identidade de autenticação/autorização está em `usuarios/{email_normalizado}`.
 - O campo `id` segue armazenando o UID do Firebase Auth.
-- Clientes (`tipo == 'cliente'`) são sincronizados com `clientes/{uid}` no backend para manter consistência operacional.
+- O perfil de cliente fica em `usuarios/{email_normalizado}/perfil/cliente`.
+- Leitura de `clientes/{uid}` é mantida apenas como fallback legado durante migração.
 
 **Índices Necessários:**
 - `email` (ASC)
@@ -425,6 +433,16 @@ Uso principal:
 }
 ```
 
+### Documento: `configuracoes/log_clientes`
+
+```javascript
+{
+  sequencial_clientes: number,          // Incrementa +1 por novo cliente cadastrado
+  ultimo_horario_cadastro: Timestamp,   // Nunca retrocede (monotônico)
+  atualizado_em: Timestamp              // Timestamp técnico de atualização
+}
+```
+
 ---
 
 ## 🔒 Regras de Segurança (Security Rules)
@@ -436,6 +454,7 @@ Resumo das regras vigentes (Março/2026):
   - create: dono do auth (`request.auth.uid == request.resource.data.id`) com doc em `userId == email_normalizado`
   - read/update: dono ou admin
   - delete: admin
+  - subcoleção `perfil/cliente`: leitura/escrita por dono ou admin (campos validados)
 - `usuarios_por_email/{emailId}`
   - create/update: admin ou próprio dono do uid com payload validado
   - read: admin ou dono
@@ -448,6 +467,10 @@ Resumo das regras vigentes (Março/2026):
   - subcoleção `mensagens`: leitura por participantes, escrita controlada
 - `configuracoes/*`, `estoque`, `transacoes`, `metricas_diarias`
   - escrita: admin
+- `configuracoes/log_clientes`
+  - leitura: autenticado
+  - create/update: autenticado com validação de incremento e horário monotônico
+  - delete: negado
 - `app_software/config`, `app_changelog/*`, `changelogs/*`
   - leitura autenticada; escrita admin
 - `auditoria_credenciais/*`
@@ -495,22 +518,36 @@ Quando o sistema é inicializado pela primeira vez, os seguintes valores padrão
 
 ```mermaid
 erDiagram
-    CLIENTES ||--o{ AGENDAMENTOS : "faz"
-    CLIENTES ||--o{ TRANSACOES : "paga"
+  USUARIOS ||--o{ AGENDAMENTOS : "faz"
+  USUARIOS ||--o{ TRANSACOES : "paga"
     AGENDAMENTOS ||--o{ MENSAGENS : "contém"
     AGENDAMENTOS ||--o| TRANSACOES : "gera"
     AGENDAMENTOS }o--|| CUPONS : "usa"
     USUARIOS ||--|| USUARIOS_EMAIL : "indexa"
-    USUARIOS ||--|| CLIENTES : "sincroniza perfil"
+  USUARIOS ||--|| PERFIL_CLIENTE : "perfil"
     CONFIGURACOES ||--|| GERAL : "tem"
     CONFIGURACOES ||--|| SEGURANCA : "tem"
     CONFIGURACOES ||--|| SERVICOS : "tem"
+  CONFIGURACOES ||--|| LOG_CLIENTES : "sequencia"
     
-    CLIENTES {
-        string uid PK
-        string cliente_nome
-        string whatsapp
-        number saldo_sessoes
+    USUARIOS {
+      string email_normalizado PK
+      string id
+      string tipo
+      number ordem_criacao
+      timestamp ordem_criacao_em
+    }
+
+    PERFIL_CLIENTE {
+      string uid
+      string cliente_nome
+      string whatsapp
+      number saldo_sessoes
+    }
+
+    LOG_CLIENTES {
+      number sequencial_clientes
+      timestamp ultimo_horario_cadastro
     }
     
     AGENDAMENTOS {

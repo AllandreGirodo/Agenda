@@ -21,7 +21,7 @@ Este comando simula a criação de uma transação financeira via API.
 
 ```bash
 curl -X POST \
-  "https://firestore.googleapis.com/v1/projects/[PROJECT_ID]/databases/(default)/documents/transacoes_financeiras" \
+  "https://firestore.googleapis.com/v1/projects/[PROJECT_ID]/databases/(default)/documents/transacoes" \
   -H "Content-Type: application/json" \
   -d '{
   "fields": {
@@ -35,11 +35,11 @@ curl -X POST \
 }'
 ```
 
-## 3. Consultar Cliente Específico (GET)
+## 3. Consultar Perfil de Cliente Específico (GET)
 
 ```bash
 curl -X GET \
-  "https://firestore.googleapis.com/v1/projects/[PROJECT_ID]/databases/(default)/documents/clientes/teste_cliente_1"
+  "https://firestore.googleapis.com/v1/projects/[PROJECT_ID]/databases/(default)/documents/usuarios/cliente%40email.com/perfil/cliente"
 ```
 
 ## 4. Executar Query (POST :runQuery)

@@ -334,9 +334,15 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get erroCadastroAppCheck => _isPt
       ? 'Erro de segurança do Firebase no cadastro. Em ambiente local web, registre o token de debug do App Check e tente novamente.'
       : 'Firebase security error during registration. In local web development, register the App Check debug token and try again.';
+  static String get erroCadastroPermissaoFirestore => _isPt
+      ? 'Cadastro bloqueado pelas regras do Firestore para este usuário/e-mail. Verifique vínculo do e-mail e permissões de criação.'
+      : 'Registration blocked by Firestore rules for this user/email. Check email linkage and creation permissions.';
   static String get erroLoginAppCheck => _isPt
       ? 'Erro de seguranca do Firebase no login. Em ambiente local web, registre o token de debug do App Check e tente novamente.'
       : 'Firebase security error during login. In local web development, register the App Check debug token and try again.';
+  static String get erroLoginPermissaoFirestore => _isPt
+      ? 'Login bloqueado pelas regras do Firestore para este usuário. Verifique permissões e vínculo do cadastro.'
+      : 'Login blocked by Firestore rules for this user. Check permissions and account linkage.';
   static String get biometriaBtn =>
       _isPt ? 'Entrar com Biometria' : 'Login with Biometrics';
   static String get biometriaErro => _isPt
@@ -639,6 +645,8 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get relatorios => _isPt ? 'Relatórios' : 'Reports';
   static String get configuracoes => _isPt ? 'Configurações' : 'Settings';
   static String get devToolsDb => _isPt ? 'Dev Tools (DB)' : 'Dev Tools (DB)';
+    static String get swaggerYamlTitulo =>
+            _isPt ? 'Swagger (OpenAPI)' : 'Swagger (OpenAPI)';
   static String get dash => _isPt ? 'Dash' : 'Dash';
   static String get agenda => _isPt ? 'Agenda' : 'Schedule';
   static String get clientes => _isPt ? 'Clientes' : 'Clients';
@@ -673,6 +681,8 @@ Service and package prices are subject to change. Payment must be made as agreed
       : 'Daily metrics saved successfully!';
   static String erroSalvarMetricas(String erro) =>
       _isPt ? 'Erro ao salvar métricas: $erro' : 'Error saving metrics: $erro';
+  static String erroAbrirSwagger(String erro) =>
+      _isPt ? 'Erro ao abrir Swagger: $erro' : 'Error opening Swagger: $erro';
   static String get nenhumAgendamentoPendente =>
       _isPt ? 'Nenhum agendamento pendente.' : 'No pending appointments.';
   static String get nenhumUsuarioPendente =>

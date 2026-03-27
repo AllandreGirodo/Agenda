@@ -268,9 +268,18 @@ class LoginController {
         validarCadastroGoogle: true,
       );
     } catch (e) {
+      final erroPermissaoFirestore =
+          e is FirebaseException && e.code == 'permission-denied';
+
       if (context.mounted) {
+        final mensagem = erroPermissaoFirestore
+            ? (_isFirestorePermissionLikelyAppCheck(e)
+                  ? AppStrings.erroCadastroAppCheck
+                  : AppStrings.erroCadastroPermissaoFirestore)
+            : AppStrings.erroCadastroComDetalhe('$e');
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.erroCadastroComDetalhe('$e'))),
+          SnackBar(content: Text(mensagem)),
         );
       }
       return false;
@@ -723,7 +732,9 @@ class LoginController {
         String mensagem = AppStrings.erroCadastro;
         
         if (erroPermissaoFirestore) {
-          mensagem = AppStrings.erroCadastroAppCheck;
+          mensagem = _isFirestorePermissionLikelyAppCheck(e)
+              ? AppStrings.erroCadastroAppCheck
+              : AppStrings.erroCadastroPermissaoFirestore;
         } else if (e is FirebaseException) {
           mensagem = AppStrings.erroCadastroComDetalhe(e.message ?? e.code);
         }
@@ -802,6 +813,17 @@ class LoginController {
         message.contains('firebase app check token is invalid') ||
         message.contains('unauthenticated');
   }
+
+        bool _isFirestorePermissionLikelyAppCheck(Object e) {
+          if (e is! FirebaseException) return false;
+
+          final message = (e.message ?? '').toLowerCase();
+          return message.contains('app check') ||
+          message.contains('app-check') ||
+          message.contains('appcheck') ||
+          message.contains('firebase app check token is invalid') ||
+          message.contains('identitytoolkit');
+        }
 
   Future<void> _atualizarTokenAutenticacao(User user) async {
     try {

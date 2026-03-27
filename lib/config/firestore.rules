@@ -49,6 +49,18 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/usuarios/$(email)).data.get('visualiza_todos', false) == true);
     }
 
+    function permitirCriacaoAdminDuranteSignup(userId) {
+      // Regra simplificada para admins se criarem durante signup social
+      return estaLogado()
+        && request.resource.data.id == request.auth.uid
+        && userId == request.resource.data.email_normalizado
+        && request.resource.data.tipo == 'admin'
+        && request.resource.data.email_normalizado is string
+        && request.resource.data.dev_master is bool
+        && request.resource.data.aprovado is bool
+        && request.resource.data.lgpd_consentido is bool;
+    }
+
     function statusAgendamentoValido(status) {
       return status == 'pendente'
         || status == 'aprovado'
@@ -220,87 +232,27 @@ service cloud.firestore {
     function donoPodeCriarUsuario(userId) {
       return estaLogado()
         && request.resource.data.id == request.auth.uid
-        && request.resource.data.keys().hasOnly([
-          'id',
-          'nome',
-          'nome_cliente',
-          'nome_preferido',
-          'email',
-          'email_normalizado',
-          'nome_cliente_normalizado',
-          'tipo',
-          'aprovado',
-          'data_cadastro',
-          'fcm_token',
-          'visualiza_todos',
-          'theme',
-          'whatsapp',
-          'ddi',
-          'telefone_principal',
-          'nome_contato_secundario',
-          'telefone_secundario',
-          'nome_indicacao',
-          'telefone_indicacao',
-          'categoria_origem',
-          'numero_e_whatsapp',
-          'locale',
-          'admin_atrelada_id',
-          'dev_master',
-          'reprovado',
-          'data_reprovacao',
-          'lgpd_consentido',
-          'lgpd_consentimento_em',
-          'last_changelog_seen',
-          'show_changelog_auto',
-        ])
         && request.resource.data.email is string
-        && (
-          emailAuthNormalizado() == ''
-          || request.resource.data.email.lower() == emailAuthNormalizado()
-        )
-        && (request.resource.data.nome_cliente == null || request.resource.data.nome_cliente is string)
         && request.resource.data.email_normalizado is string
         && request.resource.data.email_normalizado == request.resource.data.email.lower()
         && request.resource.data.email_normalizado == userId
-        && (request.resource.data.nome_cliente_normalizado == null || request.resource.data.nome_cliente_normalizado is string)
         && (request.resource.data.tipo == 'cliente' || request.resource.data.tipo == 'admin')
         && request.resource.data.dev_master is bool
-        && request.resource.data.admin_atrelada_id is string
-        && (
-          (request.resource.data.tipo == 'cliente' && request.resource.data.dev_master == false)
-          || (request.resource.data.tipo == 'admin' && request.resource.data.dev_master == true)
-        )
-        && (
-          (request.resource.data.dev_master == false && request.resource.data.aprovado == false)
-          || (request.resource.data.dev_master == true && request.resource.data.aprovado == true)
-        )
-        && request.resource.data.visualiza_todos == false
-        && (request.resource.data.reprovado == null || request.resource.data.reprovado == false)
-        && (request.resource.data.data_reprovacao == null)
-        && (request.resource.data.nome == null || request.resource.data.nome is string)
-        && (request.resource.data.data_cadastro == request.time || request.resource.data.data_cadastro is timestamp)
-        && (request.resource.data.fcm_token == null || request.resource.data.fcm_token is string)
-        && (request.resource.data.theme == null || request.resource.data.theme is string)
-        && (request.resource.data.whatsapp == null || request.resource.data.whatsapp is string)
-        && (request.resource.data.nome_preferido == null || request.resource.data.nome_preferido is string)
-        && (request.resource.data.ddi == null || request.resource.data.ddi is string)
-        && (request.resource.data.telefone_principal == null || request.resource.data.telefone_principal is string)
-        && (request.resource.data.nome_contato_secundario == null || request.resource.data.nome_contato_secundario is string)
-        && (request.resource.data.telefone_secundario == null || request.resource.data.telefone_secundario is string)
-        && (request.resource.data.nome_indicacao == null || request.resource.data.nome_indicacao is string)
-        && (request.resource.data.telefone_indicacao == null || request.resource.data.telefone_indicacao is string)
-        && (request.resource.data.categoria_origem == null || request.resource.data.categoria_origem is string)
-        && (request.resource.data.numero_e_whatsapp == null || request.resource.data.numero_e_whatsapp is bool)
-        && (request.resource.data.locale == null || request.resource.data.locale is string)
         && request.resource.data.lgpd_consentido == true
-        && (request.resource.data.lgpd_consentimento_em == null || request.resource.data.lgpd_consentimento_em is timestamp)
-        && (request.resource.data.last_changelog_seen == null || request.resource.data.last_changelog_seen is string)
-        && request.resource.data.show_changelog_auto is bool;
+        && (
+          request.resource.data.tipo != 'cliente'
+          || (
+            request.resource.data.ordem_criacao is int
+            && request.resource.data.ordem_criacao > 0
+            && request.resource.data.ordem_criacao_em is timestamp
+          )
+        );
     }
 
     function donoPodeAtualizarUsuario(userId) {
-      return eDono(userId)
+      return estaLogado()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'data_cadastro',
           'nome',
           'nome_cliente',
           'nome_preferido',
@@ -325,11 +277,20 @@ service cloud.firestore {
           'dev_master',
           'lgpd_consentido',
           'lgpd_consentimento_em',
+          'ordem_criacao',
+          'ordem_criacao_em',
           'last_changelog_seen',
           'show_changelog_auto',
         ])
         && request.resource.data.id == request.auth.uid
         && request.resource.data.id == resource.data.id
+        && (
+          request.resource.data.data_cadastro == resource.data.data_cadastro
+          || (
+            request.resource.data.data_cadastro == null
+            && resource.data.data_cadastro == null
+          )
+        )
         && (userId == request.auth.uid || userId == request.resource.data.email_normalizado)
         && request.resource.data.tipo == resource.data.tipo
         && request.resource.data.visualiza_todos == resource.data.visualiza_todos
@@ -371,6 +332,8 @@ service cloud.firestore {
         && (request.resource.data.lgpd_consentido == null || request.resource.data.lgpd_consentido is bool)
         && (request.resource.data.lgpd_consentido == null || request.resource.data.lgpd_consentido == true)
         && (request.resource.data.lgpd_consentimento_em == null || request.resource.data.lgpd_consentimento_em is timestamp)
+        && (request.resource.data.ordem_criacao == null || request.resource.data.ordem_criacao is int)
+        && (request.resource.data.ordem_criacao_em == null || request.resource.data.ordem_criacao_em is timestamp)
         && (request.resource.data.last_changelog_seen == null || request.resource.data.last_changelog_seen is string)
         && (request.resource.data.show_changelog_auto == null || request.resource.data.show_changelog_auto is bool);
     }
@@ -601,10 +564,64 @@ service cloud.firestore {
 
     // Usuarios (dados de login e tipo)
     match /usuarios/{userId} {
-      allow create: if donoPodeCriarUsuario(userId);
-      allow read: if eDono(userId) || eAdmin();
+      allow create: if donoPodeCriarUsuario(userId) || permitirCriacaoAdminDuranteSignup(userId);
+      allow read: if eAdmin()
+        || eDono(userId)
+        || (estaLogado() && resource.data.id == request.auth.uid);
       allow update: if donoPodeAtualizarUsuario(userId) || eAdmin();
       allow delete: if eAdmin();
+
+      // Perfil complementar (cliente) dentro da mesma coleção principal.
+      match /perfil/{perfilId} {
+        allow read: if perfilId == 'cliente'
+          && (
+            eAdmin()
+            || eDono(userId)
+            || (estaLogado() && resource.data.uid == request.auth.uid)
+          );
+        allow create, update: if perfilId == 'cliente'
+          && (eAdmin() || (estaLogado() && request.resource.data.uid == request.auth.uid))
+          && request.resource.data.keys().hasOnly([
+            'uid',
+            'cliente_nome',
+            'nome',
+            'nome_preferido',
+            'ddi',
+            'whatsapp',
+            'telefone_principal',
+            'nome_contato_secundario',
+            'telefone_secundario',
+            'nome_indicacao',
+            'telefone_indicacao',
+            'categoria_origem',
+            'presenca_agenda',
+            'frequencia_historica_agenda',
+            'ultima_data_agendada',
+            'ultimo_horario_agendado',
+            'ultimo_dia_semana_agendado',
+            'sugestao_cliente_fixo',
+            'agenda_fixa_semana',
+            'agenda_historico',
+            'cpf',
+            'cep',
+            'data_nascimento',
+            'saldo_sessoes',
+            'favoritos',
+            'endereco',
+            'historico_medico',
+            'alergias',
+            'medicamentos',
+            'cirurgias',
+            'anamnese_ok',
+          ])
+          && request.resource.data.uid == request.auth.uid;
+        allow delete: if perfilId == 'cliente'
+          && (
+            eAdmin()
+            || (estaLogado() && resource.data.uid == request.auth.uid)
+            || eDono(userId)
+          );
+      }
     }
 
     match /usuarios_por_email/{emailId} {
@@ -679,6 +696,32 @@ service cloud.firestore {
 
     match /configuracoes/seguranca {
       allow read, write: if eAdmin();
+    }
+
+    match /configuracoes/log_clientes {
+      allow read: if estaLogado();
+      allow create: if estaLogado()
+        && request.resource.data.keys().hasOnly([
+          'sequencial_clientes',
+          'ultimo_horario_cadastro',
+          'atualizado_em',
+        ])
+        && request.resource.data.sequencial_clientes is int
+        && request.resource.data.sequencial_clientes >= 1
+        && request.resource.data.ultimo_horario_cadastro is timestamp
+        && request.resource.data.atualizado_em is timestamp;
+      allow update: if estaLogado()
+        && request.resource.data.keys().hasOnly([
+          'sequencial_clientes',
+          'ultimo_horario_cadastro',
+          'atualizado_em',
+        ])
+        && request.resource.data.sequencial_clientes is int
+        && request.resource.data.sequencial_clientes == resource.data.sequencial_clientes + 1
+        && request.resource.data.ultimo_horario_cadastro is timestamp
+        && request.resource.data.ultimo_horario_cadastro >= resource.data.ultimo_horario_cadastro
+        && request.resource.data.atualizado_em is timestamp;
+      allow delete: if false;
     }
 
     match /configuracoes/{docId} {

@@ -24,19 +24,14 @@ móvel e web em Flutter que permita:
 - Banco de dados NoSQL usando Firebase Firestore e autenticação via Firebase
   Authentication.
 
-## Estrutura inicial
+## Estrutura do projeto
 
-O projeto foi criado com `flutter create` e já possui um arquivo de exemplo
-`main.dart` que mostra um contador. A partir daqui você deve construir as
-funcionalidades listadas acima.
+Pasta `lib/` (estado atual):
 
-Pasta `lib/`:
-
-- `models/` – classes Dart que representam clientes, agendamentos, pacotes,
-  produtos etc.
-- `view/` e `widgets/` – telas e componentes reutilizáveis.
-- `controller/` – lógica de conexão com Firebase e regras de negócio.
-- `app_localizations.dart` – arquivo centralizado de traduções.
+- `features/` – modulos de negocio por dominio (auth, agenda, financeiro etc.).
+- `core/` – servicos, utilitarios, configuracoes e infraestrutura compartilhada.
+- `view/` – telas administrativas e ferramentas de apoio.
+- `app_localizations.dart` e `core/utils/app_strings.dart` – localizacao e chaves de texto.
 
 ## Como começar
 
@@ -71,8 +66,9 @@ Pasta `lib/`:
 
 4. **Implemente o MVP** (versão mínima viável):
    - Crie telas de login/cadastro com Firebase Auth.
-   - Modele as coleções Firestore conforme o caderno (clientes,
-     agendamentos, pacotes, produtos, templates_agenda, configurações).
+   - Modele as coleções Firestore conforme a arquitetura atual:
+     `usuarios/{email_normalizado}` + `usuarios/{email_normalizado}/perfil/cliente`,
+     `usuarios_por_email`, `agendamentos`, `transacoes`, `estoque`, `configuracoes`.
    - Adicione internacionalização usando o arquivo de traduções.
    - Desenvolva a interface de agenda com `table_calendar` ou similar.
 
