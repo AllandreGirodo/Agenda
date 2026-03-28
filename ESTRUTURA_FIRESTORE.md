@@ -6,7 +6,6 @@
 graph TD
   A[Firebase Firestore] --> C[usuarios]
   A --> C0[usuarios/{email}/perfil/cliente]
-  A --> C1[usuarios_por_email]
     A --> D[agendamentos]
     A --> E[transacoes]
     A --> F[cupons]
@@ -98,13 +97,13 @@ Por isso o perfil do cliente em `usuarios/{email_normalizado}/perfil/cliente` co
 
   // Recorrência semanal consolidada
   agenda_fixa_semana: {
-    domingo: boolean,
-    segunda_feira: boolean,
-    terca_feira: boolean,
-    quarta_feira: boolean,
-    quinta_feira: boolean,
-    sexta_feira: boolean,
-    sabado: boolean
+    "1_domingo": boolean,
+    "2_segunda": boolean,
+    "3_terca": boolean,
+    "4_quarta": boolean,
+    "5_quinta": boolean,
+    "6_sexta": boolean,
+    "7_sabado": boolean
   },
 
   // Horários históricos esparsos que não valem um subdocumento próprio
@@ -180,24 +179,15 @@ Observações importantes de modelagem (estado atual):
 ---
 
 ### 2.1 `usuarios_por_email` Collection
-**Documento ID:** `{email_normalizado}`
+**Status:** Descontinuada para escrita/leitura de negócio.
 
-```javascript
-{
-  uid: string,                    // UID do Firebase Auth
-  email: string,
-  email_normalizado: string,
-  nome_cliente: string,
-  nome_cliente_normalizado: string,
-  tipo: string,                   // 'admin' | 'cliente'
-  aprovado: boolean,
-  atualizado_em: Timestamp
-}
-```
+Uso histórico:
+- Foi usada como índice auxiliar por e-mail.
 
-Uso principal:
-- Índice para resolução rápida de usuário por e-mail.
-- Base para função de autorização administrativa (`eAdmin`) nas regras.
+Estado atual:
+- A fonte única é `usuarios/{email_normalizado}`.
+- O sistema não deve mais depender de `usuarios_por_email` para autenticação,
+  autorização ou resolução de perfil.
 
 ---
 
@@ -455,9 +445,6 @@ Resumo das regras vigentes (Março/2026):
   - read/update: dono ou admin
   - delete: admin
   - subcoleção `perfil/cliente`: leitura/escrita por dono ou admin (campos validados)
-- `usuarios_por_email/{emailId}`
-  - create/update: admin ou próprio dono do uid com payload validado
-  - read: admin ou dono
 - `clientes/{clienteId}`
   - create/update: dono (`uid`) com validações de campos ou admin
   - read: dono ou admin

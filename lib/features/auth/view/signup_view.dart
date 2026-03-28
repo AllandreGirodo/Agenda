@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 import 'package:agenda/features/auth/controller/login_controller.dart';
 import 'package:agenda/app_localizations.dart';
 import 'package:agenda/core/widgets/language_selector.dart';
@@ -10,6 +12,7 @@ import 'package:agenda/core/utils/app_strings.dart';
 import 'package:agenda/core/utils/validadores.dart';
 import 'package:agenda/core/utils/international_phone_input_formatter.dart';
 import 'package:agenda/main.dart';
+import 'package:agenda/features/auth/view/login_view.dart';
 import 'package:agenda/view/termos_uso_view.dart';
 
 class SignUpView extends StatefulWidget {
@@ -47,6 +50,7 @@ class _SignUpViewState extends State<SignUpView>
   final _nomeController = TextEditingController();
   final _emailController = TextEditingController();
   final _senhaController = TextEditingController();
+  final _dataNascimentoController = TextEditingController();
   final _whatsappController = TextEditingController();
   final _whatsappFocusNode = FocusNode();
   final _senhaFocusNode = FocusNode();
@@ -81,6 +85,7 @@ class _SignUpViewState extends State<SignUpView>
   bool _ultimoEmailValido = false;
   bool _ultimoTelefoneValido = false;
   bool _ultimoLgpdConsentido = false;
+  DateTime? _dataNascimentoSelecionada;
   late final AnimationController _animacaoConclusaoController;
   late final Animation<double> _fadeNome;
   late final Animation<double> _fadeEmail;
@@ -157,6 +162,7 @@ class _SignUpViewState extends State<SignUpView>
     _nomeController.addListener(_refreshFormState);
     _emailController.addListener(_refreshFormState);
     _senhaController.addListener(_refreshFormState);
+    _dataNascimentoController.addListener(_refreshFormState);
     _whatsappController.addListener(_refreshFormState);
     _whatsappFocusNode.addListener(_refreshFormState);
     _senhaFocusNode.addListener(_refreshFormState);
@@ -186,6 +192,7 @@ class _SignUpViewState extends State<SignUpView>
     _nomeController.dispose();
     _emailController.dispose();
     _senhaController.dispose();
+    _dataNascimentoController.dispose();
     _whatsappController.dispose();
     _whatsappFocusNode.dispose();
     _senhaFocusNode.dispose();
@@ -206,7 +213,6 @@ class _SignUpViewState extends State<SignUpView>
     final senha = _senhaController.text;
     final ehFluxoGoogle = widget.modoCompletarCadastroGoogle;
     final emailSomenteLeitura = widget.emailSomenteLeitura || ehFluxoGoogle;
-    final vinculoIdCliente = (_vinculoIdCliente ?? '').trim();
     final nomeValido = nome.isNotEmpty;
     final emailValido = email.isNotEmpty && Validadores.isEmailValido(email);
     final numeroLabel = _isWhatsappNumber
@@ -228,11 +234,23 @@ class _SignUpViewState extends State<SignUpView>
         senhaTemNumero &&
         senhaTemEspecial;
     final telefoneValido = !_phoneHasInvalidInput && phoneDigits >= 10;
+    final dataNascimentoObrigatoria =
+        !ehFluxoGoogle || _camposObrigatoriosPendentes.contains('data_nascimento');
+    final erroDataNascimento = _validarDataNascimento(
+      obrigatoria: dataNascimentoObrigatoria,
+    );
+    final dataNascimentoValida = erroDataNascimento == null;
+    final exibirErroDataNascimentoAbaixo = erroDataNascimento != null && (
+      !ehFluxoGoogle
+      || _camposObrigatoriosPendentes.contains('data_nascimento')
+      || _dataNascimentoController.text.trim().isNotEmpty
+    );
     final senhaAtendeRegra = ehFluxoGoogle ? true : senhaValida;
     final podeCadastrar =
       nomeValido &&
       emailValido &&
       telefoneValido &&
+      dataNascimentoValida &&
       _lgpdConsentido &&
       senhaAtendeRegra;
     final mensagemStatusCadastro = nome.isEmpty
@@ -243,6 +261,8 @@ class _SignUpViewState extends State<SignUpView>
       ? localizations.signupPhoneOnlyDigitsMessage
       : phoneDigits < 10
       ? localizations.signupPhoneMinDigitsSubmitMessage(numeroLabel)
+      : !dataNascimentoValida
+      ? erroDataNascimento
       : (!ehFluxoGoogle && !senhaValida)
       ? localizations.signupPasswordWeakMessage
       : !_lgpdConsentido
@@ -288,16 +308,17 @@ class _SignUpViewState extends State<SignUpView>
         actions: const [LanguageSelector()],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
-            const Icon(Icons.person_add, size: 30, color: Colors.teal),
-            const SizedBox(height: 20),
+            const Icon(Icons.person_add, size: 20, color: Colors.teal),
+            const SizedBox(height: 12),
             TextField(
               controller: _nomeController,
               maxLength: 70,
               inputFormatters: [LengthLimitingTextInputFormatter(70)],
-              decoration: InputDecoration(
+              decoration: _compactInputDecoration(
+                InputDecoration(
                 labelText: localizations.fullNameLabel,
                 border: const OutlineInputBorder(),
                 prefixIcon: Icon(
@@ -307,6 +328,7 @@ class _SignUpViewState extends State<SignUpView>
                       : Colors.grey.shade400,
                 ),
                 counterText: '',
+                ),
               ),
             ),
             _buildInformeValido(
@@ -322,7 +344,8 @@ class _SignUpViewState extends State<SignUpView>
               controller: _emailController,
               maxLength: 50,
               inputFormatters: [LengthLimitingTextInputFormatter(50)],
-              decoration: InputDecoration(
+              decoration: _compactInputDecoration(
+                InputDecoration(
                 labelText: localizations.emailLabel,
                 border: const OutlineInputBorder(),
                 prefixIcon: Icon(
@@ -332,6 +355,7 @@ class _SignUpViewState extends State<SignUpView>
                       : Colors.grey.shade400,
                 ),
                 counterText: '',
+                ),
               ),
               readOnly: emailSomenteLeitura,
               keyboardType: TextInputType.emailAddress,
@@ -370,28 +394,6 @@ class _SignUpViewState extends State<SignUpView>
                   ),
                 ),
               ),
-            if (vinculoIdCliente.isNotEmpty)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(top: 10),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.teal.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.teal.shade200),
-                ),
-                child: Text(
-                  localizations.signupLinkedClientId(vinculoIdCliente),
-                  style: TextStyle(
-                    color: Colors.teal.shade900,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
             if (ehFluxoGoogle && _camposObrigatoriosPendentes.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8, left: 4),
@@ -413,7 +415,8 @@ class _SignUpViewState extends State<SignUpView>
             TextField(
               controller: _whatsappController,
               focusNode: _whatsappFocusNode,
-              decoration: InputDecoration(
+              decoration: _compactInputDecoration(
+                InputDecoration(
                 labelText: numeroLabel,
                 hintText: placeholderTelefone,
                 border: const OutlineInputBorder(),
@@ -443,6 +446,7 @@ class _SignUpViewState extends State<SignUpView>
                       ),
                     ],
                   ),
+                ),
                 ),
               ),
               keyboardType: TextInputType.phone,
@@ -515,11 +519,15 @@ class _SignUpViewState extends State<SignUpView>
             CheckboxListTile(
               value: _isWhatsappNumber,
               contentPadding: EdgeInsets.zero,
+              dense: true,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: const VisualDensity(horizontal: -2, vertical: -2),
               controlAffinity: ListTileControlAffinity.leading,
               title: Text(
                 _isWhatsappNumber
                     ? localizations.isWhatsappNumber
                     : localizations.isNotWhatsappNumber,
+                style: const TextStyle(fontSize: 12, height: 1.1),
               ),
               onChanged: (value) {
                 setState(() {
@@ -527,6 +535,46 @@ class _SignUpViewState extends State<SignUpView>
                 });
               },
             ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _dataNascimentoController,
+              keyboardType: TextInputType.datetime,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9/]')),
+                LengthLimitingTextInputFormatter(10),
+                _DataNascimentoInputFormatter(),
+              ],
+              decoration: _compactInputDecoration(
+                InputDecoration(
+                labelText: AppStrings.birthDateLabel,
+                hintText: AppStrings.signupDataNascimentoHint,
+                border: const OutlineInputBorder(),
+                prefixIcon: Icon(
+                  dataNascimentoValida
+                      ? Icons.cake_outlined
+                      : Icons.calendar_month_outlined,
+                  color: dataNascimentoValida
+                      ? Colors.green.shade600
+                      : Colors.grey.shade400,
+                ),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.date_range_outlined),
+                  onPressed: _selecionarDataNascimento,
+                ),
+                ),
+              ),
+            ),
+            if (exibirErroDataNascimentoAbaixo)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    erroDataNascimento,
+                    style: TextStyle(color: Colors.red.shade700, fontSize: 9),
+                  ),
+                ),
+              ),
             if (!ehFluxoGoogle) ...[
               const SizedBox(height: 16),
               TextField(
@@ -534,7 +582,8 @@ class _SignUpViewState extends State<SignUpView>
                 focusNode: _senhaFocusNode,
                 maxLength: 20,
                 inputFormatters: [LengthLimitingTextInputFormatter(20)],
-                decoration: InputDecoration(
+                decoration: _compactInputDecoration(
+                  InputDecoration(
                   labelText: localizations.passwordLabel,
                   border: const OutlineInputBorder(),
                   prefixIcon: Icon(
@@ -553,6 +602,7 @@ class _SignUpViewState extends State<SignUpView>
                         _senhaVisivel = !_senhaVisivel;
                       });
                     },
+                  ),
                   ),
                 ),
                 obscureText: !_senhaVisivel,
@@ -594,14 +644,14 @@ class _SignUpViewState extends State<SignUpView>
                                           size: 16,
                                           color: Colors.green.shade700,
                                         ),
-                                        const SizedBox(width: 8),
+                                        const SizedBox(width: 7),
                                         Flexible(
                                           child: Text(
                                             AppStrings.signupSenhaValida,
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
                                               color: Colors.green.shade700,
-                                              fontSize: 12,
+                                              fontSize: 9,
                                               fontWeight: FontWeight.w600,
                                             ),
                                           ),
@@ -622,7 +672,7 @@ class _SignUpViewState extends State<SignUpView>
                                         style: TextStyle(
                                           color: theme.colorScheme.onSurface
                                               .withValues(alpha: 0.75),
-                                          fontSize: 12,
+                                          fontSize: 9,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -659,7 +709,7 @@ class _SignUpViewState extends State<SignUpView>
                       : const SizedBox.shrink(),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 9),
             ],
             Align(
               alignment: Alignment.centerLeft,
@@ -704,17 +754,17 @@ class _SignUpViewState extends State<SignUpView>
               mostrandoAgora: _mostrarInformeLgpd,
               opacidadeVisivel: _opacidadeInformeLgpd,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             // Seletor de idioma no final
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.language, size: 18, color: Colors.teal),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Text(
                   AppStrings.labelIdioma,
                   style: const TextStyle(
-                    fontSize: 12,
+                    fontSize: 9,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -724,28 +774,28 @@ class _SignUpViewState extends State<SignUpView>
                   locale: const Locale('pt', 'BR'),
                   small: true,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 _LanguageFlagButton(
                   flag: '🇺🇸',
                   label: 'EN',
                   locale: const Locale('en', 'US'),
                   small: true,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 _LanguageFlagButton(
                   flag: '🇪🇸',
                   label: 'ES',
                   locale: const Locale('es', 'ES'),
                   small: true,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 _LanguageFlagButton(
                   flag: '🇫🇷',
                   label: 'FR',
                   locale: const Locale('fr', 'FR'),
                   small: true,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 _LanguageFlagButton(
                   flag: '🇯🇵',
                   label: 'JP',
@@ -754,7 +804,7 @@ class _SignUpViewState extends State<SignUpView>
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 9),
             Align(
               alignment: Alignment.center,
               child: AnimatedOpacity(
@@ -774,7 +824,7 @@ class _SignUpViewState extends State<SignUpView>
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             FadeTransition(
               opacity: podeCadastrar
                   ? _fadeResumoCadastro
@@ -788,16 +838,16 @@ class _SignUpViewState extends State<SignUpView>
                     color: podeCadastrar
                         ? Colors.green.shade700
                         : Colors.red.shade700,
-                    fontSize: 12,
+                    fontSize: 9,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 7),
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 46,
               child: ElevatedButton(
                 onPressed: podeCadastrar
                     ? () async {
@@ -862,6 +912,9 @@ class _SignUpViewState extends State<SignUpView>
                         if (!ehFluxoGoogle && !senhaValida) {
                           motivos.add('senha_fraca');
                         }
+                        if (!dataNascimentoValida) {
+                          motivos.add('data_nascimento_invalida');
+                        }
                         if (!_lgpdConsentido) {
                           motivos.add('lgpd_nao_consentido');
                         }
@@ -902,6 +955,8 @@ class _SignUpViewState extends State<SignUpView>
                               ? localizations.signupPhoneMinDigitsSubmitMessage(
                                   numeroLabel,
                                 )
+                              : !dataNascimentoValida
+                              ? erroDataNascimento
                               : (!ehFluxoGoogle && !senhaValida)
                               ? localizations.signupPasswordWeakMessage
                               : localizations.signupLgpdConsentError;
@@ -913,15 +968,27 @@ class _SignUpViewState extends State<SignUpView>
                         }
 
                         if (ehFluxoGoogle) {
+                          final dataNascimentoEfetiva =
+                              _dataNascimentoSelecionada ??
+                              _parseDataNascimento(
+                                _dataNascimentoController.text.trim(),
+                              );
                           await _controller.completarCadastroGoogleCliente(
                             context,
                             nome,
                             telefoneLocal,
                             _isWhatsappNumber,
+                            dataNascimentoEfetiva,
                             currentLocale.languageCode,
                           );
                           return;
                         }
+
+                        final dataNascimentoEfetiva =
+                            _dataNascimentoSelecionada ??
+                            _parseDataNascimento(
+                              _dataNascimentoController.text.trim(),
+                            );
 
                         await _controller.cadastrar(
                           context,
@@ -931,6 +998,7 @@ class _SignUpViewState extends State<SignUpView>
                           telefoneLocal,
                           _isWhatsappNumber,
                           _lgpdConsentido,
+                          dataNascimentoEfetiva,
                           currentLocale.languageCode,
                         );
                       }
@@ -948,6 +1016,20 @@ class _SignUpViewState extends State<SignUpView>
                 ),
               ),
             ),
+            if (ehFluxoGoogle) ...[
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (!mounted) return;
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const LoginView()),
+                  );
+                },
+                icon: const Icon(Icons.arrow_back),
+                label: Text(localizations.backToLoginButton),
+              ),
+            ],
 
           ],
         ),
@@ -972,7 +1054,7 @@ class _SignUpViewState extends State<SignUpView>
         child: Text(
           texto,
           textAlign: TextAlign.left,
-          style: TextStyle(color: Colors.green.shade700, fontSize: 12),
+          style: TextStyle(color: Colors.green.shade700, fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -1009,6 +1091,66 @@ class _SignUpViewState extends State<SignUpView>
       ddi: _ddiPadrao,
       maxLocalDigits: _maxPhoneDigits,
     ).length;
+  }
+
+  InputDecoration _compactInputDecoration(InputDecoration decoration) {
+    return decoration.copyWith(
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    );
+  }
+
+  String? _validarDataNascimento({required bool obrigatoria}) {
+    final texto = _dataNascimentoController.text.trim();
+    if (texto.isEmpty) {
+      return obrigatoria ? AppStrings.dataNascimentoObrigatoria : null;
+    }
+
+    final data = _parseDataNascimento(texto);
+    if (data == null) {
+      return AppStrings.dataNascimentoFormatoInvalido;
+    }
+
+    final hoje = DateTime.now();
+    final hojeSemHorario = DateTime(hoje.year, hoje.month, hoje.day);
+    final dataSemHorario = DateTime(data.year, data.month, data.day);
+    if (dataSemHorario.isAfter(hojeSemHorario)) {
+      return AppStrings.dataNascimentoFuturaInvalida;
+    }
+
+    return Validadores.validarIdade(dataSemHorario);
+  }
+
+  DateTime? _parseDataNascimento(String texto) {
+    try {
+      return DateFormat('dd/MM/yyyy').parseStrict(texto);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _selecionarDataNascimento() async {
+    final hoje = DateTime.now();
+    final dataInicial = _dataNascimentoSelecionada ?? DateTime(2000, 1, 1);
+    final dataSelecionada = await showDatePicker(
+      context: context,
+      initialDate: dataInicial,
+      firstDate: DateTime(1900),
+      lastDate: hoje,
+    );
+
+    if (dataSelecionada == null || !mounted) return;
+
+    setState(() {
+      _dataNascimentoSelecionada = DateTime(
+        dataSelecionada.year,
+        dataSelecionada.month,
+        dataSelecionada.day,
+      );
+      _dataNascimentoController.text = DateFormat(
+        'dd/MM/yyyy',
+      ).format(_dataNascimentoSelecionada!);
+    });
   }
 
   Future<bool> _abrirTermosEPrivacidade() async {
@@ -1202,6 +1344,30 @@ class _SignUpViewState extends State<SignUpView>
         });
       });
     });
+  }
+}
+
+class _DataNascimentoInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digitsOnly = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final buffer = StringBuffer();
+
+    for (var i = 0; i < digitsOnly.length && i < 8; i++) {
+      if (i == 2 || i == 4) {
+        buffer.write('/');
+      }
+      buffer.write(digitsOnly[i]);
+    }
+
+    final masked = buffer.toString();
+    return TextEditingValue(
+      text: masked,
+      selection: TextSelection.collapsed(offset: masked.length),
+    );
   }
 }
 

@@ -524,7 +524,10 @@ class _LoginViewState extends State<LoginView> {
                     contentPadding: EdgeInsets.zero,
                     controlAffinity: ListTileControlAffinity.leading,
                     value: _lembrarCredenciais,
-                    title: Text(AppStrings.lembrarMinhasCredenciais),
+                    title: Text(
+                      AppStrings.lembrarMinhasCredenciais,
+                      style: const TextStyle(fontSize: 12),
+                    ),
                     onChanged: _onAlterarLembrarCredenciais,
                   ),
                   const SizedBox(height: 24),

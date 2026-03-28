@@ -38,7 +38,7 @@ class AdminAgendamentosView extends StatefulWidget {
 class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
   final FirestoreService _firestoreService = FirestoreService();
   final AppGovernanceService _appGovernanceService = AppGovernanceService();
-  static const double _fonteResumoCliente = 8.0;
+  static const double _fonteResumoCliente = 10.0;
   DateTime _dataDashboard = DateTime.now();
   double _precoSessao = 100.00;
   final TextEditingController _searchController = TextEditingController();
@@ -360,6 +360,136 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
     }
   }
 
+  Future<void> _abrirConfiguracaoContatoAprovacao() async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    final nomeController = TextEditingController();
+    final whatsappController = TextEditingController();
+    final mensagemController = TextEditingController();
+
+    try {
+      final config = await _firestoreService.getContatoAprovacaoConfig();
+      nomeController.text = config.nomeAdministradoraExibicao;
+      whatsappController.text = config.whatsappRedirecionamento;
+      mensagemController.text = config.mensagemTemplate;
+
+      if (!mounted) return;
+
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: Text(AppStrings.configContatoAprovacaoTitulo),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppStrings.configContatoAprovacaoDescricao,
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nomeController,
+                  decoration: InputDecoration(
+                    labelText: AppStrings.configContatoAprovacaoNomeAdminLabel,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: whatsappController,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    labelText:
+                        AppStrings.configContatoAprovacaoWhatsappLabel,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: mensagemController,
+                  minLines: 6,
+                  maxLines: 12,
+                  decoration: InputDecoration(
+                    labelText:
+                        AppStrings.configContatoAprovacaoMensagemLabel,
+                    hintText: AppStrings.configContatoAprovacaoMensagemHint,
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  AppStrings.configContatoAprovacaoPlaceholdersHint,
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(AppStrings.cancelarButton),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final nome = nomeController.text.trim();
+                final whatsapp = whatsappController.text.trim();
+                final mensagem = mensagemController.text.trim();
+
+                if (nome.isEmpty || whatsapp.isEmpty || mensagem.isEmpty) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text(AppStrings.requiredField)),
+                  );
+                  return;
+                }
+
+                try {
+                  await _firestoreService.salvarContatoAprovacaoConfig(
+                    nomeAdministradoraExibicao: nome,
+                    whatsappRedirecionamento: whatsapp,
+                    mensagemTemplate: mensagem,
+                  );
+                  if (!mounted) return;
+
+                  Navigator.of(dialogContext).pop();
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        AppStrings.configContatoAprovacaoSalvaSucesso,
+                      ),
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        AppStrings.erroSalvarConfigContatoAprovacao('$e'),
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: Text(AppStrings.salvar),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(AppStrings.erroCarregarConfigContatoAprovacao('$e')),
+        ),
+      );
+    } finally {
+      nomeController.dispose();
+      whatsappController.dispose();
+      mensagemController.dispose();
+    }
+  }
+
   Future<void> _executarGovernancaPosLogin() async {
     if (_governancaVersionadaVerificada || !mounted) return;
     _governancaVersionadaVerificada = true;
@@ -436,6 +566,16 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
                         onTap: () {
                           Navigator.pop(context);
                           _abrirSwaggerYaml();
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.settings_phone_outlined),
+                        title: Text(
+                          AppStrings.configContatoAprovacaoAvancadaMenu,
+                        ),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _abrirConfiguracaoContatoAprovacao();
                         },
                       ),
                     ],
@@ -1264,79 +1404,106 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
                 itemCount: clientes.length,
                 itemBuilder: (context, index) {
                   final cliente = clientes[index];
+                  final nomeExibicao = cliente.nomeExibicao.isNotEmpty
+                      ? cliente.nomeExibicao
+                      : cliente.nome;
+
                   return Card(
                     margin: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 8,
                     ),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.teal,
-                        child: Text(
-                          cliente.nomeExibicao.isNotEmpty
-                              ? cliente.nomeExibicao[0].toUpperCase()
-                              : '?',
-                        ),
-                      ),
-                      title: Text(
-                        cliente.nomeExibicao.isNotEmpty
-                            ? cliente.nomeExibicao
-                            : cliente.nome,
-                        style: (() {
-                          final estiloBase =
-                              Theme.of(context).textTheme.titleMedium;
-                          final tamanhoBase = estiloBase?.fontSize ?? 16;
-                          final tamanhoAjustado =
-                              (tamanhoBase - 2).clamp(8.0, 40.0).toDouble();
-                          return (estiloBase ?? const TextStyle()).copyWith(
-                            fontSize: tamanhoAjustado,
-                            fontWeight: FontWeight.bold,
-                          );
-                        })(),
-                      ),
-                      subtitle: _buildResumoClienteDetalhado(cliente),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          StreamBuilder<UsuarioModel?>(
-                            stream: _firestoreService.getUsuarioStream(
-                              cliente.uid,
-                            ),
-                            builder: (context, snapshot) {
-                              final usuario = snapshot.data;
-                              final podeVerTudo =
-                                  usuario?.visualizaTodos ?? false;
-                              return IconButton(
-                                icon: Icon(
-                                  podeVerTudo
-                                      ? Icons.visibility
-                                      : Icons.visibility_off,
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              CircleAvatar(
+                                backgroundColor: Colors.teal,
+                                child: Text(
+                                  nomeExibicao.isNotEmpty
+                                      ? nomeExibicao[0].toUpperCase()
+                                      : '?',
                                 ),
-                                color: podeVerTudo ? Colors.blue : Colors.grey,
-                                tooltip: AppStrings.permitirVerTodosHorarios,
-                                onPressed: () => _firestoreService
-                                    .atualizarPermissaoVisualizacao(
-                                      cliente.uid,
-                                      !podeVerTudo,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  nomeExibicao,
+                                  style: (() {
+                                    final estiloBase =
+                                        Theme.of(context).textTheme.titleMedium;
+                                    final tamanhoBase = estiloBase?.fontSize ?? 16;
+                                    final tamanhoAjustado =
+                                        (tamanhoBase - 1).clamp(12.0, 40.0).toDouble();
+                                    return (estiloBase ?? const TextStyle()).copyWith(
+                                      fontSize: tamanhoAjustado,
+                                      fontWeight: FontWeight.bold,
+                                    );
+                                  })(),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          _buildResumoClienteDetalhado(cliente),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: [
+                              StreamBuilder<UsuarioModel?>(
+                                stream: _firestoreService.getUsuarioStream(
+                                  cliente.uid,
+                                ),
+                                builder: (context, snapshot) {
+                                  final usuario = snapshot.data;
+                                  final podeVerTudo =
+                                      usuario?.visualizaTodos ?? false;
+
+                                  return Tooltip(
+                                    message: AppStrings.permitirVerTodosHorarios,
+                                    child: IconButton(
+                                      icon: Icon(
+                                        podeVerTudo
+                                            ? Icons.visibility
+                                            : Icons.visibility_off,
+                                      ),
+                                      color: podeVerTudo
+                                          ? Colors.blue
+                                          : Colors.grey,
+                                      onPressed: () => _firestoreService
+                                          .atualizarPermissaoVisualizacao(
+                                            cliente.uid,
+                                            !podeVerTudo,
+                                          ),
                                     ),
-                              );
-                            },
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.palette,
-                              color: Colors.purple,
-                            ),
-                            tooltip: AppStrings.alterarTemaUsuario,
-                            onPressed: () => _alterarTemaUsuarioDialog(cliente),
-                          ),
-                          ElevatedButton.icon(
-                            icon: const Icon(Icons.add_circle, size: 16),
-                            label: Text(AppStrings.alterarPacotes),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.teal.shade50,
-                            ),
-                            onPressed: () => _adicionarPacoteDialog(cliente),
+                                  );
+                                },
+                              ),
+                              Tooltip(
+                                message: AppStrings.alterarTemaUsuario,
+                                child: IconButton(
+                                  icon: const Icon(
+                                    Icons.palette,
+                                    color: Colors.purple,
+                                  ),
+                                  onPressed: () => _alterarTemaUsuarioDialog(cliente),
+                                ),
+                              ),
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.add_circle, size: 16),
+                                label: Text(AppStrings.alterarPacotes),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.teal.shade50,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                                onPressed: () => _adicionarPacoteDialog(cliente),
+                              ),
+                            ],
                           ),
                         ],
                       ),

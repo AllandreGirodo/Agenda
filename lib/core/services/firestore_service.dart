@@ -49,6 +49,18 @@ class VinculoClienteCadastroStatus {
   bool get possuiVinculo => vinculoIdCliente.trim().isNotEmpty;
 }
 
+class ContatoAprovacaoConfig {
+  final String nomeAdministradoraExibicao;
+  final String whatsappRedirecionamento;
+  final String mensagemTemplate;
+
+  const ContatoAprovacaoConfig({
+    required this.nomeAdministradoraExibicao,
+    required this.whatsappRedirecionamento,
+    required this.mensagemTemplate,
+  });
+}
+
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
@@ -56,24 +68,33 @@ class FirestoreService {
   static const String _tenantPadraoNomeExibicao = 'Administradora padrão';
   static const int _limiteSolicitacoesListaEsperaPorCliente = 5;
   static const List<String> _diasSemanaAgenda = [
-    'domingo',
-    'segunda_feira',
-    'terca_feira',
-    'quarta_feira',
-    'quinta_feira',
-    'sexta_feira',
-    'sabado',
+    '1_domingo',
+    '2_segunda',
+    '3_terca',
+    '4_quarta',
+    '5_quinta',
+    '6_sexta',
+    '7_sabado',
   ];
+  static const Map<String, String> _diaSemanaLegadoParaOrdenado = {
+    'domingo': '1_domingo',
+    'segunda_feira': '2_segunda',
+    'terca_feira': '3_terca',
+    'quarta_feira': '4_quarta',
+    'quinta_feira': '5_quinta',
+    'sexta_feira': '6_sexta',
+    'sabado': '7_sabado',
+  };
 
   Map<String, bool> _agendaFixaSemanaPadrao() {
     return {
-      'domingo': false,
-      'segunda_feira': false,
-      'terca_feira': false,
-      'quarta_feira': false,
-      'quinta_feira': false,
-      'sexta_feira': false,
-      'sabado': false,
+      '1_domingo': false,
+      '2_segunda': false,
+      '3_terca': false,
+      '4_quarta': false,
+      '5_quinta': false,
+      '6_sexta': false,
+      '7_sabado': false,
     };
   }
 
@@ -140,6 +161,54 @@ class FirestoreService {
 
   String _normalizarTelefone(String telefone) {
     return telefone.replaceAll(RegExp(r'[^0-9]'), '');
+  }
+
+  String _formatarTelefoneComMascara(String telefone) {
+    final digitos = _normalizarTelefone(telefone);
+    if (digitos.length >= 11) {
+      final numero = digitos.substring(digitos.length - 11);
+      return '(${numero.substring(0, 2)}) ${numero.substring(2, 7)}-${numero.substring(7, 11)}';
+    }
+    if (digitos.length == 10) {
+      return '(${digitos.substring(0, 2)}) ${digitos.substring(2, 6)}-${digitos.substring(6, 10)}';
+    }
+    return telefone.trim();
+  }
+
+  String _normalizarDiaSemanaOrdenado(String valor) {
+    final texto = valor.trim();
+    if (texto.isEmpty) return '';
+
+    if (_diasSemanaAgenda.contains(texto)) {
+      return texto;
+    }
+
+    final textoNormalizado = texto.toLowerCase();
+    return _diaSemanaLegadoParaOrdenado[textoNormalizado] ?? texto;
+  }
+
+  Map<String, bool> _normalizarAgendaFixaSemana(Map<String, dynamic> agendaRaw) {
+    final padrao = _agendaFixaSemanaPadrao();
+    final normalizado = Map<String, bool>.from(padrao);
+
+    for (final entry in agendaRaw.entries) {
+      final chaveOriginal = entry.key.toString().trim();
+      final chave = _normalizarDiaSemanaOrdenado(chaveOriginal);
+      if (!normalizado.containsKey(chave)) continue;
+      normalizado[chave] = _valorImportacaoParaBool(entry.value);
+    }
+
+    return normalizado;
+  }
+
+  String _mensagemContatoAprovacaoTemplatePadrao() {
+    return 'Olá {admin_nome}, tudo bem?\n\n'
+        'Acabei de concluir meu cadastro e aguardo aprovação.\n\n'
+        'Nome Completo: {cliente_nome}\n'
+        'Telefone: {cliente_telefone_com_mascara}\n'
+        'Email: {cliente_email}\n'
+        'Data e Hora: {data_hora}\n\n'
+        'Poderia confirmar para mim?';
   }
 
   String _normalizarEmail(String email) {
@@ -371,33 +440,33 @@ class FirestoreService {
       case 'outro horario 5':
         return 'agenda_historico.outro_horario_5';
       case 'domingo fixo':
-        return 'agenda_fixa_semana.domingo';
+        return 'agenda_fixa_semana.1_domingo';
       case 'segunda feira fixo':
-        return 'agenda_fixa_semana.segunda_feira';
+        return 'agenda_fixa_semana.2_segunda';
       case 'terca feira fixo':
-        return 'agenda_fixa_semana.terca_feira';
+        return 'agenda_fixa_semana.3_terca';
       case 'quarta feira fixo':
-        return 'agenda_fixa_semana.quarta_feira';
+        return 'agenda_fixa_semana.4_quarta';
       case 'quinta feira fixo':
-        return 'agenda_fixa_semana.quinta_feira';
+        return 'agenda_fixa_semana.5_quinta';
       case 'sexta feira fixo':
-        return 'agenda_fixa_semana.sexta_feira';
+        return 'agenda_fixa_semana.6_sexta';
       case 'sabado fixo':
-        return 'agenda_fixa_semana.sabado';
+        return 'agenda_fixa_semana.7_sabado';
       case 'domingo':
-        return 'agenda_historico.dia_semana.domingo';
+        return 'agenda_historico.dia_semana.1_domingo';
       case 'segunda feira':
-        return 'agenda_historico.dia_semana.segunda_feira';
+        return 'agenda_historico.dia_semana.2_segunda';
       case 'terca feira':
-        return 'agenda_historico.dia_semana.terca_feira';
+        return 'agenda_historico.dia_semana.3_terca';
       case 'quarta feira':
-        return 'agenda_historico.dia_semana.quarta_feira';
+        return 'agenda_historico.dia_semana.4_quarta';
       case 'quinta feira':
-        return 'agenda_historico.dia_semana.quinta_feira';
+        return 'agenda_historico.dia_semana.5_quinta';
       case 'sexta feira':
-        return 'agenda_historico.dia_semana.sexta_feira';
+        return 'agenda_historico.dia_semana.6_sexta';
       case 'sabado':
-        return 'agenda_historico.dia_semana.sabado';
+        return 'agenda_historico.dia_semana.7_sabado';
       default:
         return null;
     }
@@ -478,7 +547,13 @@ class FirestoreService {
         continue;
       }
 
-      resultado[campoMapeado] = entry.value;
+      if (campoMapeado == 'ultimo_dia_semana_agendado') {
+        resultado[campoMapeado] = _normalizarDiaSemanaOrdenado(
+          (entry.value ?? '').toString(),
+        );
+      } else {
+        resultado[campoMapeado] = entry.value;
+      }
     }
 
     if (historicoPorDia.isNotEmpty) {
@@ -715,30 +790,6 @@ class FirestoreService {
       // Evita consultas amplas que podem ser bloqueadas por regras quando o
       // documento do usuário ainda não existe.
       return null;
-    }
-
-    final indiceEmail = await _db
-        .collection('usuarios_por_email')
-        .where('uid', isEqualTo: uidNormalizado)
-        .limit(1)
-        .get();
-
-    if (indiceEmail.docs.isNotEmpty) {
-      final dataIndice = indiceEmail.docs.first.data();
-      final emailNormalizado = _normalizarEmail(
-        (dataIndice['email_normalizado'] as String? ??
-                indiceEmail.docs.first.id)
-            .trim(),
-      );
-      if (emailNormalizado.isNotEmpty) {
-        final usuarioRefPorEmail = _db
-            .collection('usuarios')
-            .doc(emailNormalizado);
-        final usuarioSnapPorEmail = await usuarioRefPorEmail.get();
-        if (usuarioSnapPorEmail.exists) {
-          return usuarioRefPorEmail;
-        }
-      }
     }
 
     final usuariosPorId = await _db
@@ -1291,6 +1342,102 @@ class FirestoreService {
     return telefonePadrao;
   }
 
+  Future<ContatoAprovacaoConfig> getContatoAprovacaoConfig() async {
+    final docRef = _db.collection('configuracoes').doc('geral');
+    final telefoneFallback = _whatsappAdminPadrao();
+
+    String nomeAdmin = _tenantPadraoNomeExibicao;
+    String telefone = telefoneFallback;
+    String mensagemTemplate = _mensagemContatoAprovacaoTemplatePadrao();
+
+    try {
+      final doc = await docRef.get();
+      final dados = doc.data() ?? const <String, dynamic>{};
+
+      final nomeConfigurado =
+          (dados['nome_admin_exibicao_cliente'] as String? ?? '').trim();
+      final nomeLegado =
+          (dados['administradora_padrao_atrelada'] as String? ?? '').trim();
+      nomeAdmin = _nomeExibicaoTenantPadrao(
+        nomeConfigurado.isNotEmpty ? nomeConfigurado : nomeLegado,
+      );
+
+      final telefoneConfigurado = _normalizarTelefone(
+        dados['whatsapp_admin'] as String? ?? '',
+      );
+      if (telefoneConfigurado.isNotEmpty) {
+        telefone = telefoneConfigurado;
+      }
+
+      final templateConfigurado =
+          (dados['whatsapp_msg_aprovacao_template'] as String? ?? '').trim();
+      if (templateConfigurado.isNotEmpty) {
+        mensagemTemplate = templateConfigurado;
+      }
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        rethrow;
+      }
+    }
+
+    return ContatoAprovacaoConfig(
+      nomeAdministradoraExibicao: nomeAdmin,
+      whatsappRedirecionamento: telefone,
+      mensagemTemplate: mensagemTemplate,
+    );
+  }
+
+  Future<void> salvarContatoAprovacaoConfig({
+    required String nomeAdministradoraExibicao,
+    required String whatsappRedirecionamento,
+    required String mensagemTemplate,
+  }) async {
+    final nome = _nomeExibicaoTenantPadrao(nomeAdministradoraExibicao);
+    final telefone = _normalizarTelefone(whatsappRedirecionamento);
+    final template = mensagemTemplate.trim().isEmpty
+        ? _mensagemContatoAprovacaoTemplatePadrao()
+        : mensagemTemplate.trim();
+
+    await _db.collection('configuracoes').doc('geral').set({
+      'nome_admin_exibicao_cliente': nome,
+      'whatsapp_admin': telefone,
+      'whatsapp_msg_aprovacao_template': template,
+    }, SetOptions(merge: true));
+  }
+
+  String montarMensagemContatoAprovacao({
+    required ContatoAprovacaoConfig config,
+    required String clienteNome,
+    required String clienteTelefone,
+    required String clienteEmail,
+    DateTime? dataHora,
+  }) {
+    final data = dataHora ?? DateTime.now();
+    final nomeCliente = clienteNome.trim().isEmpty ? 'Nao informado' : clienteNome.trim();
+    final telefoneCliente =
+        clienteTelefone.trim().isEmpty ? 'Nao informado' : clienteTelefone.trim();
+    final telefoneClienteComMascara =
+        clienteTelefone.trim().isEmpty
+            ? 'Nao informado'
+            : _formatarTelefoneComMascara(clienteTelefone);
+    final emailCliente = clienteEmail.trim().isEmpty ? 'Nao informado' : clienteEmail.trim();
+
+    final valores = <String, String>{
+      '{admin_nome}': config.nomeAdministradoraExibicao.trim(),
+      '{cliente_nome}': nomeCliente,
+      '{cliente_telefone}': telefoneCliente,
+      '{cliente_telefone_com_mascara}': telefoneClienteComMascara,
+      '{cliente_email}': emailCliente,
+      '{data_hora}': DateFormat('dd/MM/yyyy HH:mm').format(data),
+    };
+
+    var mensagem = config.mensagemTemplate;
+    valores.forEach((placeholder, valor) {
+      mensagem = mensagem.replaceAll(placeholder, valor);
+    });
+    return mensagem;
+  }
+
   // Salva o telefone do admin (Conectar este método a um TextField na tela de Admin)
   Future<void> salvarTelefoneAdmin(String telefone) async {
     final telefoneNormalizado = _normalizarTelefone(telefone);
@@ -1405,18 +1552,14 @@ class FirestoreService {
         return UsuarioModel.fromMap(docPorEmail.data()!);
       }
 
-      // Fallback: busca por email em usuarios_por_email (índice)
-      final indiceEmail = await _db
-          .collection('usuarios_por_email')
-          .where('email', isEqualTo: emailNormalizado)
+      final porEmailCampo = await _db
+          .collection('usuarios')
+          .where('email_normalizado', isEqualTo: emailNormalizado)
           .limit(1)
           .get();
 
-      if (indiceEmail.docs.isNotEmpty) {
-        final uid = indiceEmail.docs.first.data()['uid'] as String?;
-        if (uid != null && uid.trim().isNotEmpty) {
-          return getUsuario(uid.trim());
-        }
+      if (porEmailCampo.docs.isNotEmpty) {
+        return UsuarioModel.fromMap(porEmailCampo.docs.first.data());
       }
     } on FirebaseException catch (e) {
       if (e.code != 'permission-denied') {
@@ -1672,34 +1815,25 @@ class FirestoreService {
 
     final usuarioRef = _usuarioRefPorEmail(usuario.emailNormalizado ?? usuario.email);
     final clienteRef = _perfilClienteRefPorUsuarioRef(usuarioRef);
-    final clienteSnap = await clienteRef.get();
+    final dadosSincronizados = _dadosPadraoCliente(
+      uid: uidNormalizado,
+      nomeCliente: nomeCliente,
+      whatsapp: telefoneNormalizado,
+    )
+      ..addAll({
+        'nome': nomeCliente,
+        'ddi': (usuario.ddi ?? '55').trim().isEmpty ? '55' : usuario.ddi,
+        'whatsapp': telefoneNormalizado,
+        'telefone_principal': telefoneNormalizado,
+        'nome_contato_secundario': usuario.nomeContatoSecundario ?? '',
+        'telefone_secundario': usuario.telefoneSecundario ?? '',
+        'nome_indicacao': usuario.nomeIndicacao ?? '',
+        'telefone_indicacao': usuario.telefoneIndicacao ?? '',
+        'categoria_origem': usuario.categoriaOrigem ?? '',
+      });
 
-    if (!clienteSnap.exists || clienteSnap.data() == null) {
-      await clienteRef.set(
-        _dadosPadraoCliente(
-          uid: uidNormalizado,
-          nomeCliente: nomeCliente,
-          whatsapp: telefoneNormalizado,
-        ),
-        SetOptions(merge: true),
-      );
-      debugPrint('✅ Cliente criado/sincronizado em usuarios/*/perfil/cliente (uid=$uidNormalizado)');
-      return;
-    }
-
-    await clienteRef.set({
-      'uid': uidNormalizado,
-      'cliente_nome': nomeCliente,
-      'nome': nomeCliente,
-      'ddi': (usuario.ddi ?? '55').trim().isEmpty ? '55' : usuario.ddi,
-      'whatsapp': telefoneNormalizado,
-      'telefone_principal': telefoneNormalizado,
-      'nome_contato_secundario': usuario.nomeContatoSecundario ?? '',
-      'telefone_secundario': usuario.telefoneSecundario ?? '',
-      'nome_indicacao': usuario.nomeIndicacao ?? '',
-      'telefone_indicacao': usuario.telefoneIndicacao ?? '',
-      'categoria_origem': usuario.categoriaOrigem ?? '',
-    }, SetOptions(merge: true));
+    // Escrita direta com merge evita leitura prévia, reduzindo bloqueio por rules.
+    await clienteRef.set(dadosSincronizados, SetOptions(merge: true));
 
     debugPrint('✅ Cliente atualizado/sincronizado em usuarios/*/perfil/cliente (uid=$uidNormalizado)');
   }
@@ -1708,37 +1842,44 @@ class FirestoreService {
     required String uid,
     required String nomeCliente,
     required String whatsapp,
+    DateTime? dataNascimento,
   }) async {
     final uidNormalizado = uid.trim();
     if (uidNormalizado.isEmpty) return;
 
     final nome = nomeCliente.trim().isEmpty ? 'Cliente' : nomeCliente.trim();
     final telefoneNormalizado = _normalizarTelefone(whatsapp);
-    final usuarioRef = await _buscarUsuarioRefPorUid(uidNormalizado);
+    final dataNascimentoNormalizada = dataNascimento == null
+      ? null
+      : DateTime(dataNascimento.year, dataNascimento.month, dataNascimento.day);
+    final usuarioAtual = FirebaseAuth.instance.currentUser;
+    final emailAutenticado = _normalizarEmail(usuarioAtual?.email ?? '');
+    final usuarioRef =
+        usuarioAtual != null && usuarioAtual.uid == uidNormalizado && emailAutenticado.isNotEmpty
+        ? _usuarioRefPorEmail(emailAutenticado)
+        : await _buscarUsuarioRefPorUid(uidNormalizado);
     if (usuarioRef == null) return;
 
     final clienteRef = _perfilClienteRefPorUsuarioRef(usuarioRef);
-    final clienteSnap = await clienteRef.get();
 
-    if (!clienteSnap.exists || clienteSnap.data() == null) {
-      await clienteRef.set(
-        _dadosPadraoCliente(
-          uid: uidNormalizado,
-          nomeCliente: nome,
-          whatsapp: telefoneNormalizado,
-        ),
-        SetOptions(merge: true),
-      );
-      return;
+    final updates = _dadosPadraoCliente(
+      uid: uidNormalizado,
+      nomeCliente: nome,
+      whatsapp: telefoneNormalizado,
+    )
+      ..addAll(<String, dynamic>{
+        'cliente_nome': nome,
+        'nome': nome,
+        'ddi': '55',
+        'whatsapp': telefoneNormalizado,
+        'telefone_principal': telefoneNormalizado,
+      });
+    if (dataNascimentoNormalizada != null) {
+      updates['data_nascimento'] = Timestamp.fromDate(dataNascimentoNormalizada);
     }
 
-    await clienteRef.set({
-      'cliente_nome': nome,
-      'nome': nome,
-      'ddi': '55',
-      'whatsapp': telefoneNormalizado,
-      'telefone_principal': telefoneNormalizado,
-    }, SetOptions(merge: true));
+    // Escrita direta com merge evita leitura prévia do subdoc em fluxos pendentes.
+    await clienteRef.set(updates, SetOptions(merge: true));
   }
 
   Future<void> marcarChangelogComoVisto(String uid, String versao) async {
@@ -1843,8 +1984,8 @@ class FirestoreService {
     final emailNormalizado = _normalizarEmail(email);
     if (emailNormalizado.isEmpty) return;
 
-    await _db.collection('usuarios_por_email').doc(emailNormalizado).set({
-      'uid': uid,
+    await _db.collection('usuarios').doc(emailNormalizado).set({
+      'id': uid,
       'email': email,
       'email_normalizado': emailNormalizado,
       'nome_cliente': nomeCliente,
@@ -2096,18 +2237,15 @@ class FirestoreService {
       final agendaFixaAtual = Map<String, dynamic>.from(
         clienteData['agenda_fixa_semana'] as Map,
       );
-      final agendaFixaPadrao = _agendaFixaSemanaPadrao();
-      bool agendaFixaAlterada = false;
-
+      final agendaNormalizada = _normalizarAgendaFixaSemana(agendaFixaAtual);
+      final agendaAtualNormalizada = <String, bool>{};
       for (final dia in _diasSemanaAgenda) {
-        if (!agendaFixaAtual.containsKey(dia)) {
-          agendaFixaAtual[dia] = agendaFixaPadrao[dia] ?? false;
-          agendaFixaAlterada = true;
-        }
+        agendaAtualNormalizada[dia] =
+            _valorImportacaoParaBool(agendaFixaAtual[dia]);
       }
 
-      if (agendaFixaAlterada) {
-        updatesCliente['agenda_fixa_semana'] = agendaFixaAtual;
+      if (agendaAtualNormalizada.toString() != agendaNormalizada.toString()) {
+        updatesCliente['agenda_fixa_semana'] = agendaNormalizada;
       }
     }
 

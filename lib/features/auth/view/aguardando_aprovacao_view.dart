@@ -93,15 +93,37 @@ class AguardandoAprovacaoView extends StatelessWidget {
   }
 
   Future<void> _abrirWhatsApp() async {
-    // Busca o número atualizado do banco de dados
     final firestoreService = FirestoreService();
-    final phone = await firestoreService.getTelefoneAdmin();
-    const message = 'Olá! Acabei de me cadastrar no app e aguardo aprovação.';
-    
-    // Tenta abrir diretamente o app do WhatsApp
-    final whatsappUrl = Uri.parse('whatsapp://send?phone=$phone&text=${Uri.encodeComponent(message)}');
-    // Link alternativo para navegador (caso não tenha o app)
-    final webUrl = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
+    final authUser = FirebaseAuth.instance.currentUser;
+
+    final config = await firestoreService.getContatoAprovacaoConfig();
+    final usuario = authUser == null ? null : await firestoreService.getUsuario(authUser.uid);
+
+    final nomeCliente = (usuario?.nomeCliente ?? usuario?.nome ?? authUser?.displayName ?? '').trim();
+    final telefoneCliente =
+        (usuario?.telefonePrincipal ?? usuario?.whatsapp ?? '').trim();
+    final emailCliente = (usuario?.email ?? authUser?.email ?? '').trim();
+
+    final mensagem = firestoreService.montarMensagemContatoAprovacao(
+      config: config,
+      clienteNome: nomeCliente,
+      clienteTelefone: telefoneCliente,
+      clienteEmail: emailCliente,
+      dataHora: DateTime.now(),
+    );
+
+    final phone = config.whatsappRedirecionamento.trim();
+    if (phone.isEmpty) {
+      debugPrint('WhatsApp admin nao configurado em configuracoes/geral.');
+      return;
+    }
+
+    final whatsappUrl = Uri.parse(
+      'whatsapp://send?phone=$phone&text=${Uri.encodeComponent(mensagem)}',
+    );
+    final webUrl = Uri.parse(
+      'https://wa.me/$phone?text=${Uri.encodeComponent(mensagem)}',
+    );
 
     if (await canLaunchUrl(whatsappUrl)) {
       await launchUrl(whatsappUrl);

@@ -12,6 +12,12 @@ class AppStrings {
   // Validators
   static String get dataNascimentoObrigatoria =>
       _isPt ? 'Data de nascimento obrigatória.' : 'Birth date is required.';
+  static String get dataNascimentoFormatoInvalido => _isPt
+      ? 'Informe uma data válida no formato DD/MM/AAAA.'
+      : 'Enter a valid date in DD/MM/YYYY format.';
+  static String get dataNascimentoFuturaInvalida => _isPt
+      ? 'A data de nascimento não pode estar no futuro.'
+      : 'Birth date cannot be in the future.';
   static String erroIdadeMinima(int idade) => _isPt
       ? 'É necessário ter pelo menos $idade anos para se cadastrar.'
       : 'You must be at least $idade years old to register.';
@@ -647,6 +653,39 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get devToolsDb => _isPt ? 'Dev Tools (DB)' : 'Dev Tools (DB)';
     static String get swaggerYamlTitulo =>
             _isPt ? 'Swagger (OpenAPI)' : 'Swagger (OpenAPI)';
+  static String get configContatoAprovacaoAvancadaMenu => _isPt
+      ? 'Configuração Avançada (Contato Cliente)'
+      : 'Advanced Settings (Client Contact)';
+  static String get configContatoAprovacaoTitulo => _isPt
+      ? 'Contato WhatsApp para Aprovação'
+      : 'WhatsApp Contact for Approval';
+  static String get configContatoAprovacaoDescricao => _isPt
+      ? 'Defina o nome exibido da administradora, o WhatsApp de redirecionamento e o template da mensagem enviada ao clicar em contato.'
+      : 'Set the displayed admin name, redirect WhatsApp number, and message template sent when the user taps contact.';
+  static String get configContatoAprovacaoNomeAdminLabel => _isPt
+      ? 'Nome da administradora exibido ao cliente'
+      : 'Admin name shown to client';
+  static String get configContatoAprovacaoWhatsappLabel => _isPt
+      ? 'WhatsApp de redirecionamento'
+      : 'Redirect WhatsApp number';
+  static String get configContatoAprovacaoMensagemLabel => _isPt
+      ? 'Mensagem WhatsApp (template)'
+      : 'WhatsApp message (template)';
+  static String get configContatoAprovacaoMensagemHint => _isPt
+      ? 'Use quebras de linha e placeholders para personalizar a mensagem.'
+      : 'Use line breaks and placeholders to customize the message.';
+  static String get configContatoAprovacaoPlaceholdersHint => _isPt
+      ? 'Placeholders: {admin_nome}, {cliente_nome}, {cliente_telefone}, {cliente_email}, {data_hora}'
+      : 'Placeholders: {admin_nome}, {cliente_nome}, {cliente_telefone}, {cliente_email}, {data_hora}';
+  static String get configContatoAprovacaoSalvaSucesso => _isPt
+      ? 'Configuração de contato salva com sucesso!'
+      : 'Contact settings saved successfully!';
+  static String erroSalvarConfigContatoAprovacao(String erro) => _isPt
+      ? 'Erro ao salvar configuração de contato: $erro'
+      : 'Failed to save contact settings: $erro';
+  static String erroCarregarConfigContatoAprovacao(String erro) => _isPt
+      ? 'Erro ao carregar configuração de contato: $erro'
+      : 'Failed to load contact settings: $erro';
   static String get dash => _isPt ? 'Dash' : 'Dash';
   static String get agenda => _isPt ? 'Agenda' : 'Schedule';
   static String get clientes => _isPt ? 'Clientes' : 'Clients';
@@ -1558,4 +1597,6 @@ Service and package prices are subject to change. Payment must be made as agreed
       _isPt ? 'Termos e condições aceitos' : 'Terms and conditions of accepted';
   static String get signupSenhaValida =>
       _isPt ? 'Senha válida' : 'Valid password';
+  static String get signupDataNascimentoHint =>
+      _isPt ? 'DD/MM/AAAA Ex: dia/mês/ano' : 'DD/MM/YYYY e.g., day/month/year';
 }

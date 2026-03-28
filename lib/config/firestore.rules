@@ -30,9 +30,6 @@ service cloud.firestore {
       return !estaLogado() || email == ''
         ? false
         : (
-            (exists(/databases/$(database)/documents/usuarios_por_email/$(email))
-              && get(/databases/$(database)/documents/usuarios_por_email/$(email)).data.get('tipo', '') == 'admin')
-            ||
             (exists(/databases/$(database)/documents/usuarios/$(email))
               && get(/databases/$(database)/documents/usuarios/$(email)).data.get('tipo', '') == 'admin')
             ||
@@ -238,15 +235,7 @@ service cloud.firestore {
         && request.resource.data.email_normalizado == userId
         && (request.resource.data.tipo == 'cliente' || request.resource.data.tipo == 'admin')
         && request.resource.data.dev_master is bool
-        && request.resource.data.lgpd_consentido == true
-        && (
-          request.resource.data.tipo != 'cliente'
-          || (
-            request.resource.data.ordem_criacao is int
-            && request.resource.data.ordem_criacao > 0
-            && request.resource.data.ordem_criacao_em is timestamp
-          )
-        );
+        && request.resource.data.lgpd_consentido == true;
     }
 
     function donoPodeAtualizarUsuario(userId) {
@@ -295,8 +284,7 @@ service cloud.firestore {
         && request.resource.data.tipo == resource.data.tipo
         && request.resource.data.visualiza_todos == resource.data.visualiza_todos
         && request.resource.data.email is string
-        && request.resource.data.email == resource.data.email
-        && request.resource.data.admin_atrelada_id is string
+        && (request.resource.data.admin_atrelada_id == null || request.resource.data.admin_atrelada_id is string)
         && request.resource.data.dev_master is bool
         && (
           request.resource.data.aprovado == resource.data.aprovado
@@ -579,7 +567,7 @@ service cloud.firestore {
             || eDono(userId)
             || (estaLogado() && resource.data.uid == request.auth.uid)
           );
-        allow create, update: if perfilId == 'cliente'
+        allow create: if perfilId == 'cliente'
           && (eAdmin() || (estaLogado() && request.resource.data.uid == request.auth.uid))
           && request.resource.data.keys().hasOnly([
             'uid',
@@ -615,6 +603,42 @@ service cloud.firestore {
             'anamnese_ok',
           ])
           && request.resource.data.uid == request.auth.uid;
+        allow update: if perfilId == 'cliente'
+          && (eAdmin() || (estaLogado() && resource.data.uid == request.auth.uid))
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'cliente_nome',
+            'nome',
+            'nome_preferido',
+            'ddi',
+            'whatsapp',
+            'telefone_principal',
+            'nome_contato_secundario',
+            'telefone_secundario',
+            'nome_indicacao',
+            'telefone_indicacao',
+            'categoria_origem',
+            'presenca_agenda',
+            'frequencia_historica_agenda',
+            'ultima_data_agendada',
+            'ultimo_horario_agendado',
+            'ultimo_dia_semana_agendado',
+            'sugestao_cliente_fixo',
+            'agenda_fixa_semana',
+            'agenda_historico',
+            'cpf',
+            'cep',
+            'data_nascimento',
+            'saldo_sessoes',
+            'favoritos',
+            'endereco',
+            'historico_medico',
+            'alergias',
+            'medicamentos',
+            'cirurgias',
+            'anamnese_ok',
+          ])
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.uid == request.auth.uid;
         allow delete: if perfilId == 'cliente'
           && (
             eAdmin()
@@ -625,12 +649,8 @@ service cloud.firestore {
     }
 
     match /usuarios_por_email/{emailId} {
-      allow create, update: if eAdmin()
-        || (estaLogado()
-          && request.auth.uid == request.resource.data.uid
-          && indiceUsuarioPorEmailValido(emailId));
-      allow read: if eAdmin() || (estaLogado() && resource.data.uid == request.auth.uid);
-      allow delete: if eAdmin();
+      // Colecao descontinuada: manter bloqueada para consolidar em `usuarios`.
+      allow read, write, delete: if false;
     }
 
     // Clientes (dados pessoais e sensiveis)

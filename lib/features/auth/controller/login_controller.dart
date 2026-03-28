@@ -168,6 +168,7 @@ class LoginController {
     String nome,
     String whatsapp,
     bool numeroEhWhatsapp,
+    DateTime? dataNascimento,
     String? locale,
   ) async {
     final authUser = _auth.currentUser;
@@ -253,6 +254,7 @@ class LoginController {
           uid: uid,
           nomeCliente: nomeNormalizado,
           whatsapp: telefoneNormalizado,
+          dataNascimento: dataNascimento,
         );
 
         // Mantem sincronizacao best-effort para nao bloquear login social.
@@ -583,6 +585,7 @@ class LoginController {
     String whatsapp,
     bool numeroEhWhatsapp,
     bool lgpdConsentido,
+    DateTime? dataNascimento,
     String? locale,
   ) async {
     UserCredential? credencialCriada;
@@ -630,6 +633,15 @@ class LoginController {
         // 3. Salvar no Firestore
         try {
           await _firestoreService.salvarUsuario(novoUsuario);
+
+          if (tipoUsuario == 'cliente') {
+            await _firestoreService.salvarPerfilInicialClienteGoogle(
+              uid: uid,
+              nomeCliente: nome,
+              whatsapp: whatsapp,
+              dataNascimento: dataNascimento,
+            );
+          }
         } catch (firebaseError) {
           debugPrint('❌ ERRO ao salvar usuário no Firestore: $firebaseError');
           debugPrint('   Tipo de erro: ${firebaseError.runtimeType}');
