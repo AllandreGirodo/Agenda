@@ -1,6 +1,26 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Cliente {
+  static const Map<String, String> _diaSemanaLegadoParaOrdenado = {
+    'domingo': '1_domingo',
+    'segunda_feira': '2_segunda',
+    'terca_feira': '3_terca',
+    'quarta_feira': '4_quarta',
+    'quinta_feira': '5_quinta',
+    'sexta_feira': '6_sexta',
+    'sabado': '7_sabado',
+  };
+
+  static const List<String> _diasSemanaOrdenados = [
+    '1_domingo',
+    '2_segunda',
+    '3_terca',
+    '4_quarta',
+    '5_quinta',
+    '6_sexta',
+    '7_sabado',
+  ];
+
   final String idCliente;
   final String? nomeCliente;
   final String? nomePreferidoCliente;
@@ -135,7 +155,9 @@ class Cliente {
       'medicamentos': medicamentosCliente,
       'cirurgias': cirurgiasCliente,
       'anamnese_ok': anamneseOkCliente,
-      'agenda_fixa_semana': agendaFixaSemanaCliente,
+      'agenda_fixa_semana': agendaFixaSemanaCliente == null
+          ? null
+          : _normalizarAgendaFixaSemana(agendaFixaSemanaCliente!),
       'agenda_historico': agendaHistoricoCliente,
     };
 
@@ -200,7 +222,9 @@ class Cliente {
       medicamentosCliente: map['medicamentos'],
       cirurgiasCliente: map['cirurgias'],
       anamneseOkCliente: map['anamnese_ok'],
-      agendaFixaSemanaCliente: _asStringBoolMap(map['agenda_fixa_semana']),
+      agendaFixaSemanaCliente: _normalizarAgendaFixaSemana(
+        _asStringBoolMap(map['agenda_fixa_semana']) ?? const <String, bool>{},
+      ),
       agendaHistoricoCliente: map['agenda_historico'] != null
           ? Map<String, dynamic>.from(map['agenda_historico'] as Map)
           : null,
@@ -297,5 +321,22 @@ class Cliente {
       }
     }
     return result.isEmpty ? null : result;
+  }
+
+  static Map<String, bool> _normalizarAgendaFixaSemana(
+    Map<String, bool> agenda,
+  ) {
+    final normalizado = <String, bool>{
+      for (final dia in _diasSemanaOrdenados) dia: false,
+    };
+
+    for (final entry in agenda.entries) {
+      final chave = entry.key.trim();
+      final chaveOrdenada = _diaSemanaLegadoParaOrdenado[chave] ?? chave;
+      if (!normalizado.containsKey(chaveOrdenada)) continue;
+      normalizado[chaveOrdenada] = entry.value;
+    }
+
+    return normalizado;
   }
 }

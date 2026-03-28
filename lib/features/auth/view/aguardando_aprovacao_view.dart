@@ -7,16 +7,33 @@ import 'package:agenda/app_localizations.dart';
 import 'package:agenda/core/widgets/language_selector.dart';
 import 'package:agenda/core/widgets/confetti_animation.dart';
 
-class AguardandoAprovacaoView extends StatelessWidget {
+class AguardandoAprovacaoView extends StatefulWidget {
   final DateTime dataCadastro;
 
   const AguardandoAprovacaoView({super.key, required this.dataCadastro});
 
   @override
+  State<AguardandoAprovacaoView> createState() =>
+      _AguardandoAprovacaoViewState();
+}
+
+class _AguardandoAprovacaoViewState extends State<AguardandoAprovacaoView> {
+  final FirestoreService _firestoreService = FirestoreService();
+  late final Future<ContatoAprovacaoConfig> _contatoConfigFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _contatoConfigFuture = _firestoreService.getContatoAprovacaoConfig();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final localizations = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.waitingApprovalTitle),
+        title: Text(localizations.waitingApprovalTitle),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         actions: const [LanguageSelector()],
@@ -36,26 +53,42 @@ class AguardandoAprovacaoView extends StatelessWidget {
                   const Icon(Icons.access_time, size: 80, color: Colors.orange),
                   const SizedBox(height: 24),
                   Text(
-                    AppLocalizations.of(context)!.analysisTitle,
+                    localizations.analysisTitle,
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    AppLocalizations.of(context)!.analysisMessage(DateFormat('dd/MM/yyyy HH:mm').format(dataCadastro)),
+                    localizations.analysisMessage(
+                      DateFormat('dd/MM/yyyy HH:mm').format(widget.dataCadastro),
+                    ),
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 16),
                   ),
                   const SizedBox(height: 40),
-                  ElevatedButton.icon(
-                    onPressed: _abrirWhatsApp,
-                    icon: const Icon(Icons.chat),
-                    label: Text(AppLocalizations.of(context)!.contactAdminButton),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    ),
+                  FutureBuilder<ContatoAprovacaoConfig>(
+                    future: _contatoConfigFuture,
+                    builder: (context, snapshot) {
+                      final nomeAdmin =
+                          (snapshot.data?.nomeAdministradoraExibicao ?? '').trim();
+                      final label = nomeAdmin.isEmpty
+                          ? localizations.contactAdminButton
+                          : localizations.contactAdminButtonWithName(nomeAdmin);
+
+                      return ElevatedButton.icon(
+                        onPressed: _abrirWhatsApp,
+                        icon: const Icon(Icons.chat),
+                        label: Text(label),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 12,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 20),
                   TextButton(
@@ -64,7 +97,7 @@ class AguardandoAprovacaoView extends StatelessWidget {
                       if (!context.mounted) return;
                       Navigator.of(context).pop();
                     },
-                    child: Text(AppLocalizations.of(context)!.backToLoginButton),
+                    child: Text(localizations.backToLoginButton),
                   ),
                 ],
               ),
@@ -73,7 +106,10 @@ class AguardandoAprovacaoView extends StatelessWidget {
         ),
       ),
       bottomSheet: StreamBuilder<DateTime>(
-        stream: Stream.periodic(const Duration(seconds: 1), (_) => DateTime.now()),
+        stream: Stream.periodic(
+          const Duration(seconds: 1),
+          (_) => DateTime.now(),
+        ).asBroadcastStream(),
         builder: (context, snapshot) {
           final now = snapshot.data ?? DateTime.now();
           final user = FirebaseAuth.instance.currentUser;
@@ -93,18 +129,18 @@ class AguardandoAprovacaoView extends StatelessWidget {
   }
 
   Future<void> _abrirWhatsApp() async {
-    final firestoreService = FirestoreService();
     final authUser = FirebaseAuth.instance.currentUser;
 
-    final config = await firestoreService.getContatoAprovacaoConfig();
-    final usuario = authUser == null ? null : await firestoreService.getUsuario(authUser.uid);
+    final config = await _firestoreService.getContatoAprovacaoConfig();
+    final usuario =
+        authUser == null ? null : await _firestoreService.getUsuario(authUser.uid);
 
     final nomeCliente = (usuario?.nomeCliente ?? usuario?.nome ?? authUser?.displayName ?? '').trim();
     final telefoneCliente =
         (usuario?.telefonePrincipal ?? usuario?.whatsapp ?? '').trim();
     final emailCliente = (usuario?.email ?? authUser?.email ?? '').trim();
 
-    final mensagem = firestoreService.montarMensagemContatoAprovacao(
+    final mensagem = _firestoreService.montarMensagemContatoAprovacao(
       config: config,
       clienteNome: nomeCliente,
       clienteTelefone: telefoneCliente,

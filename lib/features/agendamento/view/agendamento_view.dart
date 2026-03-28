@@ -59,7 +59,7 @@ class _AgendamentoViewState extends State<AgendamentoView> {
     _clockStream = Stream.periodic(
       const Duration(seconds: 1),
       (_) => DateTime.now(),
-    );
+    ).asBroadcastStream();
     _dicas = AppStrings.dicasMassagem;
     _dicaDoDia = _dicas[Random().nextInt(_dicas.length)];
   }

@@ -27,14 +27,26 @@ service cloud.firestore {
 
     function eAdmin() {
       let email = emailAuthNormalizado();
+      let usuarioPorEmail = exists(/databases/$(database)/documents/usuarios/$(email))
+        ? get(/databases/$(database)/documents/usuarios/$(email)).data
+        : null;
+      let usuarioPorUid = exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data
+        : null;
       return !estaLogado() || email == ''
         ? false
         : (
-            (exists(/databases/$(database)/documents/usuarios/$(email))
-              && get(/databases/$(database)/documents/usuarios/$(email)).data.get('tipo', '') == 'admin')
+            (usuarioPorEmail != null
+              && (
+                usuarioPorEmail.get('tipo', '') == 'admin'
+                || usuarioPorEmail.get('dev_master', false) == true
+              ))
             ||
-            (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
-              && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('tipo', '') == 'admin')
+            (usuarioPorUid != null
+              && (
+                usuarioPorUid.get('tipo', '') == 'admin'
+                || usuarioPorUid.get('dev_master', false) == true
+              ))
           );
     }
 

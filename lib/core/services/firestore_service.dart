@@ -1134,8 +1134,8 @@ class FirestoreService {
     );
   }
 
-  Stream<List<Cliente>> getClientesAprovados() async* {
-    yield* _streamClientesAprovadosPorUsuarios();
+  Stream<List<Cliente>> getClientesAprovados() {
+    return _streamClientesAprovadosPorUsuarios();
   }
 
   Stream<List<Cliente>> _streamClientesAprovadosPorUsuarios() {
@@ -1984,16 +1984,23 @@ class FirestoreService {
     final emailNormalizado = _normalizarEmail(email);
     if (emailNormalizado.isEmpty) return;
 
-    await _db.collection('usuarios').doc(emailNormalizado).set({
-      'id': uid,
-      'email': email,
-      'email_normalizado': emailNormalizado,
-      'nome_cliente': nomeCliente,
-      'nome_cliente_normalizado': _normalizarNomeBusca(nomeCliente),
-      'tipo': tipo,
-      'aprovado': aprovado,
-      'atualizado_em': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    try {
+      await _db.collection('usuarios').doc(emailNormalizado).set({
+        'id': uid,
+        'email': email,
+        'email_normalizado': emailNormalizado,
+        'nome_cliente': nomeCliente,
+        'nome_cliente_normalizado': _normalizarNomeBusca(nomeCliente),
+        'tipo': tipo,
+        'aprovado': aprovado,
+        'atualizado_em': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        rethrow;
+      }
+      // Nao bloqueia fluxo principal quando o usuario nao tem permissao de merge extra.
+    }
   }
 
   Future<bool> alternarTesteBooleanoLoginView({
@@ -2226,6 +2233,13 @@ class FirestoreService {
     }
     if (!clienteData.containsKey('ultimo_dia_semana_agendado')) {
       updatesCliente['ultimo_dia_semana_agendado'] = '';
+    } else {
+      final diaAtual =
+          (clienteData['ultimo_dia_semana_agendado'] as String? ?? '').trim();
+      final diaNormalizado = _normalizarDiaSemanaOrdenado(diaAtual);
+      if (diaNormalizado != diaAtual) {
+        updatesCliente['ultimo_dia_semana_agendado'] = diaNormalizado;
+      }
     }
     if (!clienteData.containsKey('sugestao_cliente_fixo')) {
       updatesCliente['sugestao_cliente_fixo'] = false;

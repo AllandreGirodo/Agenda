@@ -106,6 +106,7 @@ class AppLocalizations {
       'analysisMessage':
           'Seu cadastro realizado em\n{date}\nestá aguardando aprovação da administradora.',
       'contactAdminButton': 'Falar com a Administradora',
+      'contactAdminButtonWithName': 'Falar com {adminName}',
       'backToLoginButton': 'Voltar para Login',
     },
     'en': {
@@ -193,6 +194,7 @@ class AppLocalizations {
       'analysisMessage':
           'Your registration made on\n{date}\nis awaiting administrator approval.',
       'contactAdminButton': 'Contact Administrator',
+      'contactAdminButtonWithName': 'Contact {adminName}',
       'backToLoginButton': 'Back to Login',
     },
     'es': {
@@ -280,6 +282,7 @@ class AppLocalizations {
       'analysisMessage':
           'Su registro realizado el\n{date}\nestá esperando aprobación del administrador.',
       'contactAdminButton': 'Contactar Administrador',
+      'contactAdminButtonWithName': 'Contactar a {adminName}',
       'backToLoginButton': 'Volver al Login',
     },
     'ja': {
@@ -360,6 +363,7 @@ class AppLocalizations {
       'analysisTitle': '審査中',
       'analysisMessage': '{date} に行われた登録は\n管理者の承認待ちです。',
       'contactAdminButton': '管理者に連絡',
+    'contactAdminButtonWithName': '{adminName} に連絡',
       'backToLoginButton': 'ログインに戻る',
     },
     'fr': {
@@ -450,6 +454,7 @@ class AppLocalizations {
       'analysisMessage':
           'Votre enregistrement effectué le\n{date}\nattend l\'approbation de l\'administrateur.',
       'contactAdminButton': 'Contacter l\'administrateur',
+      'contactAdminButtonWithName': 'Contacter {adminName}',
       'backToLoginButton': 'Retour à la connexion',
     },
   };
@@ -551,6 +556,8 @@ class AppLocalizations {
   String get waitingApprovalTitle => _t('waitingApprovalTitle');
   String get analysisTitle => _t('analysisTitle');
   String get contactAdminButton => _t('contactAdminButton');
+    String contactAdminButtonWithName(String adminName) =>
+            _t('contactAdminButtonWithName').replaceAll('{adminName}', adminName);
   String get backToLoginButton => _t('backToLoginButton');
   String analysisMessage(String date) =>
       _t('analysisMessage').replaceAll('{date}', date);

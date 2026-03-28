@@ -43,10 +43,19 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
   double _precoSessao = 100.00;
   final TextEditingController _searchController = TextEditingController();
   String _filtroNome = '';
+  int _clientesRefreshNonce = 0;
   bool _devGravarMetricas = false; // Flag para ativar gravação de histórico
   bool _podeAcessarPainelDev = false;
   bool _governancaVersionadaVerificada = false;
   String? _usuarioAprovandoId;
+
+  void _resetPesquisarClientes() {
+    setState(() {
+      _searchController.clear();
+      _filtroNome = '';
+      _clientesRefreshNonce++;
+    });
+  }
 
   String _normalizarTextoBusca(String texto) {
     return texto
@@ -1348,9 +1357,20 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
             controller: _searchController,
             decoration: InputDecoration(
               labelText: AppStrings.pesquisarCliente,
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _resetPesquisarClientes,
+              ),
+              border: const OutlineInputBorder(),
             ),
+            onTap: () {
+              if (_searchController.text.trim().isEmpty && _filtroNome.isEmpty) {
+                setState(() {
+                  _clientesRefreshNonce++;
+                });
+              }
+            },
             onChanged: (value) {
               setState(() {
                 _filtroNome = _normalizarTextoBusca(value);
@@ -1360,6 +1380,7 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
         ),
         Expanded(
           child: StreamBuilder<List<Cliente>>(
+            key: ValueKey(_clientesRefreshNonce),
             stream: _firestoreService.getClientesAprovados(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
