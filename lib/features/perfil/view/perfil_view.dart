@@ -18,6 +18,89 @@ import 'package:agenda/core/widgets/language_selector.dart';
 import 'package:agenda/app_localizations.dart';
 import 'package:agenda/core/utils/massage_type_catalog.dart';
 
+class _CpfInputFormatter extends TextInputFormatter {
+  String _formatCpf(String digits) {
+    final buffer = StringBuffer();
+    for (int i = 0; i < digits.length; i++) {
+      buffer.write(digits[i]);
+      if (i == 2 || i == 5) {
+        buffer.write('.');
+      } else if (i == 8) {
+        buffer.write('-');
+      }
+    }
+    return buffer.toString();
+  }
+
+  int _countDigitsBefore(String text, int offset) {
+    final safeOffset = offset.clamp(0, text.length);
+    int count = 0;
+    for (int i = 0; i < safeOffset; i++) {
+      if (RegExp(r'\d').hasMatch(text[i])) count++;
+    }
+    return count;
+  }
+
+  int _cursorOffsetForDigitIndex(String formatted, int digitIndex) {
+    if (digitIndex <= 0) return 0;
+    int seenDigits = 0;
+    for (int i = 0; i < formatted.length; i++) {
+      if (RegExp(r'\d').hasMatch(formatted[i])) {
+        seenDigits++;
+        if (seenDigits == digitIndex) {
+          return i + 1;
+        }
+      }
+    }
+    return formatted.length;
+  }
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    String digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length > 11) {
+      digits = digits.substring(0, 11);
+    }
+
+    int targetDigitCursor = _countDigitsBefore(
+      newValue.text,
+      newValue.selection.baseOffset,
+    );
+
+    final oldDigits = oldValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final deletingSingleChar =
+        oldValue.selection.isCollapsed &&
+        newValue.selection.isCollapsed &&
+        oldValue.text.length == newValue.text.length + 1;
+
+    // Quando o usuário apaga '.' ou '-', removemos o dígito anterior para
+    // evitar sensação de campo travado durante o backspace.
+    if (deletingSingleChar && oldDigits.length == digits.length) {
+      if (targetDigitCursor > 0 && digits.isNotEmpty) {
+        final removeIndex = targetDigitCursor - 1;
+        if (removeIndex >= 0 && removeIndex < digits.length) {
+          digits = digits.substring(0, removeIndex) + digits.substring(removeIndex + 1);
+          targetDigitCursor = removeIndex;
+        }
+      }
+    }
+
+    final formatted = _formatCpf(digits);
+    final cursorOffset = _cursorOffsetForDigitIndex(
+      formatted,
+      targetDigitCursor.clamp(0, digits.length),
+    );
+
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: cursorOffset),
+    );
+  }
+}
+
 class PerfilView extends StatefulWidget {
   const PerfilView({super.key});
 
@@ -245,68 +328,75 @@ class _PerfilViewState extends State<PerfilView> {
     }
 
     setState(() => _isLoading = true);
-
-    if (_imagemLocal != null) {
-      try {
-        final ref = FirebaseStorage.instance.ref().child('perfis/${_user!.uid}.jpg');
-        await ref.putData(_imagemBytes!);
-        _urlImagemRemota = await ref.getDownloadURL();
-      } catch (e) {
-        debugPrint('Erro ao fazer upload da imagem: $e');
+    try {
+      if (_imagemLocal != null) {
+        try {
+          final ref = FirebaseStorage.instance.ref().child('perfis/${_user!.uid}.jpg');
+          await ref.putData(_imagemBytes!);
+          _urlImagemRemota = await ref.getDownloadURL();
+        } catch (e) {
+          debugPrint('Erro ao fazer upload da imagem: $e');
+        }
       }
-    }
 
-    final cliente = Cliente(
-      idCliente: _user!.uid,
-      nomeCliente: _nomeController.text.trim(),
-      nomePreferidoCliente: _nomePreferidoController.text.trim(),
-      ddiCliente: _ddiPrincipal,
-      whatsappCliente: InternationalPhoneInputFormatter.localDigits(
-        _whatsappController.text,
-        ddi: _ddiPrincipal,
-        maxLocalDigits: _maxLocalDigitsParaDdi(_ddiPrincipal),
-      ),
-      telefonePrincipalCliente: InternationalPhoneInputFormatter.localDigits(
-        _whatsappController.text,
-        ddi: _ddiPrincipal,
-        maxLocalDigits: _maxLocalDigitsParaDdi(_ddiPrincipal),
-      ),
-      nomeContatoSecundarioCliente:
-          _nomeContatoSecundarioController.text.trim(),
-      telefoneSecundarioCliente: InternationalPhoneInputFormatter.localDigits(
-        _telefoneSecundarioController.text,
-        ddi: _ddiPrincipal,
-        maxLocalDigits: _maxLocalDigitsParaDdi(_ddiPrincipal),
-      ),
-      nomeIndicacaoCliente: _nomeIndicacaoController.text.trim(),
-      telefoneIndicacaoCliente: InternationalPhoneInputFormatter.localDigits(
-        _telefoneIndicacaoController.text,
-        ddi: _ddiPrincipal,
-        maxLocalDigits: _maxLocalDigitsParaDdi(_ddiPrincipal),
-      ),
-      cpfCliente: _somenteDigitos(_cpfController.text),
-      cepCliente: _somenteDigitos(_cepController.text),
-      enderecoCliente: _enderecoController.text,
-      dataNascimentoCliente: _dataNascimento,
-      historicoMedicoCliente: _historicoController.text,
-      alergiasCliente: _alergiasController.text,
-      medicamentosCliente: _medicamentosController.text,
-      cirurgiasCliente: _cirurgiasController.text,
-      anamneseOkCliente: true,
-    );
+      final cliente = Cliente(
+        idCliente: _user!.uid,
+        nomeCliente: _nomeController.text.trim(),
+        nomePreferidoCliente: _nomePreferidoController.text.trim(),
+        ddiCliente: _ddiPrincipal,
+        whatsappCliente: InternationalPhoneInputFormatter.localDigits(
+          _whatsappController.text,
+          ddi: _ddiPrincipal,
+          maxLocalDigits: _maxLocalDigitsParaDdi(_ddiPrincipal),
+        ),
+        telefonePrincipalCliente: InternationalPhoneInputFormatter.localDigits(
+          _whatsappController.text,
+          ddi: _ddiPrincipal,
+          maxLocalDigits: _maxLocalDigitsParaDdi(_ddiPrincipal),
+        ),
+        nomeContatoSecundarioCliente:
+            _nomeContatoSecundarioController.text.trim(),
+        telefoneSecundarioCliente: InternationalPhoneInputFormatter.localDigits(
+          _telefoneSecundarioController.text,
+          ddi: _ddiPrincipal,
+          maxLocalDigits: _maxLocalDigitsParaDdi(_ddiPrincipal),
+        ),
+        nomeIndicacaoCliente: _nomeIndicacaoController.text.trim(),
+        telefoneIndicacaoCliente: InternationalPhoneInputFormatter.localDigits(
+          _telefoneIndicacaoController.text,
+          ddi: _ddiPrincipal,
+          maxLocalDigits: _maxLocalDigitsParaDdi(_ddiPrincipal),
+        ),
+        cpfCliente: _somenteDigitos(_cpfController.text),
+        cepCliente: _somenteDigitos(_cepController.text),
+        enderecoCliente: _enderecoController.text,
+        dataNascimentoCliente: _dataNascimento,
+        historicoMedicoCliente: _historicoController.text,
+        alergiasCliente: _alergiasController.text,
+        medicamentosCliente: _medicamentosController.text,
+        cirurgiasCliente: _cirurgiasController.text,
+        anamneseOkCliente: true,
+      );
 
-    await _firestoreService.salvarCliente(cliente);
-    await _firestoreService.sincronizarPerfilClienteNoUsuario(
-      _user.uid,
-      cliente,
-    );
+      await _firestoreService.salvarCliente(cliente);
+      await _firestoreService.sincronizarPerfilClienteNoUsuario(
+        _user.uid,
+        cliente,
+      );
 
-    if (mounted) setState(() => _isLoading = false);
-    if (mounted) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppStrings.profileUpdatedSuccess)),
       );
-      Navigator.pop(context);
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.erroGenerico('$e'))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -553,6 +643,12 @@ class _PerfilViewState extends State<PerfilView> {
               controller: _cpfController,
               decoration: InputDecoration(labelText: AppStrings.cpfLabel, prefixIcon: const Icon(Icons.badge)),
               keyboardType: TextInputType.number,
+              autovalidateMode: AutovalidateMode.onUserInteraction,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(11),
+                _CpfInputFormatter(),
+              ],
               validator: _validarCpf,
             ),
             const SizedBox(height: 10),
@@ -590,7 +686,10 @@ class _PerfilViewState extends State<PerfilView> {
             const SizedBox(height: 10),
             TextFormField(
               controller: _enderecoController,
-              decoration: InputDecoration(labelText: AppStrings.addressLabel),
+              decoration: InputDecoration(
+                labelText: AppStrings.addressLabel,
+                prefixIcon: const Icon(Icons.home_outlined),
+              ),
               maxLines: 2,
               validator: (v) => _validar('endereco', v),
             ),
@@ -599,23 +698,36 @@ class _PerfilViewState extends State<PerfilView> {
             const SizedBox(height: 10),
             TextFormField(
               controller: _historicoController,
-              decoration: InputDecoration(labelText: AppStrings.medicalHistoryLabel),
+              decoration: InputDecoration(
+                labelText: AppStrings.medicalHistoryLabel,
+                prefixIcon: const Icon(Icons.local_hospital_outlined),
+              ),
+              minLines: 1,
               maxLines: 3,
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _alergiasController,
-              decoration: InputDecoration(labelText: AppStrings.allergiesLabel),
+              decoration: InputDecoration(
+                labelText: AppStrings.allergiesLabel,
+                prefixIcon: const Icon(Icons.health_and_safety_outlined),
+              ),
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _medicamentosController,
-              decoration: InputDecoration(labelText: AppStrings.medicationsLabel),
+              decoration: InputDecoration(
+                labelText: AppStrings.medicationsLabel,
+                prefixIcon: const Icon(Icons.medication_outlined),
+              ),
             ),
             const SizedBox(height: 10),
             TextFormField(
               controller: _cirurgiasController,
-              decoration: InputDecoration(labelText: AppStrings.surgeriesLabel),
+              decoration: InputDecoration(
+                labelText: AppStrings.surgeriesLabel,
+                prefixIcon: const Icon(Icons.medical_services_outlined),
+              ),
             ),
             const SizedBox(height: 30),
             ElevatedButton(

@@ -528,7 +528,7 @@ class _DevToolsViewState extends State<DevToolsView> {
           rows.add(allKeys.map((key) => map[key]?.toString() ?? '').toList());
         }
 
-        conteudo = const ListToCsvConverter().convert(rows);
+        conteudo = const CsvEncoder().convert(rows);
         extensao = 'csv';
       }
 
@@ -543,9 +543,12 @@ class _DevToolsViewState extends State<DevToolsView> {
 
       // 4. Compartilha (Share Sheet do OS)
       if (!mounted) return;
-      await Share.shareXFiles([
-        XFile(file.path),
-      ], text: 'Exportação da tabela $collection');
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Exportação da tabela $collection',
+        ),
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -633,7 +636,7 @@ class _DevToolsViewState extends State<DevToolsView> {
   Future<void> _importarCollection(String collection) async {
     try {
       // 1. Selecionar Arquivo
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
       );
@@ -686,7 +689,7 @@ class _DevToolsViewState extends State<DevToolsView> {
   // --- Importacao de Planilha de Clientes (CSV / XLSX) ---
   Future<void> _importarPlanilhaClientes() async {
     try {
-      final pickerResult = await FilePicker.platform.pickFiles(
+      final pickerResult = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['csv', 'xlsx', 'xls'],
         withData: true,
@@ -723,10 +726,10 @@ class _DevToolsViewState extends State<DevToolsView> {
 
         final conteudo = utf8.decode(bytes, allowMalformed: true);
         final separador = _detectarSeparadorCsv(conteudo);
-        final rows = CsvToListConverter(
-          eol: '\n',
+        final rows = CsvDecoder(
           fieldDelimiter: separador,
-          shouldParseNumbers: false,
+          dynamicTyping: false,
+          parseHeaders: false,
         ).convert(conteudo);
         if (rows.isEmpty) return;
 

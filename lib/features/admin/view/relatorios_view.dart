@@ -184,7 +184,12 @@ class AdminRelatoriosView extends StatelessWidget {
                   headers: ['Data', 'Cliente', 'Tipo', 'Status', 'Valor'],
                   data: agendamentosMes.map((a) => [
                     DateFormat('dd/MM HH:mm').format(a.dataHora),
-                    a.clienteNomeSnapshot ?? 'ID: ${a.clienteId.substring(0, 5)}...', // Proteção de dados se snapshot falhar
+                    a.clienteNomeSnapshot ??
+                        (() {
+                          final id = a.clienteId;
+                          final prefixo = id.length > 5 ? id.substring(0, 5) : id;
+                          return 'ID: ${prefixo.isEmpty ? 'N/A' : prefixo}...';
+                        })(), // Proteção de dados se snapshot falhar
                     MassageTypeCatalog.localize(localizations, a.tipo),
                     a.status.toUpperCase(),
                     a.status == 'aprovado' ? 'R\$ ${config.precoSessao}' : '-',
@@ -201,7 +206,12 @@ class AdminRelatoriosView extends StatelessWidget {
       final file = File("${output.path}/relatorio_${DateFormat('MM_yyyy').format(now)}.pdf");
       await file.writeAsBytes(await pdf.save());
 
-      await Share.shareXFiles([XFile(file.path)], text: 'Segue o relatório financeiro de ${DateFormat('MMMM').format(now)}.');
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Segue o relatório financeiro de ${DateFormat('MMMM').format(now)}.',
+        ),
+      );
     } catch (e) {
       if (context.mounted) {
         messenger.showSnackBar(SnackBar(content: Text(AppStrings.erroGerarPdf(e.toString()))));

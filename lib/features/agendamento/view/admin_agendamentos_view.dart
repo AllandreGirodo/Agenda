@@ -42,18 +42,34 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
   DateTime _dataDashboard = DateTime.now();
   double _precoSessao = 100.00;
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   String _filtroNome = '';
   int _clientesRefreshNonce = 0;
   bool _devGravarMetricas = false; // Flag para ativar gravação de histórico
   bool _podeAcessarPainelDev = false;
   bool _governancaVersionadaVerificada = false;
   String? _usuarioAprovandoId;
+  bool _focarBuscaClientesAoAbrir = false;
 
   void _resetPesquisarClientes() {
     setState(() {
       _searchController.clear();
       _filtroNome = '';
       _clientesRefreshNonce++;
+    });
+  }
+
+  void _prepararFocoBuscaClientes() {
+    _focarBuscaClientesAoAbrir = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_focarBuscaClientesAoAbrir) return;
+      _focarBuscaClientesAoAbrir = false;
+      _searchFocusNode.requestFocus();
+      final texto = _searchController.text;
+      _searchController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: texto.length,
+      );
     });
   }
 
@@ -525,6 +541,7 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -798,8 +815,12 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
           ],
           bottom: TabBar(
             isScrollable: layoutCompacto,
-            onTap: (index) =>
-                HapticFeedback.mediumImpact(), // Vibração ao trocar de aba
+            onTap: (index) {
+              HapticFeedback.mediumImpact(); // Vibração ao trocar de aba
+              if (index == 2) {
+                _prepararFocoBuscaClientes();
+              }
+            },
             tabs: [
               Tab(icon: const Icon(Icons.dashboard), text: AppStrings.dash),
               Tab(
@@ -1355,6 +1376,8 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
           padding: const EdgeInsets.all(8.0),
           child: TextField(
             controller: _searchController,
+            focusNode: _searchFocusNode,
+            autofocus: false,
             decoration: InputDecoration(
               labelText: AppStrings.pesquisarCliente,
               prefixIcon: const Icon(Icons.search),
@@ -1365,6 +1388,11 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
               border: const OutlineInputBorder(),
             ),
             onTap: () {
+              final texto = _searchController.text;
+              _searchController.selection = TextSelection(
+                baseOffset: 0,
+                extentOffset: texto.length,
+              );
               if (_searchController.text.trim().isEmpty && _filtroNome.isEmpty) {
                 setState(() {
                   _clientesRefreshNonce++;

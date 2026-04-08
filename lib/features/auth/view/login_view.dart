@@ -34,6 +34,7 @@ class _LoginViewState extends State<LoginView> {
   bool _isObscure = true;
   bool _lembrarCredenciais = false;
   final LocalAuthentication auth = LocalAuthentication();
+  bool _googleSignInInitialized = false;
 
   void _setLoadingSafely(bool value) {
     if (!mounted) return;
@@ -52,6 +53,12 @@ class _LoginViewState extends State<LoginView> {
         normalizado == 'user_cancelled' ||
         normalizado == 'canceled' ||
         normalizado == 'cancelled';
+  }
+
+  Future<void> _initializeGoogleSignInIfNeeded() async {
+    if (_googleSignInInitialized) return;
+    await GoogleSignIn.instance.initialize();
+    _googleSignInInitialized = true;
   }
 
         bool _isFirestorePermissionLikelyAppCheck(Object e) {
@@ -320,18 +327,16 @@ class _LoginViewState extends State<LoginView> {
           rethrow;
         }
       } else {
-        final googleSignIn = GoogleSignIn();
-        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-        if (googleUser == null) {
+        await _initializeGoogleSignInIfNeeded();
+        final googleUser = await GoogleSignIn.instance.authenticate();
+        final idToken = googleUser.authentication.idToken;
+        if (idToken == null || idToken.isEmpty) {
           await FirebaseAuth.instance.signOut();
           return;
         }
 
-        final GoogleSignInAuthentication googleAuth =
-            await googleUser.authentication;
         final AuthCredential credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
+          idToken: idToken,
         );
 
         await FirebaseAuth.instance.signInWithCredential(credential);
@@ -422,7 +427,8 @@ class _LoginViewState extends State<LoginView> {
     try {
       final bool didAuthenticate = await auth.authenticate(
         localizedReason: AppStrings.biometriaBtn,
-        options: const AuthenticationOptions(biometricOnly: false),
+        biometricOnly: false,
+        persistAcrossBackgrounding: false,
       );
 
       if (didAuthenticate) {

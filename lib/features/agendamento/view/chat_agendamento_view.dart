@@ -92,7 +92,7 @@ class _ChatAgendamentoViewState extends State<ChatAgendamentoView> {
               title: Text(AppStrings.arquivoAudio),
               onTap: () async {
                 Navigator.pop(context);
-                final result = await FilePicker.platform.pickFiles(type: FileType.audio);
+                final result = await FilePicker.pickFiles(type: FileType.audio);
                 if (result != null) {
                   final file = result.files.single;
                   if (kIsWeb) {

@@ -102,7 +102,7 @@ class _AdminFinanceiroViewState extends State<AdminFinanceiroView> {
                   child: BarChart(
                     BarChartData(
                       alignment: BarChartAlignment.spaceAround,
-                      maxY: maxValor * 1.2, // Margem superior
+                      maxY: maxValor > 0 ? maxValor * 1.2 : 10.0, // Margem superior
                       barTouchData: BarTouchData(
                         touchTooltipData: BarTouchTooltipData(
                           getTooltipItem: (group, groupIndex, rod, rodIndex) {

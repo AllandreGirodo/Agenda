@@ -55,7 +55,7 @@ void main() {
   setUpAll(() async {
     await Firebase.initializeApp();
     // Carrega variáveis de ambiente vazias para evitar erro no dotenv
-    dotenv.testLoad(fileInput: 'ADMIN_EMAIL=teste@admin.com');
+    dotenv.loadFromString(envString: 'ADMIN_EMAIL=teste@admin.com');
   });
 
   testWidgets('DashboardView deve renderizar o gráfico financeiro com dados', (WidgetTester tester) async {

@@ -161,7 +161,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
       rows.add(allKeys.map((key) => map[key]?.toString() ?? '').toList());
     }
 
-    return const ListToCsvConverter().convert(rows);
+    return const CsvEncoder().convert(rows);
   }
 
   Future<void> _exportarBackupCsv() async {
@@ -198,9 +198,12 @@ class _AdminConfigViewState extends State<AdminConfigView> {
         return;
       }
 
-      await Share.shareXFiles([
-        ...arquivos,
-      ], text: AppStrings.backupAgendaMassoterapia);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [...arquivos],
+          text: AppStrings.backupAgendaMassoterapia,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(

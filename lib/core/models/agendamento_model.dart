@@ -68,11 +68,30 @@ class Agendamento {
     };
   }
 
+  static DateTime _asDateTime(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) {
+      final parsed = DateTime.tryParse(value.trim());
+      if (parsed != null) return parsed;
+    }
+    return DateTime.now();
+  }
+
+  static double _asDouble(dynamic value, {double fallback = 0.0}) {
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      final parsed = double.tryParse(value.replaceAll(',', '.').trim());
+      if (parsed != null) return parsed;
+    }
+    return fallback;
+  }
+
   factory Agendamento.fromMap(Map<String, dynamic> map, {String? id}) {
     return Agendamento(
       id: id,
       clienteId: map['cliente_id'] ?? '',
-      dataHora: (map['data_hora'] as Timestamp).toDate(),
+      dataHora: _asDateTime(map['data_hora']),
       tipo: MassageTypeCatalog.normalizeId(
         (map['tipo_id'] ?? map['tipo'] ?? map['tipo_massagem'] ?? '').toString(),
       ),
@@ -82,15 +101,15 @@ class Agendamento {
           ? List<String>.from(map['lista_espera']) 
           : [],
       dataCriacao: map['data_criacao'] != null 
-          ? (map['data_criacao'] as Timestamp).toDate() 
+          ? _asDateTime(map['data_criacao']) 
           : null,
       clienteNomeSnapshot: map['cliente_nome_snapshot'],
       clienteTelefoneSnapshot: map['cliente_telefone_snapshot'],
       avaliacao: map['avaliacao'],
       comentarioAvaliacao: map['comentario_avaliacao'],
       cupomAplicado: map['cupom_aplicado'],
-      valorOriginal: (map['valor_original'] ?? map['preco'] ?? 0.0).toDouble(),
-      valorFinal: (map['valor_final'] ?? map['preco'] ?? 0.0).toDouble(),
+      valorOriginal: _asDouble(map['valor_original'] ?? map['preco']),
+      valorFinal: _asDouble(map['valor_final'] ?? map['preco']),
       administradoraAtrelada: map['administradora_atrelada'] as String?,
     );
   }

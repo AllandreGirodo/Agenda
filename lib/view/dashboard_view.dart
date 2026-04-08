@@ -191,7 +191,12 @@ class _DashboardViewState extends State<DashboardView> {
         final file = File('${directory.path}/$fileName');
         await file.writeAsBytes(bytes, flush: true);
         
-        await Share.shareXFiles([XFile(file.path)], text: 'Relatório de Agendamentos');
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(file.path)],
+            text: 'Relatório de Agendamentos',
+          ),
+        );
       }
     } else if (bytes == null && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -217,7 +222,8 @@ class _DashboardViewState extends State<DashboardView> {
       final startDate = today.subtract(Duration(days: _diasFiltro - 1));
       
       final transacoesFiltradas = transacoes.where((t) {
-        return !t.dataPagamento.isBefore(startDate);
+        return !t.dataPagamento.isBefore(startDate) &&
+            t.statusPagamento == 'pago';
       }).toList();
 
       // 2. Gerar PDF
@@ -293,7 +299,12 @@ class _DashboardViewState extends State<DashboardView> {
         final fileName = 'financeiro_${DateFormat('dd-MM-yyyy').format(now)}.pdf';
         final file = File('${directory.path}/$fileName');
         await file.writeAsBytes(bytes, flush: true);
-        await Share.shareXFiles([XFile(file.path)], text: 'Relatório Financeiro PDF');
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(file.path)],
+            text: 'Relatório Financeiro PDF',
+          ),
+        );
       }
 
     } catch (e) {
@@ -390,7 +401,8 @@ class _DashboardViewState extends State<DashboardView> {
                     final dailyTotals = <int, double>{ for (int i = 0; i < _diasFiltro; i++) i: 0.0 };
 
                     for (var transacao in snapshot.data!) {
-                      if (!transacao.dataPagamento.isBefore(startDate)) {
+                      if (!transacao.dataPagamento.isBefore(startDate) &&
+                          transacao.statusPagamento == 'pago') {
                         final dayIndex = (_diasFiltro - 1) - today.difference(DateTime(transacao.dataPagamento.year, transacao.dataPagamento.month, transacao.dataPagamento.day)).inDays;
                         if (dayIndex >= 0 && dayIndex < _diasFiltro) {
                           dailyTotals[dayIndex] = (dailyTotals[dayIndex] ?? 0) + transacao.valorLiquido;
