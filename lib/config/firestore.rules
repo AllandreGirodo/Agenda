@@ -33,29 +33,32 @@ service cloud.firestore {
       let usuarioPorUid = exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
         ? get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data
         : null;
-      return !estaLogado() || email == ''
-        ? false
-        : (
-            (usuarioPorEmail != null
-              && (
-                usuarioPorEmail.get('tipo', '') == 'admin'
-                || usuarioPorEmail.get('dev_master', false) == true
-              ))
-            ||
-            (usuarioPorUid != null
-              && (
-                usuarioPorUid.get('tipo', '') == 'admin'
-                || usuarioPorUid.get('dev_master', false) == true
-              ))
-          );
+      return estaLogado()
+        && (
+          (email != ''
+            && usuarioPorEmail != null
+            && (
+              usuarioPorEmail.get('tipo', '') == 'admin'
+              || usuarioPorEmail.get('dev_master', false) == true
+            ))
+          ||
+          (usuarioPorUid != null
+            && (
+              usuarioPorUid.get('tipo', '') == 'admin'
+              || usuarioPorUid.get('dev_master', false) == true
+            ))
+        );
     }
 
     function podeVisualizarTudo() {
       let email = emailAuthNormalizado();
-      return !estaLogado() || email == ''
-        ? false
-        : (exists(/databases/$(database)/documents/usuarios/$(email))
-            && get(/databases/$(database)/documents/usuarios/$(email)).data.get('visualiza_todos', false) == true);
+      let visualizaPorEmail = email != ''
+        && exists(/databases/$(database)/documents/usuarios/$(email))
+        && get(/databases/$(database)/documents/usuarios/$(email)).data.get('visualiza_todos', false) == true;
+      let visualizaPorUid = exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.get('visualiza_todos', false) == true;
+
+      return estaLogado() && (visualizaPorEmail || visualizaPorUid);
     }
 
     function permitirCriacaoAdminDuranteSignup(userId) {

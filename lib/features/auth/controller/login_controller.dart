@@ -135,7 +135,11 @@ class LoginController {
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.erroLoginComDetalhe(e.message))),
+          SnackBar(
+            content: Text(
+              AppStrings.erroLoginComCodigoDetalhe(e.code, e.message),
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -149,8 +153,11 @@ class LoginController {
     return false;
   }
 
-  Future<bool> logarComGoogleAutenticado(BuildContext context) async {
-    final authUser = _auth.currentUser;
+  Future<bool> logarComGoogleAutenticado(
+    BuildContext context, {
+    User? authUser,
+  }) async {
+    authUser ??= _auth.currentUser;
     if (authUser == null) {
       return false;
     }
@@ -819,11 +826,9 @@ class LoginController {
 
     return code.contains('app-check') ||
         code.contains('appcheck') ||
-        code.contains('unauthenticated') ||
         message.contains('app check') ||
         message.contains('app-check') ||
-        message.contains('firebase app check token is invalid') ||
-        message.contains('unauthenticated');
+        message.contains('firebase app check token is invalid');
   }
 
         bool _isFirestorePermissionLikelyAppCheck(Object e) {
@@ -833,8 +838,7 @@ class LoginController {
           return message.contains('app check') ||
           message.contains('app-check') ||
           message.contains('appcheck') ||
-          message.contains('firebase app check token is invalid') ||
-          message.contains('identitytoolkit');
+          message.contains('firebase app check token is invalid');
         }
 
   Future<void> _atualizarTokenAutenticacao(User user) async {

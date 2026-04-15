@@ -1663,7 +1663,7 @@ class _AdminAgendamentosViewState extends State<AdminAgendamentosView> {
                         ? DateFormat(
                             'dd/MM/yyyy HH:mm',
                           ).format(usuario.dataCadastro!)
-                        : '-',
+                        : AppStrings.naoDisponivelCurto,
                   ),
                 ),
                 trailing: IconButton(

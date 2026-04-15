@@ -100,18 +100,18 @@ class _DashboardViewState extends State<DashboardView> {
                     if (constraints.maxWidth < 600) {
                       return Column(
                         children: [
-                          _buildMetricCard('Hoje', '${agendamentosHoje.length}', Colors.blue),
-                          _buildMetricCard('Pendentes', '$pendentes', Colors.orange),
-                          _buildMetricCard('Confirmados', '$confirmados', Colors.green),
+                          _buildMetricCard(AppStrings.hoje, '${agendamentosHoje.length}', Colors.blue),
+                              _buildMetricCard(AppStrings.pendentes, '$pendentes', Colors.orange),
+                              _buildMetricCard(AppStrings.confirmados, '$confirmados', Colors.green),
                         ],
                       );
                     } else {
                       // Layout horizontal (Tablet/Desktop)
                       return Row(
                         children: [
-                          Expanded(child: _buildMetricCard('Hoje', '${agendamentosHoje.length}', Colors.blue)),
-                          Expanded(child: _buildMetricCard('Pendentes', '$pendentes', Colors.orange)),
-                          Expanded(child: _buildMetricCard('Confirmados', '$confirmados', Colors.green)),
+                              Expanded(child: _buildMetricCard(AppStrings.hoje, '${agendamentosHoje.length}', Colors.blue)),
+                              Expanded(child: _buildMetricCard(AppStrings.pendentes, '$pendentes', Colors.orange)),
+                              Expanded(child: _buildMetricCard(AppStrings.confirmados, '$confirmados', Colors.green)),
                         ],
                       );
                     }
@@ -251,8 +251,8 @@ class _DashboardViewState extends State<DashboardView> {
                     if (logoImage != null) 
                       pw.Image(logoImage, width: 50, height: 50),
                     pw.SizedBox(width: 10),
-                    pw.Expanded(child: pw.Text('Relatório Financeiro', style: pw.TextStyle(font: font, fontSize: 24, fontWeight: pw.FontWeight.bold))),
-                    pw.Text('Período: $_diasFiltro dias', style: pw.TextStyle(font: font, fontSize: 14)),
+                        pw.Expanded(child: pw.Text(AppStrings.relatorioFinanceiroTitulo, style: pw.TextStyle(font: font, fontSize: 24, fontWeight: pw.FontWeight.bold))),
+                        pw.Text(AppStrings.periodoRelatorioFinanceiro(_diasFiltro), style: pw.TextStyle(font: font, fontSize: 14)),
                   ],
                 ),
               ),
@@ -261,7 +261,12 @@ class _DashboardViewState extends State<DashboardView> {
                 context: context,
                 headerStyle: pw.TextStyle(font: font, fontWeight: pw.FontWeight.bold),
                 cellStyle: pw.TextStyle(font: font, fontSize: 10),
-                headers: ['Data', 'Cliente', 'Método', 'Valor Líquido'],
+                    headers: [
+                      AppStrings.cabecalhoTabelaData,
+                      AppStrings.cabecalhoTabelaCliente,
+                      AppStrings.cabecalhoTabelaMetodo,
+                      AppStrings.cabecalhoTabelaValorLiquido,
+                    ],
                 data: transacoesFiltradas.map((t) => [
                   DateFormat('dd/MM/yyyy HH:mm').format(t.dataPagamento),
                   t.clienteUid, // Idealmente buscaria o nome, mas usaremos o UID/Snapshot se disponível
@@ -301,8 +306,7 @@ class _DashboardViewState extends State<DashboardView> {
         await file.writeAsBytes(bytes, flush: true);
         await SharePlus.instance.share(
           ShareParams(
-            files: [XFile(file.path)],
-            text: 'Relatório Financeiro PDF',
+            text: AppStrings.relatorioFinanceiroTitulo,
           ),
         );
       }
@@ -376,10 +380,10 @@ class _DashboardViewState extends State<DashboardView> {
                   Text(AppStrings.faturamentoUltimosDias(_diasFiltro), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   DropdownButton<int>(
                     value: _diasFiltro,
-                    items: const [
-                      DropdownMenuItem(value: 7, child: Text('7 dias')),
-                      DropdownMenuItem(value: 15, child: Text('15 dias')),
-                      DropdownMenuItem(value: 30, child: Text('30 dias')),
+                    items: [
+                      DropdownMenuItem(value: 7, child: Text(AppStrings.opcaoPeriodoDias(7))),
+                      DropdownMenuItem(value: 15, child: Text(AppStrings.opcaoPeriodoDias(15))),
+                      DropdownMenuItem(value: 30, child: Text(AppStrings.opcaoPeriodoDias(30))),
                     ],
                     onChanged: (value) {
                       if (value != null) setState(() => _diasFiltro = value);

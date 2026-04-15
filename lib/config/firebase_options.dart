@@ -16,17 +16,86 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 /// );
 /// ```
 class DefaultFirebaseOptions {
+  static const String _webApiKeyFallback =
+    'AIzaSyDKuCJvjPFwerkySZY5RkglwYQPdEpO9Qs';
+  static const String _webAppIdFallback =
+    '1:921196873870:web:7624e3cde954a2048921df';
+  static const String _messagingSenderIdFallback = '921196873870';
+  static const String _projectIdFallback = 'horario-agenda';
+  static const String _webAuthDomainFallback = 'horario-agenda.firebaseapp.com';
+  static const String _storageBucketFallback =
+    'horario-agenda.firebasestorage.app';
+
+  static String _valueFromDartDefine(String key) {
+    switch (key) {
+      case 'FIREBASE_WEB_API_KEY':
+        return const String.fromEnvironment('FIREBASE_WEB_API_KEY').trim();
+      case 'FIREBASE_WEB_APP_ID':
+        return const String.fromEnvironment('FIREBASE_WEB_APP_ID').trim();
+      case 'FIREBASE_MESSAGING_SENDER_ID':
+        return const String.fromEnvironment(
+          'FIREBASE_MESSAGING_SENDER_ID',
+        ).trim();
+      case 'FIREBASE_PROJECT_ID':
+        return const String.fromEnvironment('FIREBASE_PROJECT_ID').trim();
+      case 'FIREBASE_WEB_AUTH_DOMAIN':
+        return const String.fromEnvironment('FIREBASE_WEB_AUTH_DOMAIN').trim();
+      case 'FIREBASE_STORAGE_BUCKET':
+        return const String.fromEnvironment('FIREBASE_STORAGE_BUCKET').trim();
+      case 'FIREBASE_ANDROID_API_KEY':
+        return const String.fromEnvironment('FIREBASE_ANDROID_API_KEY').trim();
+      case 'FIREBASE_ANDROID_APP_ID':
+        return const String.fromEnvironment('FIREBASE_ANDROID_APP_ID').trim();
+      case 'FIREBASE_IOS_API_KEY':
+        return const String.fromEnvironment('FIREBASE_IOS_API_KEY').trim();
+      case 'FIREBASE_IOS_APP_ID':
+        return const String.fromEnvironment('FIREBASE_IOS_APP_ID').trim();
+      case 'FIREBASE_IOS_CLIENT_ID':
+        return const String.fromEnvironment('FIREBASE_IOS_CLIENT_ID').trim();
+      case 'FIREBASE_IOS_BUNDLE_ID':
+        return const String.fromEnvironment('FIREBASE_IOS_BUNDLE_ID').trim();
+      default:
+        return '';
+    }
+  }
+
   static String _requiredEnv(String key) {
-    final value = dotenv.env[key]?.trim();
-    if (value == null || value.isEmpty) {
-      throw StateError('Variavel obrigatoria ausente no .env: $key');
+    final defineValue = _valueFromDartDefine(key);
+    if (defineValue.isNotEmpty) {
+      return defineValue;
+    }
+
+    final value = (dotenv.env[key] ?? '').trim();
+    if (value.isEmpty) {
+      throw StateError(
+        'Variavel obrigatoria ausente (.env/--dart-define): $key',
+      );
     }
     return value;
   }
 
+  static String _requiredEnvOrFallback(String key, String fallback) {
+    final defineValue = _valueFromDartDefine(key);
+    if (defineValue.isNotEmpty) {
+      return defineValue;
+    }
+
+    final value = (dotenv.env[key] ?? '').trim();
+    if (value.isNotEmpty) {
+      return value;
+    }
+
+    return fallback;
+  }
+
   static String? _optionalEnv(String key) {
-    final value = dotenv.env[key]?.trim();
-    if (value == null || value.isEmpty) {
+    final defineValue = _valueFromDartDefine(key);
+    if (defineValue.isNotEmpty) {
+      return defineValue;
+    }
+
+    final value = (dotenv.env[key] ?? '').trim();
+    if (value.isEmpty) {
       return null;
     }
     return value;
@@ -64,12 +133,15 @@ class DefaultFirebaseOptions {
   }
 
   static FirebaseOptions web = FirebaseOptions(
-    apiKey: _requiredEnv('FIREBASE_WEB_API_KEY'),
-    appId: _requiredEnv('FIREBASE_WEB_APP_ID'),
-    messagingSenderId: _requiredEnv('FIREBASE_MESSAGING_SENDER_ID'),
-    projectId: _requiredEnv('FIREBASE_PROJECT_ID'),
-    authDomain: _optionalEnv('FIREBASE_WEB_AUTH_DOMAIN'),
-    storageBucket: _optionalEnv('FIREBASE_STORAGE_BUCKET'),
+    apiKey: _requiredEnvOrFallback('FIREBASE_WEB_API_KEY', _webApiKeyFallback),
+    appId: _requiredEnvOrFallback('FIREBASE_WEB_APP_ID', _webAppIdFallback),
+    messagingSenderId: _requiredEnvOrFallback(
+      'FIREBASE_MESSAGING_SENDER_ID',
+      _messagingSenderIdFallback,
+    ),
+    projectId: _requiredEnvOrFallback('FIREBASE_PROJECT_ID', _projectIdFallback),
+    authDomain: _optionalEnv('FIREBASE_WEB_AUTH_DOMAIN') ?? _webAuthDomainFallback,
+    storageBucket: _optionalEnv('FIREBASE_STORAGE_BUCKET') ?? _storageBucketFallback,
   );
 
   static FirebaseOptions android = FirebaseOptions(

@@ -630,7 +630,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                                       24,
                                       (i) => DropdownMenuItem(
                                         value: i,
-                                        child: Text('$i:00'),
+                                        child: Text(AppStrings.horaDoDiaLabel(i)),
                                       ),
                                     ),
                                     onChanged: (v) =>
@@ -646,7 +646,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                                       24,
                                       (i) => DropdownMenuItem(
                                         value: i,
-                                        child: Text('$i:00'),
+                                        child: Text(AppStrings.horaDoDiaLabel(i)),
                                       ),
                                     ),
                                     onChanged: (v) =>
@@ -666,7 +666,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                                         24,
                                         (i) => DropdownMenuItem(
                                           value: i,
-                                          child: Text('$i:00'),
+                                          child: Text(AppStrings.horaDoDiaLabel(i)),
                                         ),
                                       ),
                                       onChanged: (v) =>
@@ -684,7 +684,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                                         24,
                                         (i) => DropdownMenuItem(
                                           value: i,
-                                          child: Text('$i:00'),
+                                          child: Text(AppStrings.horaDoDiaLabel(i)),
                                         ),
                                       ),
                                       onChanged: (v) =>
@@ -1109,7 +1109,7 @@ class _AdminConfigViewState extends State<AdminConfigView> {
                                   child: ListTile(
                                     leading: CircleAvatar(
                                       radius: 14,
-                                      child: Text('${index + 1}'),
+                                      child: Text(AppStrings.indiceListaLabel(index + 1)),
                                     ),
                                     title: Text(mensagem),
                                     subtitle:

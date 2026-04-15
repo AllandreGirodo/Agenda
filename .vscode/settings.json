@@ -4,5 +4,12 @@
     "java.jdt.ls.java.home": "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.18.8-hotspot",
     "java.import.gradle.java.home": "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.18.8-hotspot",
     "java.import.gradle.enabled": false,
-    "java.configuration.updateBuildConfiguration": "disabled"
+    "java.configuration.updateBuildConfiguration": "disabled",
+    "chat.tools.terminal.autoApprove": {
+        "Group-Object": true,
+        "ForEach-Object": true,
+        "flutter": true,
+        "Get-Item": true,
+        "Copy-Item": true
+    }
 }

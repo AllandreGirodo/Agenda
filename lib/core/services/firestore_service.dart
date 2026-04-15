@@ -751,6 +751,47 @@ class FirestoreService {
     return usuarioRef.collection('perfil').doc('cliente');
   }
 
+  List<DocumentReference<Map<String, dynamic>>> _usuarioRefsCandidatosParaUid(
+    String uid, {
+    String? emailPreferencial,
+  }) {
+    final uidNormalizado = uid.trim();
+    if (uidNormalizado.isEmpty) {
+      return const <DocumentReference<Map<String, dynamic>>>[];
+    }
+
+    final refs = <DocumentReference<Map<String, dynamic>>>[];
+    final idsJaIncluidos = <String>{};
+
+    void adicionarRefPorId(String docId) {
+      final idNormalizado = docId.trim();
+      if (idNormalizado.isEmpty || !idsJaIncluidos.add(idNormalizado)) {
+        return;
+      }
+      refs.add(_db.collection('usuarios').doc(idNormalizado));
+    }
+
+    adicionarRefPorId(_normalizarEmail(emailPreferencial ?? ''));
+
+    final usuarioAtual = FirebaseAuth.instance.currentUser;
+    if (usuarioAtual != null && usuarioAtual.uid == uidNormalizado) {
+      adicionarRefPorId(_normalizarEmail(usuarioAtual.email ?? ''));
+    }
+
+    adicionarRefPorId(uidNormalizado);
+    return refs;
+  }
+
+  List<DocumentReference<Map<String, dynamic>>> _perfilClienteRefsCandidatosPorUid(
+    String uid, {
+    String? emailPreferencial,
+  }) {
+    return _usuarioRefsCandidatosParaUid(
+      uid,
+      emailPreferencial: emailPreferencial,
+    ).map(_perfilClienteRefPorUsuarioRef).toList();
+  }
+
   Future<DocumentReference<Map<String, dynamic>>?> _perfilClienteRefPorUid(
     String uid,
   ) async {
@@ -941,27 +982,57 @@ class FirestoreService {
 
   // --- Clientes ---
   Future<void> salvarCliente(Cliente cliente) async {
-    final perfilClienteRef = await _perfilClienteRefPorUid(cliente.idCliente);
-    if (perfilClienteRef == null) {
-      throw StateError('Cadastro base do usuario nao encontrado para o UID informado.');
+    final uidNormalizado = cliente.idCliente.trim();
+    if (uidNormalizado.isEmpty) {
+      throw StateError('UID do cliente nao informado para salvar o perfil.');
     }
 
-    // Usa merge para preservar campos administrativos/importados nao expostos na UI.
-    await perfilClienteRef.set(cliente.toMap(), SetOptions(merge: true));
+    FirebaseException? ultimoErroPermissao;
+
+    for (final perfilRef in _perfilClienteRefsCandidatosPorUid(uidNormalizado)) {
+      try {
+        // Usa merge para preservar campos administrativos/importados nao expostos na UI.
+        await perfilRef.set(cliente.toMap(), SetOptions(merge: true));
+        return;
+      } on FirebaseException catch (e) {
+        if (e.code == 'permission-denied') {
+          ultimoErroPermissao = e;
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    final perfilClienteRef = await _perfilClienteRefPorUid(uidNormalizado);
+    if (perfilClienteRef != null) {
+      try {
+        // Usa merge para preservar campos administrativos/importados nao expostos na UI.
+        await perfilClienteRef.set(cliente.toMap(), SetOptions(merge: true));
+        return;
+      } on FirebaseException catch (e) {
+        if (e.code != 'permission-denied') {
+          rethrow;
+        }
+        ultimoErroPermissao = e;
+      }
+    }
+
+    if (ultimoErroPermissao != null) {
+      throw ultimoErroPermissao;
+    }
+
+    throw StateError(
+      'Cadastro base do usuario nao encontrado para o UID informado.',
+    );
   }
 
   Future<void> sincronizarPerfilClienteNoUsuario(
     String uid,
     Cliente cliente,
   ) async {
-    final usuarioRef = await _buscarUsuarioRefPorUid(uid);
-    if (usuarioRef == null) return;
+    final uidNormalizado = uid.trim();
+    if (uidNormalizado.isEmpty) return;
 
-    final usuarioSnap = await usuarioRef.get();
-    final usuarioData = usuarioSnap.data() ?? const <String, dynamic>{};
-    final email = (usuarioData['email'] as String? ?? '').trim();
-    final tipo = (usuarioData['tipo'] as String? ?? 'cliente').trim();
-    final aprovado = usuarioData['aprovado'] as bool? ?? false;
     final nomeCliente = (cliente.nomeCliente ?? '').trim();
 
     final updates = <String, dynamic>{
@@ -983,11 +1054,71 @@ class FirestoreService {
       'telefone_indicacao': (cliente.telefoneIndicacaoCliente ?? '').trim(),
     };
 
-    await usuarioRef.set(updates, SetOptions(merge: true));
+    DocumentReference<Map<String, dynamic>>? usuarioRefUtilizado;
+    FirebaseException? ultimoErroPermissao;
+
+    for (final usuarioRef in _usuarioRefsCandidatosParaUid(uidNormalizado)) {
+      try {
+        await usuarioRef.set(updates, SetOptions(merge: true));
+        usuarioRefUtilizado = usuarioRef;
+        break;
+      } on FirebaseException catch (e) {
+        if (e.code == 'permission-denied') {
+          ultimoErroPermissao = e;
+          continue;
+        }
+        rethrow;
+      }
+    }
+
+    if (usuarioRefUtilizado == null) {
+      final usuarioRefEncontrado = await _buscarUsuarioRefPorUid(uidNormalizado);
+      if (usuarioRefEncontrado != null) {
+        try {
+          await usuarioRefEncontrado.set(updates, SetOptions(merge: true));
+          usuarioRefUtilizado = usuarioRefEncontrado;
+        } on FirebaseException catch (e) {
+          if (e.code != 'permission-denied') {
+            rethrow;
+          }
+          ultimoErroPermissao = e;
+        }
+      }
+    }
+
+    if (usuarioRefUtilizado == null) {
+      if (ultimoErroPermissao != null) {
+        throw ultimoErroPermissao;
+      }
+      return;
+    }
+
+    String email = '';
+    String tipo = 'cliente';
+    bool aprovado = false;
+
+    try {
+      final usuarioSnap = await usuarioRefUtilizado.get();
+      final usuarioData = usuarioSnap.data() ?? const <String, dynamic>{};
+      email = (usuarioData['email'] as String? ?? '').trim();
+      tipo = (usuarioData['tipo'] as String? ?? 'cliente').trim();
+      aprovado = usuarioData['aprovado'] as bool? ?? false;
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') {
+        rethrow;
+      }
+    }
+
+    if (email.isEmpty) {
+      final usuarioAtual = FirebaseAuth.instance.currentUser;
+      if (usuarioAtual != null && usuarioAtual.uid == uidNormalizado) {
+        email = (usuarioAtual.email ?? '').trim();
+      }
+    }
 
     if (email.isNotEmpty) {
       await _sincronizarIndiceHumanoUsuario(
-        uid: uid,
+        uid: uidNormalizado,
         email: email,
         nomeCliente: nomeCliente,
         tipo: tipo,
@@ -2490,6 +2621,42 @@ class FirestoreService {
     return null;
   }
 
+  Stream<Set<String>> getHorariosOcupadosPorData(DateTime data) {
+    final inicioDia = DateTime(data.year, data.month, data.day);
+    final inicioProximoDia = inicioDia.add(const Duration(days: 1));
+
+    return _db
+        .collection('agendamentos')
+        .where(
+          'data_hora',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(inicioDia),
+        )
+        .where(
+          'data_hora',
+          isLessThan: Timestamp.fromDate(inicioProximoDia),
+        )
+        .snapshots()
+        .map((snapshot) {
+          final horariosOcupados = <String>{};
+
+          for (final doc in snapshot.docs) {
+            final agendamento = Agendamento.fromMap(doc.data(), id: doc.id);
+            final status = agendamento.status;
+            final ocupado =
+                status != 'cancelado' &&
+                status != 'cancelado_tardio' &&
+                status != 'recusado';
+
+            if (ocupado) {
+              horariosOcupados.add(DateFormat('HH:mm').format(agendamento.dataHora));
+            }
+          }
+
+          return horariosOcupados;
+        })
+        .asBroadcastStream();
+  }
+
   // Retorna um Stream para atualização em tempo real
   Stream<List<Agendamento>> getAgendamentos() {
     return _db
@@ -2500,7 +2667,8 @@ class FirestoreService {
           (snapshot) => snapshot.docs
               .map((doc) => Agendamento.fromMap(doc.data(), id: doc.id))
               .toList(),
-        );
+      )
+      .asBroadcastStream();
   }
 
   Stream<List<Agendamento>> getAgendamentosDoCliente(String uid) {
@@ -2513,7 +2681,8 @@ class FirestoreService {
           (snapshot) => snapshot.docs
               .map((doc) => Agendamento.fromMap(doc.data(), id: doc.id))
               .toList(),
-        );
+      )
+      .asBroadcastStream();
   }
 
   Future<void> atualizarStatusAgendamento(
@@ -2774,7 +2943,8 @@ class FirestoreService {
           (snapshot) => snapshot.docs
               .map((doc) => ChatMensagem.fromMap(doc.data(), id: doc.id))
               .toList(),
-        );
+      )
+      .asBroadcastStream();
   }
 
   Future<void> marcarMensagensComoLidas(

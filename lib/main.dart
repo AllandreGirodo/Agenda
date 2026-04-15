@@ -144,22 +144,21 @@ void main() async {
         );
       }
 
-      // Verificacao das chaves obrigatorias do cliente atual.
-      final requiredKeys = <String>[
-        'DB_ADMIN_PASSWORD',
-        'ADMIN_EMAIL',
-        ..._requiredFirebaseEnvKeysForCurrentPlatform(),
-      ];
-      final missingKeys = requiredKeys
-          .where((key) => dotenv.env[key] == null || dotenv.env[key]!.isEmpty)
-          .toSet()
-          .toList();
+      // Verificacao opcional de chaves: so executa quando forçado via
+      // --dart-define=FORCE_CONFIG_CHECK=true.
+      if (forceConfigCheck) {
+        final requiredKeys = <String>[
+          'DB_ADMIN_PASSWORD',
+          'ADMIN_EMAIL',
+          ..._requiredFirebaseEnvKeysForCurrentPlatform(),
+        ];
+        final missingKeys = requiredKeys
+            .where((key) => dotenv.env[key] == null || dotenv.env[key]!.isEmpty)
+            .toSet()
+            .toList();
 
-      if (missingKeys.isNotEmpty) {
-        debugPrint(AppStrings.configAlertMissingKeys(missingKeys.join(', ')));
-
-        // Em Release, bloqueia o app se faltar configuração crítica
-        if (kReleaseMode || forceConfigCheck) {
+        if (missingKeys.isNotEmpty) {
+          debugPrint(AppStrings.configAlertMissingKeys(missingKeys.join(', ')));
           runApp(
             ConfigErrorView(
               message: AppStrings.appInitConfigSegurancaAusente,
@@ -173,7 +172,7 @@ void main() async {
         }
       }
     } catch (e) {
-      if (kReleaseMode || forceConfigCheck) {
+      if (forceConfigCheck) {
         runApp(
           ConfigErrorView(
             message: AppStrings.appInitArquivoConfigNaoEncontrado,
@@ -211,8 +210,24 @@ void main() async {
       );
     }
 
+    final bool isLocalWebHost = kIsWeb &&
+      (Uri.base.host == 'localhost' ||
+        Uri.base.host == '127.0.0.1' ||
+        Uri.base.host == '0.0.0.0' ||
+        Uri.base.host == '::1');
+
+    final String? debugTokenForWeb =
+        (kDebugMode && isLocalWebHost) ? null : appCheckDebugToken;
+
+    const bool enableAppCheckInDebug = bool.fromEnvironment(
+      'ENABLE_APPCHECK_IN_DEBUG',
+      defaultValue: false,
+    );
+
     await configureWebAppCheckDebugToken(
-      appCheckDebugToken.isEmpty ? null : appCheckDebugToken,
+      (debugTokenForWeb == null || debugTokenForWeb.isEmpty)
+          ? null
+          : debugTokenForWeb,
     );
 
     // 2. Inicialização do Firebase
@@ -253,17 +268,9 @@ void main() async {
     }
 
     // 3. App Check para Web
-    const bool enableAppCheckInDebug = bool.fromEnvironment(
-      'ENABLE_APPCHECK_IN_DEBUG',
-      defaultValue: false,
-    );
     final recaptchaKey = _resolveRecaptchaSiteKey();
-    final bool hasDebugAppCheckToken = appCheckDebugToken.isNotEmpty;
     final bool shouldEnableWebAppCheck =
-        kIsWeb &&
-        (kReleaseMode ||
-            enableAppCheckInDebug ||
-            (kDebugMode && hasDebugAppCheckToken));
+        kIsWeb && (kReleaseMode || enableAppCheckInDebug);
     if (shouldEnableWebAppCheck && recaptchaKey.isNotEmpty) {
       try {
         await FirebaseAppCheck.instance.activate(

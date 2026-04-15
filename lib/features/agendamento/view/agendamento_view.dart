@@ -336,7 +336,10 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                       horizontal: 8,
                     ),
                     child: Text(
-                      'Registro de Tela: ${DateFormat('dd/MM/yyyy HH:mm:ss').format(now)}\nID: ${currentUser?.uid ?? "N/A"}',
+                      AppStrings.registroTelaRodape(
+                        DateFormat('dd/MM/yyyy HH:mm:ss').format(now),
+                        currentUser?.uid ?? AppStrings.usuarioNaoDisponivelCurto,
+                      ),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: Colors.grey.shade600,
@@ -572,17 +575,80 @@ class _AgendamentoViewState extends State<AgendamentoView> {
                     },
                   ),
                   const SizedBox(height: 16),
-                  DropdownButton<String>(
-                    hint: Text(AppLocalizations.of(context)!.selectTimeHint),
-                    value: _horarioSelecionado,
-                    isExpanded: true,
-                    items: SchedulingService.getSlotsDisponiveis().map((slot) {
-                      return DropdownMenuItem(value: slot, child: Text(slot));
-                    }).toList(),
-                    onChanged: (value) {
-                      setStateDialog(() {
-                        _horarioSelecionado = value;
-                      });
+                  StreamBuilder<Set<String>>(
+                    stream: _firestoreService.getHorariosOcupadosPorData(
+                      _dataSelecionada,
+                    ),
+                    builder: (context, snapshot) {
+                      final horariosOcupados = snapshot.data ?? <String>{};
+                      final todosHorarios = SchedulingService.getSlotsDisponiveis();
+                      final horariosDisponiveis = todosHorarios
+                          .where((slot) => !horariosOcupados.contains(slot))
+                          .toList();
+
+                      final horarioSelecionadoValido =
+                          _horarioSelecionado != null &&
+                          horariosDisponiveis.contains(_horarioSelecionado);
+
+                      if (!horarioSelecionadoValido &&
+                          _horarioSelecionado != null) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!context.mounted) return;
+                          setStateDialog(() {
+                            _horarioSelecionado = null;
+                          });
+                        });
+                      }
+
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const LinearProgressIndicator();
+                      }
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          DropdownButton<String>(
+                            hint: Text(AppLocalizations.of(context)!.selectTimeHint),
+                            value: horarioSelecionadoValido
+                                ? _horarioSelecionado
+                                : null,
+                            isExpanded: true,
+                            items: todosHorarios.map((slot) {
+                              final ocupado = horariosOcupados.contains(slot);
+                              return DropdownMenuItem<String>(
+                                value: slot,
+                                enabled: !ocupado,
+                                child: Text(
+                                  ocupado
+                                      ? AppStrings.horarioPreenchido(slot)
+                                      : slot,
+                                  style: TextStyle(
+                                    color: ocupado ? Colors.grey : null,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: horariosDisponiveis.isEmpty
+                                ? null
+                                : (value) {
+                                    setStateDialog(() {
+                                      _horarioSelecionado = value;
+                                    });
+                                  },
+                          ),
+                          if (horariosDisponiveis.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                AppStrings.nenhumHorarioDisponivelData,
+                                style: TextStyle(
+                                  color: Colors.orange.shade800,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
                     },
                   ),
                   const SizedBox(height: 16),
@@ -879,6 +945,104 @@ class _AgendamentoViewState extends State<AgendamentoView> {
     }
   }
 
+  int _sobreposicaoEmMinutos(
+    DateTime inicioA,
+    DateTime fimA,
+    DateTime inicioB,
+    DateTime fimB,
+  ) {
+    final inicioEfetivo = inicioA.isAfter(inicioB) ? inicioA : inicioB;
+    final fimEfetivo = fimA.isBefore(fimB) ? fimA : fimB;
+
+    if (!fimEfetivo.isAfter(inicioEfetivo)) {
+      return 0;
+    }
+
+    return fimEfetivo.difference(inicioEfetivo).inMinutes;
+  }
+
+  double _calcularHorasValidasAteAgendamento(
+    DateTime agora,
+    DateTime dataAgendamento,
+  ) {
+    if (!dataAgendamento.isAfter(agora) || _config == null) {
+      return 0.0;
+    }
+
+    int minutosValidos = 0;
+    DateTime diaCursor = DateTime(agora.year, agora.month, agora.day);
+
+    while (diaCursor.isBefore(dataAgendamento)) {
+      final inicioProximoDia = diaCursor.add(const Duration(days: 1));
+      final inicioIntervalo = agora.isAfter(diaCursor) ? agora : diaCursor;
+      final fimIntervalo = dataAgendamento.isBefore(inicioProximoDia)
+          ? dataAgendamento
+          : inicioProximoDia;
+
+      final minutosIntervalo = fimIntervalo.difference(inicioIntervalo).inMinutes;
+      if (minutosIntervalo <= 0) {
+        diaCursor = inicioProximoDia;
+        continue;
+      }
+
+      int minutosSono = 0;
+      if (_config!.inicioSono < _config!.fimSono) {
+        final inicioSono = DateTime(
+          diaCursor.year,
+          diaCursor.month,
+          diaCursor.day,
+          _config!.inicioSono,
+        );
+        final fimSono = DateTime(
+          diaCursor.year,
+          diaCursor.month,
+          diaCursor.day,
+          _config!.fimSono,
+        );
+        minutosSono = _sobreposicaoEmMinutos(
+          inicioIntervalo,
+          fimIntervalo,
+          inicioSono,
+          fimSono,
+        );
+      } else {
+        // Janela de sono cruza meia-noite (ex.: 22:00-06:00).
+        final inicioDia = DateTime(diaCursor.year, diaCursor.month, diaCursor.day);
+        final meiaNoiteSeguinte = inicioProximoDia;
+        final inicioSonoNoite = DateTime(
+          diaCursor.year,
+          diaCursor.month,
+          diaCursor.day,
+          _config!.inicioSono,
+        );
+        final fimSonoMadrugada = DateTime(
+          diaCursor.year,
+          diaCursor.month,
+          diaCursor.day,
+          _config!.fimSono,
+        );
+
+        minutosSono += _sobreposicaoEmMinutos(
+          inicioIntervalo,
+          fimIntervalo,
+          inicioDia,
+          fimSonoMadrugada,
+        );
+        minutosSono += _sobreposicaoEmMinutos(
+          inicioIntervalo,
+          fimIntervalo,
+          inicioSonoNoite,
+          meiaNoiteSeguinte,
+        );
+      }
+
+      minutosValidos += (minutosIntervalo - minutosSono).clamp(0, minutosIntervalo);
+      diaCursor = inicioProximoDia;
+    }
+
+    return minutosValidos / 60.0;
+  }
+
   // Lógica de Cancelamento
   Future<void> _iniciarCancelamento(Agendamento agendamento) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -896,30 +1060,10 @@ class _AgendamentoViewState extends State<AgendamentoView> {
       return;
     }
 
-    // Cálculo de horas válidas (descontando sono)
-    int minutosValidos = 0;
-    DateTime cursor = agora;
-
-    // Itera minuto a minuto (simples e eficaz para intervalos curtos de dias)
-    while (cursor.isBefore(dataAgendamento)) {
-      final hora = cursor.hour;
-      bool dormindo = false;
-
-      if (_config!.inicioSono < _config!.fimSono) {
-        // Ex: 22h as 23h (mesmo dia) - raro para sono, mas possível
-        dormindo = hora >= _config!.inicioSono && hora < _config!.fimSono;
-      } else {
-        // Ex: 22h as 06h (cruza meia noite)
-        dormindo = hora >= _config!.inicioSono || hora < _config!.fimSono;
-      }
-
-      if (!dormindo) {
-        minutosValidos++;
-      }
-      cursor = cursor.add(const Duration(minutes: 1));
-    }
-
-    final horasValidas = minutosValidos / 60.0;
+    final horasValidas = _calcularHorasValidasAteAgendamento(
+      agora,
+      dataAgendamento,
+    );
     final horasNecessarias = _config!.horasAntecedenciaCancelamento;
 
     bool foraDoPrazo = horasValidas < horasNecessarias;
@@ -975,7 +1119,9 @@ class _AgendamentoViewState extends State<AgendamentoView> {
 
                 final status = foraDoPrazo ? 'cancelado_tardio' : 'cancelado';
                 final motivoFinal = foraDoPrazo
-                    ? '[FORA DO PRAZO] ${motivoController.text}'
+                    ? AppStrings.prefixoCancelamentoForaDoPrazo(
+                        motivoController.text,
+                      )
                     : motivoController.text;
 
                 await _firestoreService.cancelarAgendamento(
@@ -1116,7 +1262,9 @@ class AgendamentoDetalhesView extends StatelessWidget {
                             ),
                           ),
                           child: Text(
-                            agendamento.status.toUpperCase(),
+                            AppStrings.agendamentoStatusLabel(
+                              agendamento.status,
+                            ).toUpperCase(),
                             style: TextStyle(
                               color: _getStatusColor(agendamento.status),
                               fontWeight: FontWeight.bold,

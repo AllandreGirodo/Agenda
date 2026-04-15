@@ -55,6 +55,13 @@ class _LoginViewState extends State<LoginView> {
         normalizado == 'cancelled';
   }
 
+        bool _isGoogleAuthLikelyAppCheckError(Object e) {
+          final message = e.toString().toLowerCase();
+          return message.contains('app check') ||
+          message.contains('appcheck') ||
+          message.contains('firebase-app-check-token-is-invalid');
+        }
+
   Future<void> _initializeGoogleSignInIfNeeded() async {
     if (_googleSignInInitialized) return;
     await GoogleSignIn.instance.initialize();
@@ -68,8 +75,7 @@ class _LoginViewState extends State<LoginView> {
           return message.contains('app check') ||
           message.contains('app-check') ||
           message.contains('appcheck') ||
-          message.contains('firebase app check token is invalid') ||
-          message.contains('identitytoolkit');
+          message.contains('firebase app check token is invalid');
         }
 
   @override
@@ -85,20 +91,25 @@ class _LoginViewState extends State<LoginView> {
 
     try {
       final resultado = await FirebaseAuth.instance.getRedirectResult();
+      final usuarioAutenticado = resultado.user ?? FirebaseAuth.instance.currentUser;
       final temRetornoValido =
-          resultado.user != null || resultado.credential != null;
+          resultado.user != null ||
+          resultado.credential != null ||
+          usuarioAutenticado != null;
       if (!temRetornoValido || !mounted) return;
 
       _setLoadingSafely(true);
       await _loginController
-          .logarComGoogleAutenticado(context)
+          .logarComGoogleAutenticado(context, authUser: usuarioAutenticado)
           .timeout(const Duration(seconds: 25));
     } on TimeoutException {
-      // Evita estado de carregamento preso se o retorno do redirect demorar indefinidamente.
-      await FirebaseAuth.instance.signOut();
+      // Evita derrubar sessão válida quando o retorno do redirect atrasa em navegadores com cache/cookies restritos.
+      debugPrint('Timeout ao processar retorno do Google Redirect.');
     } on FirebaseAuthException catch (e) {
       if (_isGoogleCancelCode(e.code)) {
-        await FirebaseAuth.instance.signOut();
+        if (FirebaseAuth.instance.currentUser == null) {
+          await FirebaseAuth.instance.signOut();
+        }
         return;
       }
       debugPrint(AppStrings.erroGoogleLogin('${e.code}: ${e.message}'));
@@ -310,13 +321,13 @@ class _LoginViewState extends State<LoginView> {
       if (kIsWeb) {
         final provider = GoogleAuthProvider()
           ..setCustomParameters({'prompt': 'select_account'});
-
         try {
           await FirebaseAuth.instance.signInWithPopup(provider);
         } on FirebaseAuthException catch (e) {
           if (e.code == 'popup-blocked' ||
               e.code == 'cancelled-popup-request' ||
-              e.code == 'operation-not-supported-in-this-environment') {
+              e.code == 'operation-not-supported-in-this-environment' ||
+              e.code == 'internal-error') {
             await FirebaseAuth.instance.signInWithRedirect(provider);
             return;
           }
@@ -344,6 +355,7 @@ class _LoginViewState extends State<LoginView> {
 
       if (!mounted) return;
       await _loginController.logarComGoogleAutenticado(context);
+
     } on TimeoutException {
       await FirebaseAuth.instance.signOut();
     } catch (e) {
@@ -378,7 +390,9 @@ class _LoginViewState extends State<LoginView> {
             ? (_isFirestorePermissionLikelyAppCheck(e)
                   ? AppStrings.erroLoginAppCheck
                   : AppStrings.erroLoginPermissaoFirestore)
-            : AppStrings.erroGoogleLogin('$e');
+            : (_isGoogleAuthLikelyAppCheckError(e)
+                  ? AppStrings.erroLoginAppCheck
+                  : AppStrings.erroGoogleLogin('$e'));
         messenger.showSnackBar(
           SnackBar(content: Text(mensagemErro)),
         );
@@ -451,7 +465,7 @@ class _LoginViewState extends State<LoginView> {
     } catch (e) {
       if (mounted) {
         messenger.showSnackBar(
-          SnackBar(content: Text('${AppStrings.biometriaErro}: $e')),
+          SnackBar(content: Text(AppStrings.biometriaErroComDetalhe('$e'))),
         );
       }
     }
@@ -483,7 +497,15 @@ class _LoginViewState extends State<LoginView> {
                     alignment: Alignment.topRight,
                     child: LanguageSelector(),
                   ),
-                  const Icon(Icons.spa, size: 64, color: AppColors.primary),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.asset(
+                      'lib/assets/Logo_favIcon.png',
+                      width: 64,
+                      height: 64,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     AppStrings.loginTitulo,

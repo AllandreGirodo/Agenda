@@ -332,6 +332,24 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String erroLoginComDetalhe(String? erro) => _isPt
       ? 'Erro de login: ${erro ?? 'desconhecido'}'
       : 'Login error: ${erro ?? 'unknown'}';
+    static String erroLoginComCodigoDetalhe(String? codigo, String? erro) {
+        final detalhe = (erro ?? '').trim();
+        final codigoNormalizado = (codigo ?? '').trim();
+        final detalheEhGenerico = detalhe.isEmpty || detalhe.toLowerCase() == 'error';
+
+        if (detalheEhGenerico) {
+            if (codigoNormalizado.isNotEmpty) {
+                return _isPt
+                        ? 'Erro de login (codigo: $codigoNormalizado). Verifique e-mail/senha ou configuracao do Firebase.'
+                        : 'Login error (code: $codigoNormalizado). Check email/password or Firebase configuration.';
+            }
+            return _isPt
+                    ? 'Erro de login. Verifique e-mail/senha ou tente novamente em instantes.'
+                    : 'Login error. Check email/password or try again shortly.';
+        }
+
+        return erroLoginComDetalhe(detalhe);
+    }
   static String erroCadastroComDetalhe(String erro) =>
       _isPt ? 'Erro ao cadastrar: $erro' : 'Registration error: $erro';
   static String get erroEmailJaEmUso => _isPt
@@ -354,6 +372,9 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get biometriaErro => _isPt
       ? 'Erro na autenticação biométrica'
       : 'Biometric authentication error';
+  static String biometriaErroComDetalhe(String erro) => _isPt
+      ? 'Erro na autenticação biométrica: $erro'
+      : 'Biometric authentication error: $erro';
   static String get testeBooleanoBancoBtn =>
       _isPt ? 'Conferir/Criar campos do usuário' : 'Check/Create user fields';
   static String testeBooleanoBancoSucesso(bool valor) => _isPt
@@ -580,8 +601,31 @@ Service and package prices are subject to change. Payment must be made as agreed
     String status,
     String motivoTexto,
   ) => _isPt
-      ? 'Tipo: $tipo\nStatus: $status$motivoTexto'
-      : 'Type: $tipo\nStatus: $status$motivoTexto';
+            ? 'Tipo: $tipo\nStatus: ${agendamentoStatusLabel(status)}$motivoTexto'
+            : 'Type: $tipo\nStatus: ${agendamentoStatusLabel(status)}$motivoTexto';
+    static String agendamentoStatusLabel(String status) {
+        switch (status) {
+            case 'pendente':
+                return _isPt ? 'Pendente' : 'Pending';
+            case 'aprovado':
+                return _isPt ? 'Aprovado' : 'Approved';
+            case 'recusado':
+                return _isPt ? 'Recusado' : 'Rejected';
+            case 'cancelado':
+                return _isPt ? 'Cancelado' : 'Cancelled';
+            case 'cancelado_tardio':
+                return _isPt ? 'Cancelado Fora do Prazo' : 'Late Cancellation';
+            default:
+                return status;
+        }
+    }
+    static String registroTelaRodape(String dataHora, String usuarioId) => _isPt
+            ? 'Registro de Tela: $dataHora\nID: $usuarioId'
+            : 'Screen Log: $dataHora\nID: $usuarioId';
+    static String get usuarioNaoDisponivelCurto => _isPt ? 'N/D' : 'N/A';
+    static String prefixoCancelamentoForaDoPrazo(String motivo) => _isPt
+            ? '[FORA DO PRAZO] $motivo'
+            : '[LATE CANCELLATION] $motivo';
   static String motivoInline(String motivo) =>
       _isPt ? '\nMotivo: $motivo' : '\nReason: $motivo';
   static String get horarioOcupadoListaEspera => _isPt
@@ -590,6 +634,12 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get jaExisteAgendamentoNoHorario => _isPt
       ? 'Você já possui um agendamento ativo neste horário.'
       : 'You already have an active appointment in this time slot.';
+  static String horarioPreenchido(String horario) => _isPt
+      ? '$horario (preenchido)'
+      : '$horario (filled)';
+  static String get nenhumHorarioDisponivelData => _isPt
+      ? 'Não há horários disponíveis para esta data.'
+      : 'There are no available time slots for this date.';
   static String get listaEsperaEntradaSucesso => _isPt
       ? 'Você será notificado se este horário vagar.'
       : 'You will be notified if this slot becomes available.';
@@ -739,6 +789,8 @@ Service and package prices are subject to change. Payment must be made as agreed
       _isPt ? 'Telefone: $telefone' : 'Phone: $telefone';
   static String uidLabel(String uid) =>
       _isPt ? 'UID: $uid' : 'UID: $uid';
+  static String documentoDetalhesTitulo(String id) =>
+      _isPt ? 'Doc: $id' : 'Doc: $id';
   static String emailCadastroLabel(String email, String dataCadastro) => _isPt
       ? 'Email: $email\nCadastrado em: $dataCadastro'
       : 'Email: $email\nRegistered on: $dataCadastro';
@@ -796,8 +848,8 @@ Service and package prices are subject to change. Payment must be made as agreed
       ? 'Pacote de 10 sessões adicionado para $nome!'
       : '10-session package added for $nome!';
   static String agendamentoStatusSucesso(String status) => _isPt
-      ? 'Agendamento $status com sucesso!'
-      : 'Appointment $status successfully!';
+      ? 'Agendamento ${agendamentoStatusLabel(status)} com sucesso!'
+      : 'Appointment ${agendamentoStatusLabel(status)} successfully!';
   static String usuarioAprovadoSucesso(String nome) => _isPt
       ? 'Usuário $nome aprovado com sucesso!'
       : 'User $nome approved successfully!';
@@ -1160,6 +1212,7 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get dashboardAdministrativo =>
       _isPt ? 'Dashboard Administrativo' : 'Administrative Dashboard';
   static String get resumoDoDia => _isPt ? 'Resumo do Dia' : 'Daily Summary';
+  static String get confirmados => _isPt ? 'Confirmados' : 'Confirmed';
   static String get estoqueBaixo => _isPt ? 'Estoque Baixo' : 'Low Stock';
   static String get estoqueEmDia =>
       _isPt ? 'Estoque em dia!' : 'Stock is up to date!';
@@ -1186,6 +1239,24 @@ Service and package prices are subject to change. Payment must be made as agreed
   static String get tentarNovamente => _isPt ? 'Tentar novamente' : 'Try again';
   static String faturamentoUltimosDias(int dias) =>
       _isPt ? 'Faturamento (Últimos $dias dias)' : 'Revenue (Last $dias days)';
+  static String get relatorioFinanceiroTitulo =>
+      _isPt ? 'Relatório Financeiro' : 'Financial Report';
+  static String periodoRelatorioFinanceiro(int dias) => _isPt
+      ? 'Período: $dias dias'
+      : 'Period: $dias days';
+  static String get cabecalhoTabelaData => _isPt ? 'Data' : 'Date';
+  static String get cabecalhoTabelaCliente => _isPt ? 'Cliente' : 'Client';
+  static String get cabecalhoTabelaMetodo => _isPt ? 'Método' : 'Method';
+  static String get cabecalhoTabelaValorLiquido =>
+      _isPt ? 'Valor Líquido' : 'Net Amount';
+  static String opcaoPeriodoDias(int dias) => _isPt ? '$dias dias' : '$dias days';
+  static String horaDoDiaLabel(int hora) => _isPt ? '$hora:00' : '$hora:00';
+  static String indiceListaLabel(int indiceBaseUm) =>
+      _isPt ? '$indiceBaseUm' : '$indiceBaseUm';
+  static String get relatorioAgendamentosTexto =>
+      _isPt ? 'Relatório de Agendamentos' : 'Appointments Report';
+  static String get relatorioAgendamentosTitulo => relatorioAgendamentosTexto;
+  static String get totalLabel => _isPt ? 'Total:' : 'Total:';
   static String get tooltipExportarPdfFinanceiro => _isPt
       ? 'Exportar Relatório Financeiro (PDF)'
       : 'Export Financial Report (PDF)';

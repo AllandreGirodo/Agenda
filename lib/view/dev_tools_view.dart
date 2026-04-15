@@ -917,7 +917,7 @@ class _DevToolsViewState extends State<DevToolsView> {
                             titulo.toString(),
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
-                          subtitle: Text('ID: ${doc.id}'),
+                          subtitle: Text(AppStrings.uidLabel(doc.id)),
                           trailing: const Icon(
                             Icons.data_object,
                             color: Colors.teal,
@@ -943,7 +943,7 @@ class _DevToolsViewState extends State<DevToolsView> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Doc: $id'),
+        title: Text(AppStrings.documentoDetalhesTitulo(id)),
         content: SingleChildScrollView(
           child: SelectableText(
             jsonString,
